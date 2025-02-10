@@ -1,0 +1,8 @@
+obj/
+Obj/
+.vscode/
+.DS_Store/
+*.o
+biqbin
+test/Instances/Rudy/*.output*
+

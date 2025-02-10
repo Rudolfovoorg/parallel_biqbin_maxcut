@@ -1,5 +1,11 @@
 #### BiqBin makefile ####
 
+# container image name
+IMAGE ?= parallel-biqbin-maxcut
+# container image tag
+TAG ?= 1.0.0
+DOCKER_BUILD_PARAMS ?=
+
 # Directories
 OBJ = Obj
 
@@ -11,6 +17,20 @@ OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common
 
 # binary
 BINS =  biqbin
+
+# test command
+TEST = ./test.sh \
+	$(BINS) \
+	test/Instances/rudy/g05_60.0 \
+	test/Instances/rudy/g05_60.0-expected_output \
+	test/params
+
+# python test command
+TEST_PYTHON = ./test.sh \
+	"python3 test.py" \
+	test/Instances/rudy/g05_60.0 \
+	test/Instances/rudy/g05_60.0-expected_output \
+	test/params
 
 # BiqBin objects
 BBOBJS = $(OBJ)/bundle.o $(OBJ)/allocate_free.o $(OBJ)/bab_functions.o \
@@ -31,6 +51,20 @@ CFLAGS = $(OPTI) -Wall -W -pedantic
 
 # Default rule is to create all binaries #
 all: $(BINS)
+
+test: all
+	$(TEST)
+	$(TEST_PYTHON)
+	
+docker: 
+	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
+
+docker-test:
+	docker run --rm $(IMAGE):$(TAG) $(TEST)
+	
+docker-clean: 
+	docker rmi -f $(IMAGE):$(TAG) 
+
 
 # Rules for binaries #
 $(BINS) : $(OBJS)

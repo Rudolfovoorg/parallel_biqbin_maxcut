@@ -9,7 +9,7 @@ import numpy as np
 from biqbin_data_objects import BiqBinParameters, BabSolution, BabNode
 
 
-class SerialBiqBinMaxCut:
+class ParallelBiqBinMaxCut:
     def __init__(self, biqbin_path="biqbin.so"):
         # Load the shared library
         if not os.path.exists(biqbin_path):
@@ -328,7 +328,7 @@ class BabFunctions:
 
     # branches of a node, calls evaluate for both children nodes using C biqbin,
     # if needed pushes them into the priority queue
-    def branch(self, node: BabNode, biqbin: SerialBiqBinMaxCut, rank: int):
+    def branch(self, node: BabNode, biqbin: ParallelBiqBinMaxCut, rank: int):
         biqbin.evaluate(node, rank)
 
         if not (self.best_lower_bound + 1 < node.upper_bound):

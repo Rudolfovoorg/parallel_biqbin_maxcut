@@ -3,7 +3,7 @@ import time
 import heapq
 import numpy as np
 from mpi4py import MPI
-from parallel_biqbin_maxcut import SerialBiqBinMaxCut, BabFunctions
+from parallel_biqbin_maxcut import ParallelBiqBinMaxCut, BabFunctions
 from biqbin_data_objects import BabSolution
 
 """
@@ -19,7 +19,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-biqbin = SerialBiqBinMaxCut()
+biqbin = ParallelBiqBinMaxCut()
 num_vertices = 0
 name = ''.encode('utf-8')
 status = MPI.Status()

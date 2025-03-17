@@ -30,6 +30,7 @@ output_filtered=$(echo "$output" | extract_comparison_lines)
 
 # Extract info
 nodes=$(echo "$output" | grep '^Nodes =' | sed 's/Nodes = //')
+root_node_bound=$(echo "$output" | grep '^Root node bound =' | sed 's/Root node bound = //')
 time_taken=$(echo "$output" | grep '^Time =' | sed 's/Time = //' | sed 's/s$//')
 max_val=$(echo "$output" | grep '^Maximum value =' | sed 's/Maximum value = //')
 
@@ -38,6 +39,7 @@ nodes=${nodes:-0}
 time_taken=${time_taken:-0}
 
 expected_nodes=$(cat "$3" | grep '^Nodes =' | sed 's/Nodes = //')
+expected_root_node_bound=$(cat "$3" | grep '^Root node bound =' | sed 's/Root node bound = //')
 expected_time=$(cat "$3" | grep '^Time =' | sed 's/Time = //' | sed 's/s$//')
 
 exp_max_val=$(cat "$3" | grep '^Maximum value =' | sed 's/Maximum value = //')
@@ -51,13 +53,13 @@ node_diff=$((nodes - expected_nodes))
 time_diff=$(awk "BEGIN {print $time_taken - $expected_time}")
 
 max_val_diff=$(($max_val - $exp_max_val))
+root_node_bound_diff=$(awk "BEGIN {print $root_node_bound - $expected_root_node_bound}")
 
-# Filter output (you had this missing)
 output_filtered=$(echo "$output" | extract_comparison_lines)
 expected_output_filtered=$(cat "$3" | extract_comparison_lines)
 
 # Print result
-echo "Max val diff = ${max_val_diff}; Node diff = ${node_diff}; Time diff = ${time_diff}s"
+echo "Max val diff = ${max_val_diff}; Node diff = ${node_diff}; Root bound diff = ${root_node_bound_diff} Time diff = ${time_diff}s"
 # if [[ "$output_filtered" == "$expected_output_filtered" ]]; then
 #     echo "O.K."
 # else

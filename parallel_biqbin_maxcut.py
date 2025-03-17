@@ -329,6 +329,11 @@ class BabFunctions:
     # branches of a node, calls evaluate for both children nodes using C biqbin,
     # if needed pushes them into the priority queue
     def branch(self, node: BabNode, biqbin: SerialBiqBinMaxCut, rank: int):
+        biqbin.evaluate(node, rank)
+
+        if not (self.best_lower_bound + 1 < node.upper_bound):
+            return
+
         ic = self.get_branching_variable(node)
 
         for xic in range(2):  # 0 - 1
@@ -344,10 +349,8 @@ class BabFunctions:
                     print(
                         f"Node {self.num_eval_nodes} Feasible solution {sol_val:2}")
             else:
-                biqbin.evaluate(child_node, rank)
-                if (self.best_lower_bound + 1 < child_node.upper_bound):
-                    heapq.heappush(
-                        self.pq, (-child_node.upper_bound, child_node))
+                # biqbin.evaluate(child_node, rank)
+                heapq.heappush(self.pq, (-child_node.upper_bound, child_node))
 
     def evaluate_solution(self, sol: BabSolution) -> float:
         sol_val = 0

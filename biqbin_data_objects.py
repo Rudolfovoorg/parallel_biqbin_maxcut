@@ -48,3 +48,6 @@ class BabNode(ctypes.Structure):
         ("level", ctypes.c_int),              # Level (depth) in the B&B tree
         ("upper_bound", ctypes.c_double)      # Upper bound on max-cut solution
     ]
+
+    def __lt__(self, other):
+        return self.upper_bound < other.upper_bound

@@ -92,15 +92,15 @@ int main(int argc, char **argv) {
         // and places it in priority queue if not able to prune
         over = Init_PQ();
 
-	printf("Initial lower bound: %.0lf\n", Bab_LBGet());    
+	    printf("Initial lower bound: %.0lf\n", Bab_LBGet());    
 
-	// broadcast diff
-    printf("diff = %f", globals->diff);
-	if (params.use_diff)
-	    MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
+        // broadcast diff
+        printf("diff = %f", globals->diff);
+        if (params.use_diff)
+            MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
 
-        // broadcast lower bound to others or -1 to exit
-	MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
+            // broadcast lower bound to others or -1 to exit
+        MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         if ( (over == -1) || params.root) {          
             goto FINISH;

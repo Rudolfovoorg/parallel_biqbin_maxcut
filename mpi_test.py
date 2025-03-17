@@ -63,16 +63,14 @@ if rank == 0:
     free_workers = [i for i in range(1, size)]
     # create root node and branch it to distribute it to 2 free workers
     root_node = babfuns.generate_node()
-    biqbin.evaluate(root_node, rank)
+    # biqbin.evaluate(root_node, rank)
+    babfuns.branch(root_node, biqbin, rank)
+
     root_node_upper_bound = root_node.upper_bound
     sol_val = babfuns.evaluate_solution(root_node.sol)
     # Update solution
     babfuns.best_lower_bound = sol_val
     babfuns.solution = root_node.sol
-    if (sol_val + 1 < root_node_upper_bound):
-        heapq.heappush(babfuns.pq, (-root_node_upper_bound, root_node))
-    else:
-        over = True
     # Broadcast over
     if len(babfuns.pq) == 0:
         over = True

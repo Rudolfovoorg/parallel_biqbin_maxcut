@@ -11,8 +11,9 @@ extern int BabPbSize;
 double Evaluate(BabNode *node, Problem *SP, Problem *PP, int rank) {
     
     // create subproblem PP
+    printf("Before create subproblem\n");
     createSubproblem(node, SP, PP);
-
+    printf("BabPbSize = %d\n", BabPbSize);
     // compute the SDP upper bound and run heuristic
     double bound = SDPbound(node, SP, PP, rank); 
 

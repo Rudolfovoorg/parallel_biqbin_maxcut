@@ -191,3 +191,8 @@ int Bab_LBUpd(double new_LB, BabSolution *bs) {
     }
     return 0;
 }
+
+// Checked in python if it's better, then update here
+void LBUpdate(double new_LB) {
+    BabLB = new_LB;
+}

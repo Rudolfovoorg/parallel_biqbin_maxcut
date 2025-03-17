@@ -298,6 +298,7 @@ BabNode* Bab_PQPop(void);                                  // take and remove th
 void Bab_PQInsert(BabNode *node);                          // insert node into priority queue based on intbound and level 
 void Bab_LBInit(double lowerBound, BabSolution *bs);       // initialize global lower bound and solution vector
 Heap* Init_Heap(int size);                                 // allocates space for heap (array of BabNode*)
+void LBUpdate(double new_LB);
 
 /* heuristic.c */
 double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x);
@@ -322,10 +323,17 @@ int processCommandLineArguments(int argc, char **argv, int rank);
 int readData(const char *instance);
 int readParameters(const char *path, int rank);
 void setParams(BiqBinParameters params);
+void setParams(BiqBinParameters params_in);
+void printParameters(BiqBinParameters params_in);
 double getDiff();
+void setDiff(double diff);
+
 
 /* qap_simuted_annealing.c */
 double qap_simulated_annealing(int *H, int k, double *X, int n, int *pent);
 
+/* biqbin.c */
+void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbin_parameters);
+void EvaluateWrapped(BabNode *node, int rank);
 
 #endif /*BIQBIN_H */

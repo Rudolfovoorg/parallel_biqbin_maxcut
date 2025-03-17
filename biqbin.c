@@ -1,9 +1,6 @@
 #include "biqbin.h"
 #include <string.h>
 
-#define HEAP_SIZE 10000000
-
-extern Heap *heap;
 extern GlobalVariables *globals;
 
 extern int BabPbSize;
@@ -19,7 +16,9 @@ void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbi
     globals->SP->n = number_of_vertices;
     globals->PP->n = number_of_vertices;
     // allocate memory for objective matrices for SP and PP
-    globals->SP->L = L;
+    // globals->SP->L = L;
+    alloc_matrix(globals->SP->L, globals->SP->n, double);
+    memcpy(globals->SP->L, L, number_of_vertices * number_of_vertices * sizeof(double));
     BabPbSize = number_of_vertices - 1;
 
     alloc_matrix(globals->PP->L, globals->SP->n, double);

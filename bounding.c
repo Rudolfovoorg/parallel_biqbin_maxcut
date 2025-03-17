@@ -76,7 +76,6 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
 
     // store basic SDP bound to compute diff in the root node
     double basic_bound = globals->f + fixedvalue;
-
     // Store the fractional solution in the node    
     index = 0;
     for (int i = 0; i < BabPbSize; ++i) {
@@ -89,7 +88,6 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
             ++index;
         }
     }
-
     /* run heuristic */
     for (int i = 0; i < BabPbSize; ++i) {
         if (node->xfixed[i]) {
@@ -101,8 +99,13 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
     }
 
     runHeuristic(SP, PP, node, x);
-    updateSolution(x);
-
+    if (updateSolution(x))
+    {
+        // Beno's note - I need to store the solution into current nodes BabSolution struct to read it in python
+        for (int i = 0; i < BabPbSize; ++i) {
+            node->sol.X[i] = x[i];
+        }
+    }
     // upper bound
     bound = globals->f + fixedvalue;
 
@@ -112,7 +115,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
         goto END;
     }
 
-    // check if cutting planes need to be added     
+    // check if cutting planes need to be added
     if (params.use_diff && (rank != 0) && (bound > Bab_LBGet() + globals->diff + 1.0)) {
         giveup = 1;
         goto END;
@@ -176,7 +179,6 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
 
         // upper bound
         bound = globals->f + fixedvalue;
-
         // prune test
         prune = ( bound < Bab_LBGet() + 1.0 ) ? 1 : 0;
  
@@ -193,7 +195,13 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
             }
 
             runHeuristic(SP, PP, node, x);
-            updateSolution(x);
+            if (updateSolution(x))
+            {
+                // Beno's note - I need to store the solution into current nodes BabSolution struct to read it in python
+                for (int i = 0; i < BabPbSize; ++i) {
+                    node->sol.X[i] = x[i];
+                }
+            }
 
             prune = ( bound < Bab_LBGet() + 1.0 ) ? 1 : 0;
         }
@@ -334,11 +342,11 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
 
     // compute difference between basic SDP relaxation and bound with added cutting planes
     if (rank == 0)
+    {
         globals->diff = basic_bound - bound;
-
+    }
     END:   
 
     return bound;
-
 }
 

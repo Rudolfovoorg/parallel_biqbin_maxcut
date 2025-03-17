@@ -189,6 +189,24 @@ void setParams(BiqBinParameters params_in) {
     params.TriIneq = globals->SP->n * 10;
 }
 
+void printParameters(BiqBinParameters params_in) {
+    printf("BiqBin parameters:\n");
+    #define P(type, name, format, def_value) \
+        printf("%20s = " format "\n", #name, params_in.name);
+
+    PARAM_FIELDS
+    #undef P
+
+    if (output) {
+        fprintf(output, "BiqBin parameters:\n");
+        #define P(type, name, format, def_value) \
+        fprintf(output ? output : stdout, "%20s = " format "\n", #name, params_in.name);
+
+        PARAM_FIELDS
+        #undef P
+    }
+}
+
 /*** read graph file ***/
 int readData(const char *instance) {
 
@@ -324,4 +342,8 @@ int readData(const char *instance) {
 
 double getDiff() {
     return globals->diff;
+}
+
+void setDiff(double diff) {
+    globals->diff = diff;
 }

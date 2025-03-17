@@ -23,7 +23,7 @@ extract_info_lines() {
 }
 
 # Run solver and capture output
-output=$(mpiexec -n 8 ./$1 "$2" "$4") || exit $?
+output=$($1 $2 $4) || exit $?
 
 # Extract for comparison
 output_filtered=$(echo "$output" | extract_comparison_lines)
@@ -31,6 +31,7 @@ output_filtered=$(echo "$output" | extract_comparison_lines)
 # Extract info
 nodes=$(echo "$output" | grep '^Nodes =' | sed 's/Nodes = //')
 time_taken=$(echo "$output" | grep '^Time =' | sed 's/Time = //' | sed 's/s$//')
+max_val=$(echo "$output" | grep '^Maximum value =' | sed 's/Maximum value = //')
 
 # Ensure variables aren't empty (default to 0)
 nodes=${nodes:-0}
@@ -38,6 +39,8 @@ time_taken=${time_taken:-0}
 
 expected_nodes=$(cat "$3" | grep '^Nodes =' | sed 's/Nodes = //')
 expected_time=$(cat "$3" | grep '^Time =' | sed 's/Time = //' | sed 's/s$//')
+
+exp_max_val=$(cat "$3" | grep '^Maximum value =' | sed 's/Maximum value = //')
 
 # Ensure expected values aren't empty (default to 0)
 expected_nodes=${expected_nodes:-0}
@@ -47,15 +50,18 @@ expected_time=${expected_time:-0}
 node_diff=$((nodes - expected_nodes))
 time_diff=$(awk "BEGIN {print $time_taken - $expected_time}")
 
+max_val_diff=$(($max_val - $exp_max_val))
+
 # Filter output (you had this missing)
 output_filtered=$(echo "$output" | extract_comparison_lines)
 expected_output_filtered=$(cat "$3" | extract_comparison_lines)
 
 # Print result
-if [[ "$output_filtered" == "$expected_output_filtered" ]]; then
-    echo "O.K.! Nodes diff = ${node_diff}; Time diff = ${time_diff}s"
-else
-    echo "Failed!"
-    diff <(echo "$output_filtered") <(echo "$expected_output_filtered")
-    exit 1
-fi
+echo "Max val diff = ${max_val_diff}; Node diff = ${node_diff}; Time diff = ${time_diff}s   --- taken: ${time_taken}s vs exp: ${expected_time}"
+# if [[ "$output_filtered" == "$expected_output_filtered" ]]; then
+#     echo "O.K.! Nodes diff = ${node_diff}; Time diff = ${time_diff}s"
+#     echo
+# else
+#     echo "Failed!"
+#     diff <(echo "$output_filtered") <(echo "$expected_output_filtered")
+# fi

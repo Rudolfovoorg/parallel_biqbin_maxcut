@@ -26,7 +26,7 @@ void Bab_incEvalNodes(void) { ++Bab_numNodes; }
  */
 inline int compare_Nodes(const BabNode* node1, const BabNode* node2) {
 
-    return ( (node1->upper_bound > node2->upper_bound) ? 1 : -1 );           
+    return ( (node1->upper_bound > node2->upper_bound) ? 1 : -1 );
 }
 
 

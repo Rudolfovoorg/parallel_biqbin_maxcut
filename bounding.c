@@ -4,21 +4,23 @@ extern BiqBinParameters params;
 extern FILE *output;
 extern int BabPbSize;
 
-extern double TIME;                 
-extern Triangle_Inequality *Cuts;            // vector of triangle inequality constraints
-extern Pentagonal_Inequality *Pent_Cuts;     // vector of pentagonal inequality constraints
-extern Heptagonal_Inequality *Hepta_Cuts;    // vector of heptagonal inequality constraints
+extern GlobalVariables *globals;
 
-extern double f;                             // function value of relaxation
-extern double *X;                            // current X
-extern double *X_bundle;                     // current X
-extern double *F;                            // bundle of function values
-extern double *G;                            // bundle of subgradients
-extern double *g;                            // subgradient
-extern double *dual_gamma;                   // dual multiplers for triangle inequalities
-extern double *X_test;
+// extern double TIME;                 
+// extern Triangle_Inequality *Cuts;            // vector of triangle inequality constraints
+// extern Pentagonal_Inequality *Pent_Cuts;     // vector of pentagonal inequality constraints
+// extern Heptagonal_Inequality *Hepta_Cuts;    // vector of heptagonal inequality constraints
 
-extern double diff;		                     // difference between basic SDP relaxation and bound with added cutting planes
+// extern double f;                             // function value of relaxation
+// extern double *X;                            // current X
+// extern double *X_bundle;                     // current X
+// extern double *F;                            // bundle of function values
+// extern double *G;                            // bundle of subgradients
+// extern double *g;                            // subgradient
+// extern double *dual_gamma;                   // dual multiplers for triangle inequalities
+// extern double *X_test;
+
+// extern double diff;		                     // difference between basic SDP relaxation and bound with added cutting planes
 
 /******** main bounding routine calling bundle method ********/
 double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
@@ -70,10 +72,10 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
     int Hepta_NumSubtracted = 0;                         
 
     /* solve basic SDP relaxation with interior-point method */
-    ipm_mc_pk(PP->L, PP->n, X, &f, 0);
+    ipm_mc_pk(PP->L, PP->n, globals->X, &globals->f, 0);
 
     // store basic SDP bound to compute diff in the root node
-    double basic_bound = f + fixedvalue;
+    double basic_bound = globals->f + fixedvalue;
 
     // Store the fractional solution in the node    
     index = 0;
@@ -83,7 +85,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
         }
         else {
             // convert x (last column X) from {-1,1} to {0,1}
-            node->fracsol[i] = 0.5*(X[(PP->n - 1) + index*PP->n] + 1.0); 
+            node->fracsol[i] = 0.5*(globals->X[(PP->n - 1) + index*PP->n] + 1.0); 
             ++index;
         }
     }
@@ -102,7 +104,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
     updateSolution(x);
 
     // upper bound
-    bound = f + fixedvalue;
+    bound = globals->f + fixedvalue;
 
     // check pruning condition
     if ( bound < Bab_LBGet() + 1.0 ) {
@@ -111,13 +113,13 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
     }
 
     // check if cutting planes need to be added     
-    if (params.use_diff && (rank != 0) && (bound > Bab_LBGet() + diff + 1.0)) {
+    if (params.use_diff && (rank != 0) && (bound > Bab_LBGet() + globals->diff + 1.0)) {
         giveup = 1;
         goto END;
     }
 
     /* separate first triangle inequality */
-    viol3 = updateTriangleInequalities(PP, dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
+    viol3 = updateTriangleInequalities(PP, globals->dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
 
     /***************
      * Bundle init *
@@ -125,7 +127,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
 
     // set dual_gamma = 0
     for (int i = 0; i < PP->NIneq; ++i) {
-        dual_gamma[i] = Cuts[i].y;
+        globals->dual_gamma[i] = globals->Cuts[i].y;
     }
 
     // t = 0.5 * (f - fh) / (PP->NIneq * viol3^2)
@@ -134,29 +136,29 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
     // first evaluation at dual_gamma: f = fct_eval(PP, dual_gamma, X, g)
     // since dual_gamma = 0, this is just basic SDP relaxation
     // --> only need to compute subgradient
-    dcopy_(&PP->NIneq, &e, &inc_e, g, &inc);
-    op_B(PP, g, X);
+    dcopy_(&PP->NIneq, &e, &inc_e, globals->g, &inc);
+    op_B(PP, globals->g, globals->X);
 
 
     /* setup for bundle */
     // F[0] = <L,X>
-    F[0] = 0.0;
+    globals->F[0] = 0.0;
     for (int i = 0; i < PP->n; ++i) {
         for (int j = i; j < PP->n; ++j) {
             if (i == j) {
-                F[0] += PP->L[i + i*PP->n] * X[i + i*PP->n];
+                globals->F[0] += PP->L[i + i*PP->n] * globals->X[i + i*PP->n];
             }
             else {
-                F[0] += 2 * PP->L[j + i*PP->n] * X[j + i*PP->n];
+                globals->F[0] += 2 * PP->L[j + i*PP->n] * globals->X[j + i*PP->n];
             }
         }
     }
 
     // G = g
-    dcopy_(&PP->NIneq, g, &inc, G, &inc);
+    dcopy_(&PP->NIneq, globals->g, &inc, globals->G, &inc);
 
     // include X in X_bundle
-    dcopy_(&nn, X, &inc, X_bundle, &inc);
+    dcopy_(&nn, globals->X, &inc, globals->X_bundle, &inc);
 
     // initialize the bundle counter
     PP->bundle = 1;
@@ -167,13 +169,13 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
 
         // Update iteration counter
         ++count;
-        oldf = f;
+        oldf = globals->f;
 
         // Call bundle method
         bundle_method(PP, &t, bdl_iter);  
 
         // upper bound
-        bound = f + fixedvalue;
+        bound = globals->f + fixedvalue;
 
         // prune test
         prune = ( bound < Bab_LBGet() + 1.0 ) ? 1 : 0;
@@ -202,13 +204,13 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
 
         /* check if we will not be able to prune the node */
         if (count == params.triag_iter + params.pent_iter + params.hept_iter) {
-            if ( (gap - 1.0 > (oldf - f)*(params.max_outer_iter - count)))
+            if ( (gap - 1.0 > (oldf - globals->f)*(params.max_outer_iter - count)))
                 giveup = 1;
         }
 
         /* check if extra iterations can close the gap */
         if (count == params.max_outer_iter) {
-            if ( gap - 1.0 > (oldf - f)*params.extra_iter )
+            if ( gap - 1.0 > (oldf - globals->f)*params.extra_iter )
                 giveup = 1;
         }
         
@@ -224,14 +226,14 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
             penta = PP->NPentIneq;      // --> to know with which index in dual vector dual_gamma, pentagonal
                                         // and heptagonal inequalities start!
 
-            viol3 = updateTriangleInequalities(PP, dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
+            viol3 = updateTriangleInequalities(PP, globals->dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
                       
             /* include pentagonal and heptagonal inequalities */          
             if ( params.include_Pent && (count > params.triag_iter || viol3 < 0.2) )
-                viol5 = updatePentagonalInequalities(PP, dual_gamma, &Pent_NumAdded, &Pent_NumSubtracted, triag);  
+                viol5 = updatePentagonalInequalities(PP, globals->dual_gamma, &Pent_NumAdded, &Pent_NumSubtracted, triag);  
 
             if ( params.include_Hepta && ( (count > params.triag_iter + params.pent_iter) || (viol3 < 0.2 && (1 - viol5 < 0.4)) ) )
-                viol7 = updateHeptagonalInequalities(PP, dual_gamma, &Hepta_NumAdded, &Hepta_NumSubtracted, triag + penta);      
+                viol7 = updateHeptagonalInequalities(PP, globals->dual_gamma, &Hepta_NumAdded, &Hepta_NumSubtracted, triag + penta);      
         }
         else {               
             Tri_NumAdded = 0;
@@ -255,7 +257,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
             }
             else {
                 // convert x (last column X) from {-1,1} to {0,1}
-                node->fracsol[i] = 0.5*(X[(PP->n - 1) + index*PP->n] + 1.0); 
+                node->fracsol[i] = 0.5*(globals->X[(PP->n - 1) + index*PP->n] + 1.0); 
                 ++index;
             }
         }
@@ -265,16 +267,16 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
 
             // adjust size of dual_gamma
             for (int i = 0; i < PP->NIneq; ++i)
-                dual_gamma[i] = Cuts[i].y;
+                globals->dual_gamma[i] = globals->Cuts[i].y;
             
             for (int i = 0; i < PP->NPentIneq; ++i)
-                dual_gamma[i + PP->NIneq] = Pent_Cuts[i].y;
+                globals->dual_gamma[i + PP->NIneq] = globals->Pent_Cuts[i].y;
 
             for (int i = 0; i < PP->NHeptaIneq; ++i)
-                dual_gamma[i + PP->NIneq + PP->NPentIneq] = Hepta_Cuts[i].y;
+                globals->dual_gamma[i + PP->NIneq + PP->NPentIneq] = globals->Hepta_Cuts[i].y;
 
 
-            fct_eval(PP, dual_gamma, X_test, g);
+            fct_eval(PP, globals->dual_gamma, globals->X_test, globals->g);
 
             // G
             /* for i = 1:k
@@ -282,30 +284,30 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
              * end
              */ 
             mk = (PP->NIneq + PP->NPentIneq + PP->NHeptaIneq) * PP->bundle;
-            dcopy_(&mk, &e, &inc_e, G, &inc); // fill G with 1
+            dcopy_(&mk, &e, &inc_e, globals->G, &inc); // fill G with 1
             for (int i = 0; i < PP->bundle; ++i) {
-                op_B(PP, G + i*(PP->NIneq + PP->NPentIneq + PP->NHeptaIneq), X_bundle + i * nn );
+                op_B(PP, globals->G + i*(PP->NIneq + PP->NPentIneq + PP->NHeptaIneq), globals->X_bundle + i * nn );
             }
 
             // add g to G
             int ineq = PP->NIneq + PP->NPentIneq + PP->NHeptaIneq;
-            dcopy_(&ineq, g, &inc, G + PP->bundle * (PP->NIneq + PP->NPentIneq + PP->NHeptaIneq), &inc);
+            dcopy_(&ineq, globals->g, &inc, globals->G + PP->bundle * (PP->NIneq + PP->NPentIneq + PP->NHeptaIneq), &inc);
 
             // add <L, X> to F
-            F[PP->bundle] = 0.0;
+            globals->F[PP->bundle] = 0.0;
             for (int i = 0; i < PP->n; ++i) {
                 for (int j = i; j < PP->n; ++j) {
                     if (i == j) {
-                        F[PP->bundle] += PP->L[i + i*PP->n] * X_test[i + i*PP->n];
+                        globals->F[PP->bundle] += PP->L[i + i*PP->n] * globals->X_test[i + i*PP->n];
                     }
                     else {
-                        F[PP->bundle] += 2 * PP->L[j + i*PP->n] * X_test[j + i*PP->n];
+                        globals->F[PP->bundle] += 2 * PP->L[j + i*PP->n] * globals->X_test[j + i*PP->n];
                     }
                 }
             }
 
             // add X to X_bundle
-            dcopy_(&nn, X_test, &inc, X_bundle + PP->bundle * nn, &inc);
+            dcopy_(&nn, globals->X_test, &inc, globals->X_bundle + PP->bundle * nn, &inc);
 
             // Check bundle size for overflow (can not append more)
             if (PP->bundle == MaxBundle) {
@@ -328,11 +330,11 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
  
     } // end while loop
 
-    bound = f + fixedvalue;
+    bound = globals->f + fixedvalue;
 
     // compute difference between basic SDP relaxation and bound with added cutting planes
     if (rank == 0)
-        diff = basic_bound - bound;
+        globals->diff = basic_bound - bound;
 
     END:   
 

@@ -1,0 +1,12 @@
+Input file: Instances/rudy/g05_60.9
+
+Graph has 60 vertices and 885 edges.
+
+Nodes = 5
+Root node bound = 535.36
+Maximum value = 533
+Solution = ( 1 3 5 6 9 10 11 12 14 16 18 19 20 24 26 27 29 31 34 37 38 41 42 43 45 47 48 49 55 58 59 )
+Time = 0.83 s
+
+Number of cores: 8
+Maximum number of workers used: 3

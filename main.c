@@ -6,20 +6,19 @@
 
 #define HEAP_SIZE 1000000
 extern Heap *heap;
-extern double diff;
 
 extern BiqBinParameters params;
-extern double TIME;
 extern FILE *output;
+extern GlobalVariables *globals;
 
 int num_workers_used = 0;
 
 int main(int argc, char **argv) {
+    globals = calloc(1, sizeof(GlobalVariables));
 
     /*******************************************************
     *********** BRANCH & BOUND: PARALLEL ALGORITHM ********
     ******************************************************/
-
     // number of processes = master + workers
     int numbWorkers;
 
@@ -62,7 +61,7 @@ int main(int argc, char **argv) {
     /***********************************/
 
     // Start the timer
-    TIME = MPI_Wtime();
+    globals->TIME = MPI_Wtime();
 
     // type of message
     Message message;
@@ -84,9 +83,7 @@ int main(int argc, char **argv) {
 	
     if (read_error)
         goto FINISH;
-	
-	
-
+        
     /******************** MASTER PROCESS ********************/
     if (rank == 0)
     {
@@ -98,8 +95,9 @@ int main(int argc, char **argv) {
 	printf("Initial lower bound: %.0lf\n", Bab_LBGet());    
 
 	// broadcast diff
+    printf("diff = %f", globals->diff);
 	if (params.use_diff)
-	    MPI_Bcast(&diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
+	    MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
 
         // broadcast lower bound to others or -1 to exit
 	MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -151,7 +149,7 @@ int main(int argc, char **argv) {
             --numbFreeWorkers;
 
             MPI_Send(&over, 1, MPI_INT, worker, OVER, MPI_COMM_WORLD);
-	    MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, worker, LOWER_BOUND, MPI_COMM_WORLD);
+	        MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, worker, LOWER_BOUND, MPI_COMM_WORLD);
             MPI_Send(child_node, 1, BabNodetype, worker, PROBLEM, MPI_COMM_WORLD);
 
             free(child_node);
@@ -187,7 +185,7 @@ int main(int argc, char **argv) {
     {
 	// receive diff
 	if (params.use_diff)
-	    MPI_Bcast(&diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
+	    MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
 
 	// receive over (stop or continue)
 	MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -210,7 +208,7 @@ int main(int argc, char **argv) {
 
             if (!over) {
 
-		alloc(node, BabNode);
+		        alloc(node, BabNode);
 
                 // receive subproblem from master or other worker
 		        MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, MPI_ANY_SOURCE, LOWER_BOUND, MPI_COMM_WORLD, &status);
@@ -225,12 +223,12 @@ int main(int argc, char **argv) {
                 while(!isPQEmpty()){
 
                     // check if time limit reached
-                    if (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit) {
+                    if (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) {
                         break;
                     }
 
                     worker_Bab_Main(BabSolutiontype, BabNodetype, rank);
-                }    
+                }
 
                 message = IDLE;
                 MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
@@ -247,9 +245,9 @@ int main(int argc, char **argv) {
     if (rank == 0) {
         printFinalOutput(stdout,Bab_numEvalNodes());
         printFinalOutput(output,Bab_numEvalNodes());
-	fprintf(output, "Number of cores: %d\n", numbWorkers);
-	fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
-	printf("Maximum number of workers used: %d\n", num_workers_used);
+	    fprintf(output, "Number of cores: %d\n", numbWorkers);
+	    fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
+	    printf("Maximum number of workers used: %d\n", num_workers_used);
         fclose(output);
     }
 

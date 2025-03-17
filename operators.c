@@ -2,9 +2,7 @@
 
 #include "biqbin.h"
 
-extern Triangle_Inequality *Cuts;           // vector of triangle inequality constraints
-extern Pentagonal_Inequality *Pent_Cuts;    // vector of pentagonal inequality constraints
-extern Heptagonal_Inequality *Hepta_Cuts;   // vector of heptagonal inequality constraints
+extern GlobalVariables *globals;
 
 
 /***************** diag *********************/
@@ -56,10 +54,10 @@ void op_B(const Problem *P, double *y, const double *X) {
     /* triangle inequalities */
     for (int ineq = 0; ineq < P->NIneq; ++ineq) {
 
-        type = Cuts[ineq].type;
-        ii   = Cuts[ineq].i;
-        jj   = Cuts[ineq].j;
-        kk   = Cuts[ineq].k;
+        type = globals->Cuts[ineq].type;
+        ii   = globals->Cuts[ineq].i;
+        jj   = globals->Cuts[ineq].j;
+        kk   = globals->Cuts[ineq].k;
 
         switch (type) {
             
@@ -80,12 +78,12 @@ void op_B(const Problem *P, double *y, const double *X) {
     /* pentagonal inequalities */
     for (int ineq = 0; ineq < P->NPentIneq; ++ineq) {
 
-        type = Pent_Cuts[ineq].type;
-        ii   = Pent_Cuts[ineq].permutation[0];
-        jj   = Pent_Cuts[ineq].permutation[1];
-        kk   = Pent_Cuts[ineq].permutation[2];
-        ll   = Pent_Cuts[ineq].permutation[3];
-        mm   = Pent_Cuts[ineq].permutation[4];
+        type = globals->Pent_Cuts[ineq].type;
+        ii   = globals->Pent_Cuts[ineq].permutation[0];
+        jj   = globals->Pent_Cuts[ineq].permutation[1];
+        kk   = globals->Pent_Cuts[ineq].permutation[2];
+        ll   = globals->Pent_Cuts[ineq].permutation[3];
+        mm   = globals->Pent_Cuts[ineq].permutation[4];
 
         switch (type) {
 
@@ -104,14 +102,14 @@ void op_B(const Problem *P, double *y, const double *X) {
     /* heptagonal inequalities */
     for (int ineq = 0; ineq < P->NHeptaIneq; ++ineq) {
 
-        type = Hepta_Cuts[ineq].type;
-        ii   = Hepta_Cuts[ineq].permutation[0];
-        jj   = Hepta_Cuts[ineq].permutation[1];
-        kk   = Hepta_Cuts[ineq].permutation[2];
-        ll   = Hepta_Cuts[ineq].permutation[3];
-        mm   = Hepta_Cuts[ineq].permutation[4]; 
-        nn   = Hepta_Cuts[ineq].permutation[5];
-        oo   = Hepta_Cuts[ineq].permutation[6];   
+        type = globals->Hepta_Cuts[ineq].type;
+        ii   = globals->Hepta_Cuts[ineq].permutation[0];
+        jj   = globals->Hepta_Cuts[ineq].permutation[1];
+        kk   = globals->Hepta_Cuts[ineq].permutation[2];
+        ll   = globals->Hepta_Cuts[ineq].permutation[3];
+        mm   = globals->Hepta_Cuts[ineq].permutation[4]; 
+        nn   = globals->Hepta_Cuts[ineq].permutation[5];
+        oo   = globals->Hepta_Cuts[ineq].permutation[6];   
 
         switch (type) {
 
@@ -146,10 +144,10 @@ void op_Bt(const Problem *P, double *X, const double *tt) {
     /***** triangle inequalities *****/ 
     for (int ineq = 0; ineq < P->NIneq; ++ineq) {
 
-        type = Cuts[ineq].type;
-        ii   = Cuts[ineq].i;
-        jj   = Cuts[ineq].j;
-        kk   = Cuts[ineq].k;
+        type = globals->Cuts[ineq].type;
+        ii   = globals->Cuts[ineq].i;
+        jj   = globals->Cuts[ineq].j;
+        kk   = globals->Cuts[ineq].k;
 
         temp = 0.5 * tt[ineq];
 
@@ -192,12 +190,12 @@ void op_Bt(const Problem *P, double *X, const double *tt) {
     /***** pentagonal inequalities *****/
     for (int ineq = 0; ineq < P->NPentIneq; ++ineq) {
 
-        type = Pent_Cuts[ineq].type;
-        ii   = Pent_Cuts[ineq].permutation[0];
-        jj   = Pent_Cuts[ineq].permutation[1];
-        kk   = Pent_Cuts[ineq].permutation[2];
-        ll   = Pent_Cuts[ineq].permutation[3];
-        mm   = Pent_Cuts[ineq].permutation[4];
+        type = globals->Pent_Cuts[ineq].type;
+        ii   = globals->Pent_Cuts[ineq].permutation[0];
+        jj   = globals->Pent_Cuts[ineq].permutation[1];
+        kk   = globals->Pent_Cuts[ineq].permutation[2];
+        ll   = globals->Pent_Cuts[ineq].permutation[3];
+        mm   = globals->Pent_Cuts[ineq].permutation[4];
 
         temp = 0.25 * tt[P->NIneq + ineq]; // 0.5 due to symmetry and 0.5 due to pentagonal inequality -0.5*(...) <= 1 
 
@@ -280,14 +278,14 @@ void op_Bt(const Problem *P, double *X, const double *tt) {
     /***** heptagonal inequalities *****/
     for (int ineq = 0; ineq < P->NHeptaIneq; ++ineq) {
 
-        type = Hepta_Cuts[ineq].type;
-        ii   = Hepta_Cuts[ineq].permutation[0];
-        jj   = Hepta_Cuts[ineq].permutation[1];
-        kk   = Hepta_Cuts[ineq].permutation[2];
-        ll   = Hepta_Cuts[ineq].permutation[3];
-        mm   = Hepta_Cuts[ineq].permutation[4]; 
-        nn   = Hepta_Cuts[ineq].permutation[5];
-        oo   = Hepta_Cuts[ineq].permutation[6];
+        type = globals->Hepta_Cuts[ineq].type;
+        ii   = globals->Hepta_Cuts[ineq].permutation[0];
+        jj   = globals->Hepta_Cuts[ineq].permutation[1];
+        kk   = globals->Hepta_Cuts[ineq].permutation[2];
+        ll   = globals->Hepta_Cuts[ineq].permutation[3];
+        mm   = globals->Hepta_Cuts[ineq].permutation[4]; 
+        nn   = globals->Hepta_Cuts[ineq].permutation[5];
+        oo   = globals->Hepta_Cuts[ineq].permutation[6];
 
         temp = 1.0/6.0 * tt[P->NIneq + P->NPentIneq + ineq]; // 0.5 due to symmetry and 1/3 due to heptagonal inequality -1/3*(...) <= 1 
 

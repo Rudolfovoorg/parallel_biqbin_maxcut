@@ -4,3 +4,8 @@
     - mkdir command for OBJ to make Obj directory if there isn't one
     - in clean rule to rm command added -rf and $(OBJ)
     - added the docker command
+    - added clean-output to clean only the output files
+    - added test, test-all commands to run the tests from test.sh
+    - added run, run-all commands to run the solver on the g05 instances
+
+- added test.sh to test the g05 solution on the expected solution

@@ -6,7 +6,16 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libopenblas-dev \
     mpich \
-    && rm -rf /var/lib/apt/lists/*
+    python3 \
+    python3-pip && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir scipy mpi4py
+
+# Set environment variables to avoid multithreaded math lib conflicts
+ENV OPENBLAS_NUM_THREADS=1
+ENV GOTO_NUM_THREADS=1
+ENV OMP_NUM_THREADS=1
 
 WORKDIR /solver
 

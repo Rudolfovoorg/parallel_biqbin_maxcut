@@ -1,25 +1,26 @@
 #include "biqbin.h"
-
 #define ABS(i) ((i)>0 ? (i) : -(i))
 
+
+extern GlobalVariables *globals;
 /******************** Bundle method *********************/
 /* Bundle method for solving Max-Cut SDP relaxation
  * strengthened with cutting planes.
  ******************************************************/
 void bundle_method(Problem *PP, double *t, int bdl_iter) {
 
-    extern double f;                // opt. value of SDP 
-    extern double *g;               // subgradient 
-    extern double *X;               // primal matrix X
-    extern double *X_test;          
-    extern double *X_bundle;        // bundle of matrices Xi
-    extern double *F;               // bundle of <L,Xi>
-    extern double *G;               // bundle of gradients
-    extern double *dual_gamma;           // dual variable to cutting plane inequalities
-    extern double *dgamma;          // step vector for dual_gamma
-    extern double *gamma_test;      
-    extern double *lambda;          // contains scalars of convex combinations of bundle matrices
-    extern double *eta;             // dual variable to dual_gamma >= 0 constraint 
+    // extern double f;                // opt. value of SDP 
+    // extern double *g;               // subgradient 
+    // extern double *X;               // primal matrix X
+    // extern double *X_test;          
+    // extern double *X_bundle;        // bundle of matrices Xi
+    // extern double *F;               // bundle of <L,Xi>
+    // extern double *G;               // bundle of gradients
+    // extern double *dual_gamma;           // dual variable to cutting plane inequalities
+    // extern double *dgamma;          // step vector for dual_gamma
+    // extern double *gamma_test;      
+    // extern double *lambda;          // contains scalars of convex combinations of bundle matrices
+    // extern double *eta;             // dual variable to dual_gamma >= 0 constraint 
 
     // number of cutting planes
     int m = PP->NIneq + PP->NPentIneq + PP->NHeptaIneq; 
@@ -55,48 +56,48 @@ void bundle_method(Problem *PP, double *t, int bdl_iter) {
         /*** compute lambda, eta and dgamma ***/
 
         // zeta = -F - G'*dual_gamma
-        dcopy_(&k, F, &inc, zeta, &inc); // copy F into zeta
+        dcopy_(&k, globals->F, &inc, zeta, &inc); // copy F into zeta
 
         alpha = -1.0;
         beta = -1.0;
         TRANS = 'T';
-        dgemv_(&TRANS, &m, &k, &alpha, G, &m, dual_gamma, &inc, &beta, zeta, &inc);
+        dgemv_(&TRANS, &m, &k, &alpha, globals->G, &m, globals->dual_gamma, &inc, &beta, zeta, &inc);
 
         /*** solve QP ***/
-        lambda_eta(PP, zeta, G, dual_gamma, dgamma, lambda, eta, t);
+        lambda_eta(PP, zeta, globals->G, globals->dual_gamma, globals->dgamma, globals->lambda, globals->eta, t);
 
         /*** make a step: gamma_test = dual_gamma + dgamma; ***/
         for (int i = 0; i < m; ++i)
-            gamma_test[i] = dual_gamma[i] + dgamma[i];
+            globals->gamma_test[i] = globals->dual_gamma[i] + globals->dgamma[i];
 
         /*** evaluate function at gamma_test ***/
-        f_test = fct_eval(PP, gamma_test, X_test, g);
+        f_test = fct_eval(PP, globals->gamma_test, globals->X_test, globals->g);
 
         /* del = f - f_appr(gamma_test) = f - (F'lambda + gamma_test'*G*lambda) */
-        dcopy_(&k, F, &inc, zeta, &inc); // copy F into zeta
+        dcopy_(&k, globals->F, &inc, zeta, &inc); // copy F into zeta
 
         alpha = 1.0;
         beta = 1.0;
         TRANS = 'T';
-        dgemv_(&TRANS, &m, &k, &alpha, G, &m, gamma_test, &inc, &beta, zeta, &inc);
+        dgemv_(&TRANS, &m, &k, &alpha, globals->G, &m, globals->gamma_test, &inc, &beta, zeta, &inc);
         
-        del = f - ddot_(&k, zeta, &inc, lambda, &inc);
+        del = globals->f - ddot_(&k, zeta, &inc, globals->lambda, &inc);
 
         /* lmax = max(lambda) */ 
         lmax = -BIG_NUMBER;   
         for (int i = 0; i < k; ++i)  
-            lmax = (lambda[i] > lmax) ? lambda[i] : lmax;
+            lmax = (globals->lambda[i] > lmax) ? globals->lambda[i] : lmax;
 
         /* 
          * decision whether to make SERIOUS or NULL step
          */         
-        if (f - f_test > 0.05 * del) { // SERIOUS STEP
+        if (globals->f - f_test > 0.05 * del) { // SERIOUS STEP
         
             // dual_gamma = gamma_test
-            dcopy_(&m, gamma_test, &inc, dual_gamma, &inc);  
+            dcopy_(&m, globals->gamma_test, &inc, globals->dual_gamma, &inc);  
 
             // f = f_test
-            f = f_test;
+            globals->f = f_test;
 
             /*** compute primal X (as convex combination)
              * --> retrive X from lambda and bundle matrices 
@@ -105,7 +106,7 @@ void bundle_method(Problem *PP, double *t, int bdl_iter) {
             alpha = 1.0;
             beta = 0.0;
             TRANS = 'N';
-            dgemv_(&TRANS, &nn, &k, &alpha, X_bundle, &nn, lambda, &inc, &beta, X, &inc);
+            dgemv_(&TRANS, &nn, &k, &alpha, globals->X_bundle, &nn, globals->lambda, &inc, &beta, globals->X, &inc);
             
 
             // update t
@@ -118,15 +119,15 @@ void bundle_method(Problem *PP, double *t, int bdl_iter) {
             for (int i = 0; i < k; ++i) {
 
                 // remove bundle element if lambda is small
-                if (lambda[i] < 0.01 * lmax) {
+                if (globals->lambda[i] < 0.01 * lmax) {
                     ++subtracted;
                 } 
                 else {  // keep bundle element
                 
                     if (i > next_bundle) {
-                        F[next_bundle] = F[i];
-                        dcopy_(&m, G + m*i, &inc, G + m*next_bundle, &inc);
-                        dcopy_(&nn, X_bundle + nn*i, &inc, X_bundle + nn*next_bundle, &inc);
+                        globals->F[next_bundle] = globals->F[i];
+                        dcopy_(&m, globals->G + m*i, &inc, globals->G + m*next_bundle, &inc);
+                        dcopy_(&nn, globals->X_bundle + nn*i, &inc, globals->X_bundle + nn*next_bundle, &inc);
                     }
                         
                     ++next_bundle;
@@ -146,21 +147,21 @@ void bundle_method(Problem *PP, double *t, int bdl_iter) {
             /* G = [G g]
              * X = [X X_test(:)]
              * F = [F L(:)'*X_test(:)] */
-            dcopy_(&m, g, &inc, G + m * PP->bundle, &inc);
-            dcopy_(&nn, X_test, &inc, X_bundle + nn * PP->bundle, &inc);
+            dcopy_(&m, globals->g, &inc, globals->G + m * PP->bundle, &inc);
+            dcopy_(&nn, globals->X_test, &inc, globals->X_bundle + nn * PP->bundle, &inc);
 
             temp = 0.0;
             for (int i = 0; i < PP->n; ++i) {
                 for (int j = i; j < PP->n; ++j) {
                     if (i == j) {
-                        temp += PP->L[i + i*PP->n] * X_test[i + i*PP->n];
+                        temp += PP->L[i + i*PP->n] * globals->X_test[i + i*PP->n];
                     }
                     else {
-                        temp += 2 * PP->L[j + i*PP->n] * X_test[j + i*PP->n];
+                        temp += 2 * PP->L[j + i*PP->n] * globals->X_test[j + i*PP->n];
                     }
                 }
             }
-            F[PP->bundle] = temp;
+            globals->F[PP->bundle] = temp;
 
             // update bundle count
             ++(PP->bundle);
@@ -178,15 +179,15 @@ void bundle_method(Problem *PP, double *t, int bdl_iter) {
             for (int i = 0; i < k-1; ++i) {
 
                 // remove bundle element if lambda is small
-                if (lambda[i] < 0.01 * lmax) {
+                if (globals->lambda[i] < 0.01 * lmax) {
                     ++subtracted;
                 } 
                 else { // keep bundle element
 
                     if (i > next_bundle) {
-                        F[next_bundle] = F[i];
-                        dcopy_(&m, G + m*i, &inc, G + m*next_bundle, &inc);
-                        dcopy_(&nn, X_bundle + nn*i, &inc, X_bundle + nn*next_bundle, &inc);
+                        globals->F[next_bundle] = globals->F[i];
+                        dcopy_(&m, globals->G + m*i, &inc, globals->G + m*next_bundle, &inc);
+                        dcopy_(&nn, globals->X_bundle + nn*i, &inc, globals->X_bundle + nn*next_bundle, &inc);
                     }
                             
                     ++next_bundle;
@@ -207,26 +208,26 @@ void bundle_method(Problem *PP, double *t, int bdl_iter) {
              * F = [F L(:)'*X_test(:) F(:,k)] */
 
             // first copy G(:,k), X(:,k) and F(:,k) into right position
-            F[PP->bundle] = F[k-1];
-            dcopy_(&m, G + m * (k-1), &inc, G + m * PP->bundle, &inc);
-            dcopy_(&nn, X_bundle + nn * (k-1), &inc, X_bundle + nn * PP->bundle, &inc);
+            globals->F[PP->bundle] = globals->F[k-1];
+            dcopy_(&m, globals->G + m * (k-1), &inc, globals->G + m * PP->bundle, &inc);
+            dcopy_(&nn, globals->X_bundle + nn * (k-1), &inc, globals->X_bundle + nn * PP->bundle, &inc);
 
             // add g, X_test and L(:)'*X_test(:)
-            dcopy_(&m, g, &inc, G + m * (PP->bundle-1), &inc);
-            dcopy_(&nn, X_test, &inc, X_bundle + nn * (PP->bundle-1), &inc);
+            dcopy_(&m, globals->g, &inc, globals->G + m * (PP->bundle-1), &inc);
+            dcopy_(&nn, globals->X_test, &inc, globals->X_bundle + nn * (PP->bundle-1), &inc);
 
             temp = 0.0;
             for (int i = 0; i < PP->n; ++i) {
                 for (int j = i; j < PP->n; ++j) {
                     if (i == j) {
-                        temp += PP->L[i + i*PP->n] * X_test[i + i*PP->n];
+                        temp += PP->L[i + i*PP->n] * globals->X_test[i + i*PP->n];
                     }
                     else {
-                        temp += 2 * PP->L[j + i*PP->n] * X_test[j + i*PP->n];
+                        temp += 2 * PP->L[j + i*PP->n] * globals->X_test[j + i*PP->n];
                     }
                 }
             }
-            F[PP->bundle-1] = temp;
+            globals->F[PP->bundle-1] = temp;
 
             // update bundle count
             ++(PP->bundle);

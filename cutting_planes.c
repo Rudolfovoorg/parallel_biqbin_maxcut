@@ -2,17 +2,7 @@
 #include "biqbin.h"
 
 extern BiqBinParameters params;
-
-extern Triangle_Inequality *Cuts;        
-extern Triangle_Inequality *List; 
-
-extern Pentagonal_Inequality *Pent_Cuts;        
-extern Pentagonal_Inequality *Pent_List;
-
-extern Heptagonal_Inequality *Hepta_Cuts;        
-extern Heptagonal_Inequality *Hepta_List;
-
-extern double *X;
+extern GlobalVariables *globals;
 
 /************************* TRIANGLE INEQUALITIES *************************/
 
@@ -144,20 +134,20 @@ double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *Nu
     for (ineq = 0; ineq < PP->NIneq; ++ineq) {
 
         // store the dual multiplier
-        Cuts[ineq].y = y[yindex];
+        globals->Cuts[ineq].y = y[yindex];
         ++yindex;
 
         // remove inequality if dual multiplier is small
-        if (Cuts[ineq].y < 1e-5) {
+        if (globals->Cuts[ineq].y < 1e-5) {
             ++subtracted;
         } 
         else // keep inequality
         {
-            Cuts[next_ineq].type  = Cuts[ineq].type;
-            Cuts[next_ineq].i     = Cuts[ineq].i;
-            Cuts[next_ineq].j     = Cuts[ineq].j;
-            Cuts[next_ineq].k     = Cuts[ineq].k;
-            Cuts[next_ineq].y     = Cuts[ineq].y;
+            globals->Cuts[next_ineq].type  = globals->Cuts[ineq].type;
+            globals->Cuts[next_ineq].i     = globals->Cuts[ineq].i;
+            globals->Cuts[next_ineq].j     = globals->Cuts[ineq].j;
+            globals->Cuts[next_ineq].k     = globals->Cuts[ineq].k;
+            globals->Cuts[next_ineq].y     = globals->Cuts[ineq].y;
 
             ++next_ineq;
         }
@@ -167,7 +157,7 @@ double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *Nu
 
 
     // separate new triangle inequalities
-    double maxAllIneq = getViolated_TriangleInequalities(X, N, List, &ListSize);
+    double maxAllIneq = getViolated_TriangleInequalities(globals->X, N, globals->List, &ListSize);
 
     // Add List to Cuts
     int added = 0;
@@ -181,10 +171,10 @@ double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *Nu
         int found_ineq = 0;
         for (ineq = 0; ineq < PP->NIneq; ++ineq) {
 
-            if (Cuts[ineq].type == List[ListCount].type &&
-                    Cuts[ineq].i == List[ListCount].i &&
-                    Cuts[ineq].j == List[ListCount].j &&
-                    Cuts[ineq].k == List[ListCount].k) 
+            if (globals->Cuts[ineq].type == globals->List[ListCount].type &&
+                    globals->Cuts[ineq].i == globals->List[ListCount].i &&
+                    globals->Cuts[ineq].j == globals->List[ListCount].j &&
+                    globals->Cuts[ineq].k == globals->List[ListCount].k) 
             {
                 found_ineq = 1;
             }
@@ -193,12 +183,12 @@ double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *Nu
         // If inequality not already in Cuts, add it to Cuts
         if (!found_ineq) {
 
-            Cuts[next_ineq].type  = List[ListCount].type;
-            Cuts[next_ineq].i     = List[ListCount].i;
-            Cuts[next_ineq].j     = List[ListCount].j;
-            Cuts[next_ineq].k     = List[ListCount].k;
-            Cuts[next_ineq].value = List[ListCount].value;
-            Cuts[next_ineq].y     = 0.0;     // set dual multipliers of new triangle ineq to 0
+            globals->Cuts[next_ineq].type  = globals->List[ListCount].type;
+            globals->Cuts[next_ineq].i     = globals->List[ListCount].i;
+            globals->Cuts[next_ineq].j     = globals->List[ListCount].j;
+            globals->Cuts[next_ineq].k     = globals->List[ListCount].k;
+            globals->Cuts[next_ineq].value = globals->List[ListCount].value;
+            globals->Cuts[next_ineq].y     = 0.0;     // set dual multipliers of new triangle ineq to 0
 
             ++next_ineq;
             ++added;
@@ -328,20 +318,20 @@ double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
     for (ineq = 0; ineq < PP->NPentIneq; ++ineq) {
 
         // store the dual multiplier
-        Pent_Cuts[ineq].y = y[yindex];
+        globals->Pent_Cuts[ineq].y = y[yindex];
         ++yindex;
 
         // remove inequality if dual multiplier is small
-        if (Pent_Cuts[ineq].y < 1e-5) {
+        if (globals->Pent_Cuts[ineq].y < 1e-5) {
             ++subtracted;
         } 
         else // keep inequality
         {
-            Pent_Cuts[next_ineq].type  = Pent_Cuts[ineq].type;
-            Pent_Cuts[next_ineq].y     = Pent_Cuts[ineq].y;
+            globals->Pent_Cuts[next_ineq].type  = globals->Pent_Cuts[ineq].type;
+            globals->Pent_Cuts[next_ineq].y     = globals->Pent_Cuts[ineq].y;
 
             for (int i = 0; i < 5; ++i)
-                Pent_Cuts[next_ineq].permutation[i] = Pent_Cuts[ineq].permutation[i];
+            globals->Pent_Cuts[next_ineq].permutation[i] = globals->Pent_Cuts[ineq].permutation[i];
 
             ++next_ineq;
         }
@@ -351,7 +341,7 @@ double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
 
 
     // separate new pentagonal inequalities
-    double maxAllIneq = getViolated_PentagonalInequalities(X, N, Pent_List, &ListSize);
+    double maxAllIneq = getViolated_PentagonalInequalities(globals->X, N, globals->Pent_List, &ListSize);
 
     // Add List to Cuts
     int added = 0;
@@ -365,12 +355,12 @@ double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
         int found_ineq = 0;
         for (ineq = 0; ineq < PP->NPentIneq; ++ineq) {
 
-            if (Pent_Cuts[ineq].type == Pent_List[ListCount].type &&
-                Pent_Cuts[ineq].permutation[0] == Pent_List[ListCount].permutation[0] &&
-                Pent_Cuts[ineq].permutation[1] == Pent_List[ListCount].permutation[1] &&
-                Pent_Cuts[ineq].permutation[2] == Pent_List[ListCount].permutation[2] &&
-                Pent_Cuts[ineq].permutation[3] == Pent_List[ListCount].permutation[3] &&
-                Pent_Cuts[ineq].permutation[4] == Pent_List[ListCount].permutation[4])
+            if (globals->Pent_Cuts[ineq].type == globals->Pent_List[ListCount].type &&
+                globals->Pent_Cuts[ineq].permutation[0] == globals->Pent_List[ListCount].permutation[0] &&
+                globals->Pent_Cuts[ineq].permutation[1] == globals->Pent_List[ListCount].permutation[1] &&
+                globals->Pent_Cuts[ineq].permutation[2] == globals->Pent_List[ListCount].permutation[2] &&
+                globals->Pent_Cuts[ineq].permutation[3] == globals->Pent_List[ListCount].permutation[3] &&
+                globals->Pent_Cuts[ineq].permutation[4] == globals->Pent_List[ListCount].permutation[4])
             {
                 found_ineq = 1;
             }
@@ -379,17 +369,17 @@ double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
         // If inequality not already in Pent_Cuts, add it to Pent_Cuts
         if (!found_ineq) {
 
-            Pent_Cuts[next_ineq].type           = Pent_List[ListCount].type;
-            Pent_Cuts[next_ineq].permutation[0] = Pent_List[ListCount].permutation[0];
-            Pent_Cuts[next_ineq].permutation[1] = Pent_List[ListCount].permutation[1];
-            Pent_Cuts[next_ineq].permutation[2] = Pent_List[ListCount].permutation[2];
-            Pent_Cuts[next_ineq].permutation[3] = Pent_List[ListCount].permutation[3];
-            Pent_Cuts[next_ineq].permutation[4] = Pent_List[ListCount].permutation[4];
+            globals->Pent_Cuts[next_ineq].type           = globals->Pent_List[ListCount].type;
+            globals->Pent_Cuts[next_ineq].permutation[0] = globals->Pent_List[ListCount].permutation[0];
+            globals->Pent_Cuts[next_ineq].permutation[1] = globals->Pent_List[ListCount].permutation[1];
+            globals->Pent_Cuts[next_ineq].permutation[2] = globals->Pent_List[ListCount].permutation[2];
+            globals->Pent_Cuts[next_ineq].permutation[3] = globals->Pent_List[ListCount].permutation[3];
+            globals->Pent_Cuts[next_ineq].permutation[4] = globals->Pent_List[ListCount].permutation[4];
 
-            Pent_Cuts[next_ineq].value          = Pent_List[ListCount].value;
+            globals->Pent_Cuts[next_ineq].value          = globals->Pent_List[ListCount].value;
 
             // set dual multipliers of new pentagonal ineq to 0
-            Pent_Cuts[next_ineq].y              = 0.0;     
+            globals->Pent_Cuts[next_ineq].y              = 0.0;     
 
             ++next_ineq;
             ++added;
@@ -521,20 +511,20 @@ double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
     for (ineq = 0; ineq < PP->NHeptaIneq; ++ineq) {
 
         // store the dual multiplier
-        Hepta_Cuts[ineq].y = y[yindex];
+        globals->Hepta_Cuts[ineq].y = y[yindex];
         ++yindex;
 
         // remove inequality if dual multiplier is small
-        if (Hepta_Cuts[ineq].y < 1e-5) {
+        if (globals->Hepta_Cuts[ineq].y < 1e-5) {
             ++subtracted;
         } 
         else // keep inequality
         {
-            Hepta_Cuts[next_ineq].type  = Hepta_Cuts[ineq].type;
-            Hepta_Cuts[next_ineq].y     = Hepta_Cuts[ineq].y;
+            globals->Hepta_Cuts[next_ineq].type  = globals->Hepta_Cuts[ineq].type;
+            globals->Hepta_Cuts[next_ineq].y     = globals->Hepta_Cuts[ineq].y;
 
             for (int i = 0; i < 7; ++i)
-                Hepta_Cuts[next_ineq].permutation[i] = Hepta_Cuts[ineq].permutation[i];
+                globals->Hepta_Cuts[next_ineq].permutation[i] = globals->Hepta_Cuts[ineq].permutation[i];
 
             ++next_ineq;
         }
@@ -543,7 +533,7 @@ double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
     PP->NHeptaIneq -= subtracted;
 
     // separate new heptagonal inequalities
-    double maxAllIneq = getViolated_HeptagonalInequalities(X, N, Hepta_List, &ListSize);
+    double maxAllIneq = getViolated_HeptagonalInequalities(globals->X, N, globals->Hepta_List, &ListSize);
 
     // Add List to Cuts
     int added = 0;
@@ -557,14 +547,14 @@ double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
         int found_ineq = 0;
         for (ineq = 0; ineq < PP->NHeptaIneq; ++ineq) {
 
-            if (Hepta_Cuts[ineq].type == Hepta_List[ListCount].type &&
-                Hepta_Cuts[ineq].permutation[0] == Hepta_List[ListCount].permutation[0] &&
-                Hepta_Cuts[ineq].permutation[1] == Hepta_List[ListCount].permutation[1] &&
-                Hepta_Cuts[ineq].permutation[2] == Hepta_List[ListCount].permutation[2] &&
-                Hepta_Cuts[ineq].permutation[3] == Hepta_List[ListCount].permutation[3] &&
-                Hepta_Cuts[ineq].permutation[4] == Hepta_List[ListCount].permutation[4] &&
-                Hepta_Cuts[ineq].permutation[5] == Hepta_List[ListCount].permutation[5] &&
-                Hepta_Cuts[ineq].permutation[6] == Hepta_List[ListCount].permutation[6])
+            if (globals->Hepta_Cuts[ineq].type == globals->Hepta_List[ListCount].type &&
+                globals->Hepta_Cuts[ineq].permutation[0] == globals->Hepta_List[ListCount].permutation[0] &&
+                globals->Hepta_Cuts[ineq].permutation[1] == globals->Hepta_List[ListCount].permutation[1] &&
+                globals->Hepta_Cuts[ineq].permutation[2] == globals->Hepta_List[ListCount].permutation[2] &&
+                globals->Hepta_Cuts[ineq].permutation[3] == globals->Hepta_List[ListCount].permutation[3] &&
+                globals->Hepta_Cuts[ineq].permutation[4] == globals->Hepta_List[ListCount].permutation[4] &&
+                globals->Hepta_Cuts[ineq].permutation[5] == globals->Hepta_List[ListCount].permutation[5] &&
+                globals->Hepta_Cuts[ineq].permutation[6] == globals->Hepta_List[ListCount].permutation[6])
             {
                 found_ineq = 1;
             }
@@ -573,19 +563,19 @@ double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
         // If inequality not already in Hepta_Cuts, add it to Hepta_Cuts
         if (!found_ineq) {
 
-            Hepta_Cuts[next_ineq].type           = Hepta_List[ListCount].type;
-            Hepta_Cuts[next_ineq].permutation[0] = Hepta_List[ListCount].permutation[0];
-            Hepta_Cuts[next_ineq].permutation[1] = Hepta_List[ListCount].permutation[1];
-            Hepta_Cuts[next_ineq].permutation[2] = Hepta_List[ListCount].permutation[2];
-            Hepta_Cuts[next_ineq].permutation[3] = Hepta_List[ListCount].permutation[3];
-            Hepta_Cuts[next_ineq].permutation[4] = Hepta_List[ListCount].permutation[4];
-            Hepta_Cuts[next_ineq].permutation[5] = Hepta_List[ListCount].permutation[5];
-            Hepta_Cuts[next_ineq].permutation[6] = Hepta_List[ListCount].permutation[6];
+            globals->Hepta_Cuts[next_ineq].type           = globals->Hepta_List[ListCount].type;
+            globals->Hepta_Cuts[next_ineq].permutation[0] = globals->Hepta_List[ListCount].permutation[0];
+            globals->Hepta_Cuts[next_ineq].permutation[1] = globals->Hepta_List[ListCount].permutation[1];
+            globals->Hepta_Cuts[next_ineq].permutation[2] = globals->Hepta_List[ListCount].permutation[2];
+            globals->Hepta_Cuts[next_ineq].permutation[3] = globals->Hepta_List[ListCount].permutation[3];
+            globals->Hepta_Cuts[next_ineq].permutation[4] = globals->Hepta_List[ListCount].permutation[4];
+            globals->Hepta_Cuts[next_ineq].permutation[5] = globals->Hepta_List[ListCount].permutation[5];
+            globals->Hepta_Cuts[next_ineq].permutation[6] = globals->Hepta_List[ListCount].permutation[6];
 
-            Hepta_Cuts[next_ineq].value          = Hepta_List[ListCount].value;
+            globals->Hepta_Cuts[next_ineq].value          = globals->Hepta_List[ListCount].value;
 
             // set dual multipliers of new heptagonal ineq to 0
-            Hepta_Cuts[next_ineq].y              = 0.0;     
+            globals->Hepta_Cuts[next_ineq].y              = 0.0;     
 
             ++next_ineq;
             ++added;

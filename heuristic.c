@@ -3,9 +3,10 @@
 #include <math.h>
 
 #include "biqbin.h"
+extern GlobalVariables *globals;
 
-extern double *X;
-extern double *Z;       // stores Cholesky decomposition: X = ZZ^T
+// extern double *X;
+// extern double *Z;       // stores Cholesky decomposition: X = ZZ^T
 
 double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
 
@@ -49,14 +50,14 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
     double alpha;
 
     // Z = X
-    dcopy_(&nn, X, &inc, Z, &inc);
+    dcopy_(&nn, globals->X, &inc, globals->Z, &inc);
 
     while (done < 2) {
 
         ++done;
         
         // compute Cholesky factorization
-        dpotrf_(&UPLO, &n, Z, &n, &info);
+        dpotrf_(&UPLO, &n, globals->Z, &n, &info);
 
         if (info != 0) {
             fprintf(stderr, "%s: Problem with Cholesky factorization \
@@ -67,7 +68,7 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
         // set lower triangle of Z to zero
         for (int i = 0; i < n; ++i)
             for (int j = 0; j < i; ++j)
-                Z[j + i*n] = 0.0;
+                globals->Z[j + i*n] = 0.0;
 
         // Goemans-Williamson heuristic
         heur_val = GW_heuristic(P0, P, node, x, P0->n);
@@ -95,10 +96,10 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
 
         // Z = (1-constant)*X + constant* xh *xh'
         alpha = 1.0 - constant;
-        dcopy_(&nn, X, &inc, Z, &inc);
-        dscal_(&nn, &alpha, Z, &inc);
+        dcopy_(&nn, globals->X, &inc, globals->Z, &inc);
+        dscal_(&nn, &alpha, globals->Z, &inc);
         alpha = constant;
-        dsyr_(&UPLO, &n, &alpha, xh, &inc, Z, &n);
+        dsyr_(&UPLO, &n, &alpha, xh, &inc, globals->Z, &n);
 
     }
 
@@ -139,7 +140,7 @@ double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num) {
 
                 sca = 0.0;
                 for (int j = 0; j < N; ++j)
-                    sca += v[j] * Z[j * N + index];
+                    sca += v[j] * globals->Z[j * N + index];
 
                 if (sca < 0) {
 

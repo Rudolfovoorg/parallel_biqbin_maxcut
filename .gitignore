@@ -5,4 +5,8 @@ Obj/
 *.o
 biqbin
 test/Instances/Rudy/*.output*
-
+*.output*
+__pycache__/
+.vscode/settings.json
+.gitignore
+biqbin.so

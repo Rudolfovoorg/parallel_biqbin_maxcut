@@ -1,47 +1,61 @@
 #!/bin/bash
 
-# A test script for comparing of solver output with expected output for a given problem instance.
-# Usage: ./test biqbin instance expected_output params
+# A test script for comparing solver output with expected output for a given problem instance.
+# Usage: ./test.sh biqbin instance expected_output params
 
 set -e
 
 if [ "$#" -ne 4 ]; then
     echo "Illegal number of parameters"
     echo "Usage:"
-    echo "./test biqbin instance expected_output params"
+    echo "./test.sh biqbin instance expected_output params"
     exit 1
 fi
 
-# Filter out Wall clock time value.
-filter_out_wall_time_line_value() {
-    sed 's/Time = .*/Time = /g'
+# Extract only the important lines for strict comparison
+extract_comparison_lines() {
+    grep -E '^(Root node bound =|Maximum value =|Solution =)'
 }
 
-# Filter out Root node bound value.
-filter_out_root_node_bound_value() {
-    sed 's/Root node bound = .*/Root node bound = /g'
-}
-# Filter out Solution.
-filter_out_bound_again() {
-    sed 's/Root node bound:.*/Root node bound: /g'
+# Extract informational lines only
+extract_info_lines() {
+    grep -E '^(Nodes =|Time =)'
 }
 
-output=$(./biqbin $2 $4) || exit $?
-# Filter out value which may vary due to randomnes.
-output_filtered=$(echo "$output" | filter_out_wall_time_line_value | filter_out_root_node_bound_value | filter_out_bound_again) || exit $?
+# Run solver and capture output
+output=$(mpiexec -n 8 ./$1 "$2" "$4") || exit $?
 
-expected_output=$(cat $3) || exit $?
-# Filter out value which may vary due to randomnes.
-expected_output_filtered=$(echo "$expected_output" | filter_out_wall_time_line_value | filter_out_root_node_bound_value | filter_out_bound_again) || exit $?
+# Extract for comparison
+output_filtered=$(echo "$output" | extract_comparison_lines)
 
+# Extract info
+nodes=$(echo "$output" | grep '^Nodes =' | sed 's/Nodes = //')
+time_taken=$(echo "$output" | grep '^Time =' | sed 's/Time = //' | sed 's/s$//')
+
+# Ensure variables aren't empty (default to 0)
+nodes=${nodes:-0}
+time_taken=${time_taken:-0}
+
+expected_nodes=$(cat "$3" | grep '^Nodes =' | sed 's/Nodes = //')
+expected_time=$(cat "$3" | grep '^Time =' | sed 's/Time = //' | sed 's/s$//')
+
+# Ensure expected values aren't empty (default to 0)
+expected_nodes=${expected_nodes:-0}
+expected_time=${expected_time:-0}
+
+# Calculate differences
+node_diff=$((nodes - expected_nodes))
+time_diff=$(awk "BEGIN {print $time_taken - $expected_time}")
+
+# Filter output (you had this missing)
+output_filtered=$(echo "$output" | extract_comparison_lines)
+expected_output_filtered=$(cat "$3" | extract_comparison_lines)
+
+# Print result
 if [[ "$output_filtered" == "$expected_output_filtered" ]]; then
-    echo "O.K."
+    echo "O.K.! Nodes diff = ${node_diff}; Time diff = ${time_diff}s"
 else
     echo "Failed!"
-
     diff <(echo "$output_filtered") <(echo "$expected_output_filtered")
-    # echo $output_filtered
-    # echo "------"
-    # echo $expected_output_filtered
     exit 1
 fi

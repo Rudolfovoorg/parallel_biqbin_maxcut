@@ -70,7 +70,7 @@ if rank == 0:
     babfuns.best_lower_bound = sol_val
     babfuns.solution = root_node.sol
     if (sol_val + 1 < root_node_upper_bound):
-        babfuns.branch(root_node, biqbin, rank)
+        heapq.heappush(babfuns.pq, (-root_node_upper_bound, root_node))
     else:
         over = True
     # Broadcast over

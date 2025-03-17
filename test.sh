@@ -57,10 +57,9 @@ output_filtered=$(echo "$output" | extract_comparison_lines)
 expected_output_filtered=$(cat "$3" | extract_comparison_lines)
 
 # Print result
-echo "Max val diff = ${max_val_diff}; Node diff = ${node_diff}; Time diff = ${time_diff}s   --- taken: ${time_taken}s vs exp: ${expected_time}"
+echo "Max val diff = ${max_val_diff}; Node diff = ${node_diff}; Time diff = ${time_diff}s"
 # if [[ "$output_filtered" == "$expected_output_filtered" ]]; then
-#     echo "O.K.! Nodes diff = ${node_diff}; Time diff = ${time_diff}s"
-#     echo
+#     echo "O.K."
 # else
 #     echo "Failed!"
 #     diff <(echo "$output_filtered") <(echo "$expected_output_filtered")

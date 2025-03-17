@@ -78,6 +78,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
     double basic_bound = globals->f + fixedvalue;
     // Store the fractional solution in the node    
     index = 0;
+
     for (int i = 0; i < BabPbSize; ++i) {
         if (node->xfixed[i]) {
             node->fracsol[i] = (double) node->sol.X[i];

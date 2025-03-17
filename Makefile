@@ -167,7 +167,7 @@ run-python-all-60:
 run-python-all-80:
 	for i in $(shell seq 0 9); do \
 		mpiexec -n 8 python3 mpi_test.py \
-		Instances/rudy/g05_80.$$i \
+		test/Instances/rudy/g05_80.$$i \
 		$(PARAMS); \
 	done
 
@@ -175,7 +175,7 @@ run-python-all-80:
 run-python-all-100:
 	for i in $(shell seq 0 9); do \
 		mpiexec -n 8 python3 mpi_test.py \
-		Instances/rudy/g05_100.$$i \
+		test/Instances/rudy/g05_100.$$i \
 		$(PARAMS); \
 	done
 

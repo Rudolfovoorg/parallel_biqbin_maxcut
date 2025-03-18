@@ -55,14 +55,14 @@ TEST_ALL_100 = 	for i in $(shell seq 0 9); do \
 	done
 
 TEST_PYTHON = ./test.sh \
-	"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
+	"mpiexec -n $(NUM_PROC) python3 test.py" \
 	test/Instances/rudy/g05_60.0 \
 	test/Instances/rudy/g05_60.0-expected_output \
 	test/params
 
 TEST_ALL_PYTHON_60 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
-			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
+			"mpiexec -n $(NUM_PROC) python3 test.py" \
 			test/Instances/rudy/g05_60.$$i \
 			test/Instances/rudy/g05_60.$$i-expected_output \
 			params ;\
@@ -70,7 +70,7 @@ TEST_ALL_PYTHON_60 = 	for i in $(shell seq 0 9); do \
 
 TEST_ALL_PYTHON_80 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
-			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
+			"mpiexec -n $(NUM_PROC) python3 test.py" \
 			test/Instances/rudy/g05_80.$$i \
 			test/Instances/rudy/g05_80.$$i-expected_output \
 			params ;\
@@ -78,7 +78,7 @@ TEST_ALL_PYTHON_80 = 	for i in $(shell seq 0 9); do \
 
 TEST_ALL_PYTHON_100 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
-			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
+			"mpiexec -n $(NUM_PROC) python3 test.py" \
 			test/Instances/rudy/g05_100.$$i \
 			test/Instances/rudy/g05_100.$$i-expected_output \
 			params ;\
@@ -91,7 +91,7 @@ BBOBJS = $(OBJ)/bundle.o $(OBJ)/allocate_free.o $(OBJ)/bab_functions.o \
          $(OBJ)/evaluate.o $(OBJ)/heap.o $(OBJ)/ipm_mc_pk.o \
          $(OBJ)/heuristic.o $(OBJ)/main.o $(OBJ)/operators.o \
          $(OBJ)/process_input.o $(OBJ)/qap_simulated_annealing.o \
-		 $(OBJ)/biqbin.o
+		 $(OBJ)/biqbin.o $(OBJ)/wrapper_functions.o
 
 
 # All objects

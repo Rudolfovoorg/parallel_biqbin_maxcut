@@ -26,7 +26,7 @@ class BiqBinParameters(ctypes.Structure):
         ('use_diff', ctypes.c_int),
         ('time_limit', ctypes.c_int),
         ('branchingStrategy', ctypes.c_int),
-        ('detailedOutput', ctypes.c_int),
+        ('detailed_output', ctypes.c_int),
     ]
 
 

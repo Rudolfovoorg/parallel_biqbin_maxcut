@@ -218,7 +218,6 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
             break;
         }
     }
-    
 }
 
 /* WORKER process main routine */

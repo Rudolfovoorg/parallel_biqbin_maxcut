@@ -13,7 +13,7 @@ double Evaluate(BabNode *node, Problem *SP, Problem *PP, int rank) {
     // create subproblem PP
     createSubproblem(node, SP, PP);
     // compute the SDP upper bound and run heuristic
-    double bound = SDPbound(node, SP, PP, rank); 
+    double bound = SDPbound(node, SP, PP, rank);
     return bound;
 }
 

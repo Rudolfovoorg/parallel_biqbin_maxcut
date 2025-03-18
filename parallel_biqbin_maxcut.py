@@ -19,7 +19,10 @@ class ParallelBiqBinMaxCut:
         # Initialize solver for evaluation
         self.biqbin.InitSolverWrapped.argtypes = [
             np.ctypeslib.ndpointer(
-                dtype=np.float64, ndim=2, flags='C_CONTIGUOUS'),
+                dtype=np.float64,
+                ndim=2,
+                flags='C_CONTIGUOUS'
+            ),
             ctypes.c_int,
             BiqBinParameters
         ]

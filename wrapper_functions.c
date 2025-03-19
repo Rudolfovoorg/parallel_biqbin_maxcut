@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <mpi.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "biqbin.h"  
 
 #define HEAP_SIZE 1000000
 extern Heap *heap;
+extern int BabPbSize;
 
 extern BiqBinParameters params;
 extern FILE *output;
@@ -59,24 +61,68 @@ void finalizeMPI() {
     MPI_Finalize();
 }
 
-int initSolver(int argc, char** argv) {
+
+// int initSolver(int argc, char** argv) {
+//     globals = calloc(1, sizeof(GlobalVariables));
+//     // Start the timer here or in compute?
+//     globals->TIME = MPI_Wtime();
+
+
+//     /* each process allocates its local priority queue */
+//     heap = Init_Heap(HEAP_SIZE);
+
+//     /* every process reads params and initializes B&B solution,
+//         * only master process creates output file, reads input graph
+//         * and broadcast it */
+//     int read_error = Bab_Init(argc, argv, rank);
+//     return read_error;
+// }
+
+int master_init(char* filename, double* L, int num_vertices, BiqBinParameters params_in) {
     globals = calloc(1, sizeof(GlobalVariables));
     // Start the timer here or in compute?
     globals->TIME = MPI_Wtime();
-
-
     /* each process allocates its local priority queue */
     heap = Init_Heap(HEAP_SIZE);
 
-    /* every process reads params and initializes B&B solution,
-        * only master process creates output file, reads input graph
-        * and broadcast it */
-    int read_error = Bab_Init(argc, argv, rank);
-    return read_error;
-}
+    // Bab_Init(argc, argv, rank) start
+    openOutputFile(filename);
+    // READING INSTANCE FILE
+    // allocate memory for original problem SP and subproblem PP
+    alloc(globals->SP, Problem);
+    alloc(globals->PP, Problem);
 
-int master_init() {
-    // tag to FINISH set to false
+    globals->SP->n = num_vertices;
+    globals->PP->n = num_vertices;
+    // allocate memory for objective matrices for SP and PP
+    // globals->SP->L = L;
+    alloc_matrix(globals->SP->L, globals->SP->n, double);
+    memcpy(globals->SP->L, L, num_vertices * num_vertices * sizeof(double));
+    BabPbSize = num_vertices - 1;
+
+    alloc_matrix(globals->PP->L, globals->SP->n, double);
+    // Parallel specific
+    int N2 = globals->SP->n * globals->SP->n;
+    int incx = 1;
+    int incy = 1;
+    dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
+    // END reading params
+    MPI_Bcast(&(globals->SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(globals->SP->L, globals->SP->n * globals->SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
+
+    // set global parameters
+    setParams(params_in);
+
+    // Seed the random number generator
+    srand(2020);
+
+    // Provide B&B with an initial solution
+    initializeBabSolution();
+
+    // Allocate the memory
+    allocMemory();
+    // End of Bab_Init(argc, argv, rank)
+    // AFTER INPUT DATA HAS BEEN PROCESSED
     // helper variables
     BabNode *node;
     double g_lowerBound;
@@ -187,7 +233,49 @@ void master_end() {
     free(heap);
 }
 
-int worker_init() {
+// Worker receives the SP->L matrix and number of vertices, need params
+int worker_init(BiqBinParameters params_in) {
+    globals = calloc(1, sizeof(GlobalVariables));
+    // Start the timer here or in compute?
+    globals->TIME = MPI_Wtime();
+    /* each process allocates its local priority queue */
+    heap = Init_Heap(HEAP_SIZE);
+
+    // Bab_Init - read input file
+    // allocate memory for original problem SP and subproblem PP
+    alloc(globals->SP, Problem);
+    alloc(globals->PP, Problem);
+
+    MPI_Bcast(&(globals->SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // allocate memory for objective matrices for SP and PP
+    alloc_matrix(globals->SP->L, globals->SP->n, double);
+    alloc_matrix(globals->PP->L, globals->SP->n, double);
+
+    MPI_Bcast(globals->SP->L, globals->SP->n * globals->SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    // IMPORTANT: last node is fixed to 0
+    // --> BabPbSize is one less than the size of problem SP
+    BabPbSize = globals->SP->n - 1; // num_vertices - 1;
+    globals->PP->n = globals->SP->n;
+
+    int N2 = globals->SP->n * globals->SP->n;
+    int incx = 1;
+    int incy = 1;
+    dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
+
+    // set global parameters
+    setParams(params_in);
+    // Seed the random number generator
+    srand(2020);
+
+    // Provide B&B with an initial solution
+    initializeBabSolution();
+
+    // Allocate the memory
+    allocMemory();
+    // End Bab_Init
+
     // helper variables
     double g_lowerBound;
     /******************** WORKER PROCESS ********************/
@@ -202,7 +290,7 @@ int worker_init() {
     if (over == -1 || params.root )   // root node is pruned
         return over;
     else
-            MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // update lower bound
     BabSolution solx;

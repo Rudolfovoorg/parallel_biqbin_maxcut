@@ -1,7 +1,8 @@
-import ctypes
-import os
-import sys
 from typing import List
+import os
+import ctypes
+import numpy as np
+from biqbin_data_objects import BiqBinParameters
 
 
 class ParallelBiqbin:
@@ -14,19 +15,38 @@ class ParallelBiqbin:
         ]
         self.biqbin.initMPI.restype = int
 
-        self.biqbin.initSolver.argtypes = [
+        self.biqbin.master_init.argtypes = [
+            ctypes.c_char_p,
+            np.ctypeslib.ndpointer(
+                dtype=np.float64,
+                ndim=2,
+                flags='C_CONTIGUOUS'
+            ),
             ctypes.c_int,
-            ctypes.POINTER(ctypes.c_char_p)
+            BiqBinParameters
         ]
-        self.biqbin.initSolver.restype = int
-
         self.biqbin.master_init.restype = int
         self.biqbin.master_main_loop.restype = int
 
+        self.biqbin.worker_init.argtypes = [BiqBinParameters]
         self.biqbin.worker_init.restype = int
         self.biqbin.worker_main_loop.restype = int
 
         self.biqbin.getRank.restype = int
+
+        # Initialize solver for evaluation
+        self.biqbin.InitSolverWrapped.argtypes = [
+            np.ctypeslib.ndpointer(
+                dtype=np.float64,
+                ndim=2,
+                flags='C_CONTIGUOUS'
+            ),
+            ctypes.c_int,
+            BiqBinParameters
+        ]
+
+        self.biqbin.setParams.argtypes = [BiqBinParameters]
+        self.biqbin.setParams.restype = int
 
     # init both MPI and the solver, both need argc and argv, return rank if successful
     def initialize(self, graph_path, params_path) -> int:
@@ -63,9 +83,14 @@ class ParallelBiqbin:
         return success
 
     # master rank evaluates the root node and decides if further branching is needed
-    def master_init(self) -> bool:
+    def master_init(self, filename, L, num_verts, params) -> bool:
         # returns 0 if not over
-        return self.biqbin.master_init() != 0
+        return self.biqbin.master_init(
+            filename,
+            L,
+            num_verts,
+            params
+        ) != 0
 
     # Main loop for master rank, waits for communication from workers and responds until all are free
     def master_main_loop(self) -> bool:
@@ -77,8 +102,8 @@ class ParallelBiqbin:
         self.biqbin.finalizeMPI()
 
     # workers first receive status if the solver is done, if not update the global lower bound
-    def worker_init(self) -> bool:
-        return self.biqbin.worker_init() != 0
+    def worker_init(self, params: BiqBinParameters) -> bool:
+        return self.biqbin.worker_init(params) != 0
 
     # worker main loop in C, waits for either the over signal or babnode to process, branches and sends more nodes to other workers
     def worker_main_loop(self):

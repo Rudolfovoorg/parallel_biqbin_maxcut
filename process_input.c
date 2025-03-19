@@ -27,7 +27,7 @@ void print_symmetric_matrix(double *Mat, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             val = (i >= j) ? Mat[i + j*N] : Mat[j + i*N];
-            printf("%24.16e", val);
+            printf("%.0f", val);  // Output: 13
         }
         printf("\n");
     }
@@ -58,6 +58,7 @@ void closeOutputFile() {
     fclose(output);
 }
 
+// read and process instance file, params file, open output file
 int processCommandLineArguments(int argc, char **argv, int rank) {
 
     int read_error = 0;
@@ -70,7 +71,6 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
     }
 
     /***** only master process creates output file and reads the whole graph *****/
-
     // Control the command line arguments
     if (rank == 0) {
 
@@ -138,7 +138,6 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
                 PARAM_FIELDS
         #undef P
     }
-
     return read_error;
 }
 

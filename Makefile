@@ -21,13 +21,13 @@ BINS =  biqbin
 # test command
 NUM_PROC = 8
 PARAMS = test/params
-TEST_INSTANCE = test/Instances/rudy/g05_60.0
-TEST_EXPECTED = test/Instances/rudy/g05_60.0-expected_output
+TEST_INSTANCE = test/Instances/rudy/g05_60.1
+TEST_EXPECTED = test/Instances/rudy/g05_60.1-expected_output
 
 TEST = ./test.sh \
 	"mpiexec -n $(NUM_PROC) ./$(BINS)" \
-	test/Instances/rudy/g05_60.0 \
-	test/Instances/rudy/g05_60.0-expected_output \
+	$(TEST_INSTANCE) \
+	$(TEST_EXPECTED) \
 	test/params
 
 TEST_ALL_60 = 	for i in $(shell seq 0 9); do \
@@ -153,20 +153,20 @@ run-all-100:
 	done
 
 run-python:
-	mpirun -n 8 python3 mpi_test.py \
+	mpirun -n 8 python3 test.py \
 	$(TEST_INSTANCE) \
 	$(PARAMS)
 
 run-python-all-60:
 	for i in $(shell seq 0 9); do \
-		mpiexec -n 8 python3 mpi_test.py \
+		mpiexec -n 8 python3 test.py \
 		test/Instances/rudy/g05_60.$$i \
 		$(PARAMS); \
 	done
 
 run-python-all-80:
 	for i in $(shell seq 0 9); do \
-		mpiexec -n 8 python3 mpi_test.py \
+		mpiexec -n 8 python3 test.py \
 		test/Instances/rudy/g05_80.$$i \
 		$(PARAMS); \
 	done
@@ -174,7 +174,7 @@ run-python-all-80:
 
 run-python-all-100:
 	for i in $(shell seq 0 9); do \
-		mpiexec -n 8 python3 mpi_test.py \
+		mpiexec -n 8 python3 test.py \
 		test/Instances/rudy/g05_100.$$i \
 		$(PARAMS); \
 	done

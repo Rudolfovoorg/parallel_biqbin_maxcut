@@ -168,7 +168,6 @@ int master_main_loop() {
 void master_end() {
     // send over messages to the workers
     for(int i = 1; i < numbWorkers; ++i) {
-        printf("Sending over: %d to worker %d\n", over, i);
         MPI_Send(&over, 1, MPI_INT, i, OVER, MPI_COMM_WORLD);
     }
 

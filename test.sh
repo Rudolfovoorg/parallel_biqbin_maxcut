@@ -59,9 +59,8 @@ output_filtered=$(echo "$output" | extract_comparison_lines)
 expected_output_filtered=$(cat "$3" | extract_comparison_lines)
 
 # Print result
-echo "Max val diff = ${max_val_diff}; Node diff = ${node_diff}; Root bound diff = ${root_node_bound_diff} Time diff = ${time_diff}s"
 if [[ "$output_filtered" == "$expected_output_filtered" ]]; then
-    echo "O.K."
+    echo "O.K. Max val diff = ${max_val_diff}; Node diff = ${node_diff}; Root bound diff = ${root_node_bound_diff} Time diff = ${time_diff}s" 
 else
     echo "Failed!"
     diff <(echo "$output_filtered") <(echo "$expected_output_filtered")

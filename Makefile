@@ -21,8 +21,8 @@ BINS =  biqbin
 # test command
 NUM_PROC = 8
 PARAMS = test/params
-TEST_INSTANCE = test/Instances/rudy/g05_60.1
-TEST_EXPECTED = test/Instances/rudy/g05_60.1-expected_output
+TEST_INSTANCE = test/Instances/rudy/g05_60.4
+TEST_EXPECTED = test/Instances/rudy/g05_60.4-expected_output
 
 TEST = ./test.sh \
 	"mpiexec -n $(NUM_PROC) ./$(BINS)" \

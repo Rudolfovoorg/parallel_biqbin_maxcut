@@ -5,21 +5,24 @@
 
 #include "biqbin.h"  
 
+// heap.c globals
 #define HEAP_SIZE 1000000
 extern Heap *heap;
 extern int BabPbSize;
+extern BabSolution *BabSol;
 
+// other external globals
 extern BiqBinParameters params;
 extern FILE *output;
 extern GlobalVariables *globals;
 
+// local variables needed as globals
 int over = 0;
 extern int num_workers_used; // number of worker processes used by the solver
 int numbWorkers; // MPI comm size
 int numbFreeWorkers;
 int *busyWorkers;
 int rank; // rank of each process: from 0 to numWorkers-1
-int getRank() {return rank;}
 /***** user defined MPI struct: for sending and receiving *****/
 MPI_Datatype BabSolutiontype;
 MPI_Datatype BabNodetype;
@@ -62,23 +65,7 @@ void finalizeMPI() {
 }
 
 
-// int initSolver(int argc, char** argv) {
-//     globals = calloc(1, sizeof(GlobalVariables));
-//     // Start the timer here or in compute?
-//     globals->TIME = MPI_Wtime();
-
-
-//     /* each process allocates its local priority queue */
-//     heap = Init_Heap(HEAP_SIZE);
-
-//     /* every process reads params and initializes B&B solution,
-//         * only master process creates output file, reads input graph
-//         * and broadcast it */
-//     int read_error = Bab_Init(argc, argv, rank);
-//     return read_error;
-// }
-
-int master_init(char* filename, double* L, int num_vertices, BiqBinParameters params_in) {
+int master_init(char* filename, double* L, int num_vertices, int num_edges, BiqBinParameters params_in) {
     globals = calloc(1, sizeof(GlobalVariables));
     // Start the timer here or in compute?
     globals->TIME = MPI_Wtime();
@@ -87,6 +74,13 @@ int master_init(char* filename, double* L, int num_vertices, BiqBinParameters pa
 
     // Bab_Init(argc, argv, rank) start
     openOutputFile(filename);
+    // Write input data to output
+    printf("Input file: %s\n", filename);	
+    fprintf(output,"Input file: %s\n", filename);
+    // OUTPUT information on instance
+    fprintf(stdout, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
+    fprintf(output, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
+    
     // READING INSTANCE FILE
     // allocate memory for original problem SP and subproblem PP
     alloc(globals->SP, Problem);
@@ -233,6 +227,8 @@ void master_end() {
     free(heap);
 }
 
+
+
 // Worker receives the SP->L matrix and number of vertices, need params
 int worker_init(BiqBinParameters params_in) {
     globals = calloc(1, sizeof(GlobalVariables));
@@ -298,698 +294,152 @@ int worker_init(BiqBinParameters params_in) {
     return over;
 }
 
-int worker_main_loop() {
-    // helper variables
-    BabNode *node;
-    BabSolution solx;
-    double g_lowerBound;
+
+void worker_end() {
+    Bab_End();
+    free(heap->data);
+    free(heap);
+}
+
+/*************************************************************************/
+/********************       WORKER MAIN LOOP          ********************/
+/*************************************************************************/
+int worker_check_over() {
     MPI_Status status;
-    Message message;
-    /************* MAIN LOOP for worker **************/
-    // wait for info: stop (from master) or receive new subproblem from other worker
     MPI_Recv(&over, 1, MPI_INT, MPI_ANY_SOURCE, OVER, MPI_COMM_WORLD, &status);
-    if (!over) {
-
-        alloc(node, BabNode);
-
-        // receive subproblem from master or other worker
-        MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, MPI_ANY_SOURCE, LOWER_BOUND, MPI_COMM_WORLD, &status);
-        MPI_Recv(node, 1, BabNodetype, MPI_ANY_SOURCE, PROBLEM, MPI_COMM_WORLD, &status);
-
-        // update
-        Bab_LBUpd(g_lowerBound, &solx);
-
-        // start local queue
-        Bab_PQInsert(node);
-
-        while(!isPQEmpty()){
-
-            // check if time limit reached
-            if (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) {
-                break;
-            }
-
-            worker_Bab_Main(BabSolutiontype, BabNodetype, rank);
-        }
-
-        message = IDLE;
-        MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
-    }
     return over;
 }
 
-void worker_end() {
-    /* free memory */
-    Bab_End();
-    free(heap->data);
-    free(heap);
-}
-
-int worker_compute() {
-    MPI_Status status;
-    Message message;
-
-    // tag to FINISH set to false
-    int over = 0;
+void worker_receive_problem() {
     // helper variables
-    BabNode *node;
+    MPI_Status status;
     double g_lowerBound;
+    BabNode *node;
+    BabSolution solx;
+    alloc(node, BabNode); // get's freed inside worker_Bab_Main
 
-     /******************** WORKER PROCESS ********************/
-	// receive diff
-	if (params.use_diff)
-	    MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
+    // receive subproblem from master or other worker
+    MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, MPI_ANY_SOURCE, LOWER_BOUND, MPI_COMM_WORLD, &status);
+    MPI_Recv(node, 1, BabNodetype, MPI_ANY_SOURCE, PROBLEM, MPI_COMM_WORLD, &status);
 
-	// receive over (stop or continue)
-	MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    // update
+    Bab_LBUpd(g_lowerBound, &solx);
 
-        // receive lower bound
-	if (over == -1 || params.root )   // root node is pruned
-	    goto FINISH;
-	else
-            MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	// update lower bound
-	BabSolution solx;
-	Bab_LBUpd(g_lowerBound, &solx);
-        
-    /************* MAIN LOOP for worker **************/
-    do {
-
-        // wait for info: stop (from master) or receive new subproblem from other worker
-        MPI_Recv(&over, 1, MPI_INT, MPI_ANY_SOURCE, OVER, MPI_COMM_WORLD, &status);
-
-        if (!over) {
-
-            alloc(node, BabNode);
-
-            // receive subproblem from master or other worker
-            MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, MPI_ANY_SOURCE, LOWER_BOUND, MPI_COMM_WORLD, &status);
-            MPI_Recv(node, 1, BabNodetype, MPI_ANY_SOURCE, PROBLEM, MPI_COMM_WORLD, &status);
-    
-            // update
-            Bab_LBUpd(g_lowerBound, &solx);
-
-            // start local queue
-            Bab_PQInsert(node);
-
-            while(!isPQEmpty()){
-
-                // check if time limit reached
-                if (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) {
-                    break;
-                }
-
-                worker_Bab_Main(BabSolutiontype, BabNodetype, rank);
-            }
-
-            message = IDLE;
-            MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
-        }
-        
-    } while (over != 1);
-
-    FINISH:
-
-    /* free memory */
-    Bab_End();
-
-    free(heap->data);
-    free(heap);
-
-    // MPI finish
-    MPI_Finalize();
-
-    return 0;
+    // printf("%d - node received: %p\n", rank, (void*) node);
+    // start local queue
+    Bab_PQInsert(node);
 }
 
+int time_limit_reached() {
+    return (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) ? 1 : 0;
+}
+ 
+//
+void evaluate_node_wrapped(BabNode *node) {
+    /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
+    // printf("node to eval: %p\n", (void*) node);
+    node->upper_bound = Evaluate(node, globals->SP, globals->PP, rank);
+}
 
-// /***************** Deprecated *******************/
-// // Everything should be initialized by this point, rank and the rest are global atm
-// int compute() {
-//     MPI_Status status;
-//     Message message;
+// Check if solution is better, update, communicate with master, send problems to workers etc..
+void after_evaluation(BabNode *node, double old_lowerbound) {
+    // printf("------rank: %d, old_lb: %f; node to destroy: %p\n", rank, old_lowerbound, (void*) node);
+    Message message;
+    MPI_Status status;
 
-//     // tag to FINISH set to false
-//     int over = 0;
-//     // helper variables
-//     BabNode *node;
-//     double g_lowerBound;
+    // check if better lower bound found --> update info with master
+    if (Bab_LBGet() > old_lowerbound){
 
-//     /******************** MASTER PROCESS ********************/
-//     if (rank == 0)
-//     {
+        message = NEW_VALUE;
+        old_lowerbound = Bab_LBGet();
 
-//         // only master evaluates the root node
-//         // and places it in priority queue if not able to prune
-//         over = Init_PQ();
-
-// 	    printf("Initial lower bound: %.0lf\n", Bab_LBGet());    
-
-//         // broadcast diff
-//         printf("diff = %f\n", globals->diff);
-//         if (params.use_diff)
-//             MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
-
-//             // broadcast lower bound to others or -1 to exit
-//         MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-//         if ( (over == -1) || params.root) {          
-//             goto FINISH;
-//         }
-//         else {
-//             g_lowerBound = Bab_LBGet();
-//             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-//         }
-
-
-//         // array of busy workers: 0 = free, 1 = busy
-//         // only master is busy
-//         int busyWorkers[numbWorkers];
-//         busyWorkers[0] = 1;
-//         for (int i = 1; i < numbWorkers; ++i)
-//             busyWorkers[i] = 0;
-
-//         int numbFreeWorkers = numbWorkers - 1;
-//         int source;
-
-
-//         /***** branch root node and send to workers *****/
-//         node = Bab_PQPop();
-
-//         // Determine the variable x[ic] to branch on
-//         int ic = getBranchingVariable(node);
-
-//         // send two nodes to workers 1 and 2
-//         BabNode *child_node;
-//         int worker;
+        MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
+        MPI_Send(&old_lowerbound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD);
+        MPI_Send(BabSol, 1, BabSolutiontype, 0, SOLUTION, MPI_COMM_WORLD);
         
-//         for (int xic = 0; xic <= 1; ++xic) { 
+        MPI_Recv(&old_lowerbound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
 
-//             // Create a new child node from the parent node
-//             child_node = newNode(node);
+        // update
+        BabSolution solx;
+        Bab_LBUpd(old_lowerbound, &solx);
+    }
+    /* if BabLB + 1.0 < child_node->upper_bound, 
+     * then we must branch since there could be a better feasible 
+     * solution in this subproblem
+     */
+    if (Bab_LBGet() + 1.0 < node->upper_bound) {
 
-//             // split on node ic
-//             child_node->xfixed[ic] = 1;
-//             child_node->sol.X[ic] = xic;
+        /***** branch *****/
 
-//             // increment the number of explored nodes
-//             Bab_incEvalNodes();
+        // Determine the variable x[ic] to branch on
+        int ic = getBranchingVariable(node);
 
-//             worker = xic + 1;
-//             busyWorkers[worker] = 1;
-//             --numbFreeWorkers;
-
-//             MPI_Send(&over, 1, MPI_INT, worker, OVER, MPI_COMM_WORLD);
-// 	        MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, worker, LOWER_BOUND, MPI_COMM_WORLD);
-//             MPI_Send(child_node, 1, BabNodetype, worker, PROBLEM, MPI_COMM_WORLD);
-
-//             free(child_node);
-//         }
-
-//         // free parent nodes
-//         free(node);    
-
-// 	    num_workers_used = 2;
-
-	
-//         /************* MAIN LOOP for master **************/
-//         do {
-
-//             /*** wait for messages: extract source from status ***/
-//             MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MESSAGE, MPI_COMM_WORLD, &status);
-//             source = status.MPI_SOURCE;
-
-//             master_Bab_Main(message, source, busyWorkers, numbWorkers, &numbFreeWorkers, BabSolutiontype);
-
-//         } while ( numbFreeWorkers != numbWorkers - 1 );
-//         /*************************************************/
-
-//         // send over messages to the workers
-//         over = 1;
-//         for(int i = 1; i < numbWorkers; ++i) {
-//             MPI_Send(&over, 1, MPI_INT, i, OVER, MPI_COMM_WORLD);
-//         }
-
-//     }
-//      /******************** WORKER PROCESS ********************/
-//     else
-//     {
-// 	// receive diff
-// 	if (params.use_diff)
-// 	    MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
-
-// 	// receive over (stop or continue)
-// 	MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-//         // receive lower bound
-// 	if (over == -1 || params.root )   // root node is pruned
-// 	    goto FINISH;
-// 	else
-//             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-// 	// update lower bound
-// 	BabSolution solx;
-// 	Bab_LBUpd(g_lowerBound, &solx);
+        BabNode *child_node; 
         
-//         /************* MAIN LOOP for worker **************/
-//         do {
+        for (int xic = 0; xic <= 1; ++xic) { 
 
-//             // wait for info: stop (from master) or receive new subproblem from other worker
-//             MPI_Recv(&over, 1, MPI_INT, MPI_ANY_SOURCE, OVER, MPI_COMM_WORLD, &status);
+            // Create a new child node from the parent node
+            child_node = newNode(node);
 
-//             if (!over) {
+            // split on node ic
+            child_node->xfixed[ic] = 1;
+            child_node->sol.X[ic] = xic;
 
-// 		        alloc(node, BabNode);
+            /* insert node into the priority queue */
+            Bab_PQInsert(child_node);
+        }
 
-//                 // receive subproblem from master or other worker
-// 		        MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, MPI_ANY_SOURCE, LOWER_BOUND, MPI_COMM_WORLD, &status);
-//                 MPI_Recv(node, 1, BabNodetype, MPI_ANY_SOURCE, PROBLEM, MPI_COMM_WORLD, &status);
-		
-// 		        // update
-// 		        Bab_LBUpd(g_lowerBound, &solx);
+        // free parent node
+        free(node); 
 
-//                 // start local queue
-//                 Bab_PQInsert(node);
+        /************ distribute subproblems ************/
 
-//                 while(!isPQEmpty()){
+        // leave 1 problem for this worker and the rest is distributed
+        int workers_request = heap->used - 1;
+        int num_free_workers;
+        double g_lowerBound;
+        BabSolution solx;
 
-//                     // check if time limit reached
-//                     if (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) {
-//                         break;
-//                     }
-
-//                     worker_Bab_Main(BabSolutiontype, BabNodetype, rank);
-//                 }
-
-//                 message = IDLE;
-//                 MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
-//             }
-            
-//         } while (over != 1);
-
-//         //free(node);
-//     }
-
-//     FINISH:
-
-//     /* Print results to the standard output and to the output file */
-//     if (rank == 0) {
-//         printFinalOutput(stdout,Bab_numEvalNodes());
-//         printFinalOutput(output,Bab_numEvalNodes());
-// 	    fprintf(output, "Number of cores: %d\n", numbWorkers);
-// 	    fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
-// 	    printf("Maximum number of workers used: %d\n", num_workers_used);
-//         fclose(output);
-//     }
-
-//     /* free memory */
-//     Bab_End();
-
-//     free(heap->data);
-//     free(heap);
-
-//     // MPI finish
-//     MPI_Finalize();
-
-//     return 0;
-// }
-
-// int wrapped_main(int argc, char** argv) {
-//     /*******************************************************
-//     *********** BRANCH & BOUND: PARALLEL ALGORITHM ********
-//     ******************************************************/
-//     // number of processes = master + workers
-//     int numbWorkers;
-
-//     // rank of each process: from 0 to numWorkers-1
-//     int rank;
-
-//     // MPI Start: start parallel environment
-//     MPI_Init(&argc, &argv);
-
-//     // get number of proccesses and corresponding ranks
-//     MPI_Comm_size(MPI_COMM_WORLD, &numbWorkers);
-//     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-//     if (rank == 0)
-// 	   printf("Number of cores: %d\n", numbWorkers);
-	
-//     /***** user defined MPI struct: for sending and receiving *****/
-//     // (1) for BabSolution
-//     MPI_Datatype BabSolutiontype;
-//     MPI_Datatype type1[1] = { MPI_INT };
-//     int blocklen1[1] = { NMAX };
-//     MPI_Aint disp1[1];
-//     disp1[0] = offsetof(BabSolution, X);
-//     MPI_Type_create_struct(1, blocklen1, disp1, type1, &BabSolutiontype);
-//     MPI_Type_commit(&BabSolutiontype);
-
-//     // (2) for BabNode
-//     MPI_Datatype BabNodetype;
-//     MPI_Datatype type2[5] = { MPI_INT, BabSolutiontype, MPI_DOUBLE, MPI_INT, MPI_INT };
-//     int blocklen2[5] = { NMAX, 1, NMAX, 1, 1 };
-//     MPI_Aint disp2[5];
-//     disp2[0] = offsetof(BabNode, xfixed);
-//     disp2[1] = offsetof(BabNode, sol);
-//     disp2[2] = offsetof(BabNode, fracsol);
-//     disp2[3] = offsetof(BabNode, level);
-//     disp2[4] = offsetof(BabNode, upper_bound);
-//     MPI_Type_create_struct(5, blocklen2, disp2, type2, &BabNodetype);
-//     MPI_Type_commit(&BabNodetype);
-//     /***********************************/
-
-//     // Start the timer
-//     globals->TIME = MPI_Wtime();
-
-//     MPI_Status status;
-//     // type of message
-//     Message message;
-
-//     // tag to FINISH set to false
-//     int over = 0;
-
-//     // helper variables
-//     BabNode *node;
-//     double g_lowerBound;
-
-//     /* each process allocates its local priority queue */
-//     heap = Init_Heap(HEAP_SIZE);
-
-//     /* every process reads params and initializes B&B solution,
-//      * only master process creates output file, reads input graph
-//      * and broadcast it */
-//     int read_error = Bab_Init(argc, argv, rank);
-	
-//     if (read_error)
-//         goto FINISH;
+        // check if other subproblems can be send to free workers --> ask master
+        message = SEND_FREEWORKERS;
         
-//     /******************** MASTER PROCESS ********************/
-//     if (rank == 0)
-//     {
-
-//         // only master evaluates the root node
-//         // and places it in priority queue if not able to prune
-//         over = Init_PQ();
-
-// 	    printf("Initial lower bound: %.0lf\n", Bab_LBGet());    
-
-//         // broadcast diff
-//         printf("diff = %f", globals->diff);
-//         if (params.use_diff)
-//             MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
-
-//             // broadcast lower bound to others or -1 to exit
-//         MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-//         if ( (over == -1) || params.root) {          
-//             goto FINISH;
-//         }
-//         else {
-//             g_lowerBound = Bab_LBGet();
-//             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-//         }
-
-
-//         // array of busy workers: 0 = free, 1 = busy
-//         // only master is busy
-//         int busyWorkers[numbWorkers];
-//         busyWorkers[0] = 1;
-//         for (int i = 1; i < numbWorkers; ++i)
-//             busyWorkers[i] = 0;
-
-//         int numbFreeWorkers = numbWorkers - 1;
-//         int source;
-
-
-//         /***** branch root node and send to workers *****/
-//         node = Bab_PQPop();
-
-//         // Determine the variable x[ic] to branch on
-//         int ic = getBranchingVariable(node);
-
-//         // send two nodes to workers 1 and 2
-//         BabNode *child_node;
-//         int worker;
+        MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
+        MPI_Send(&workers_request, 1, MPI_INT, 0, FREEWORKER, MPI_COMM_WORLD);
         
-//         for (int xic = 0; xic <= 1; ++xic) { 
-
-//             // Create a new child node from the parent node
-//             child_node = newNode(node);
-
-//             // split on node ic
-//             child_node->xfixed[ic] = 1;
-//             child_node->sol.X[ic] = xic;
-
-//             // increment the number of explored nodes
-//             Bab_incEvalNodes();
-
-//             worker = xic + 1;
-//             busyWorkers[worker] = 1;
-//             --numbFreeWorkers;
-
-//             MPI_Send(&over, 1, MPI_INT, worker, OVER, MPI_COMM_WORLD);
-// 	        MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, worker, LOWER_BOUND, MPI_COMM_WORLD);
-//             MPI_Send(child_node, 1, BabNodetype, worker, PROBLEM, MPI_COMM_WORLD);
-
-//             free(child_node);
-//         }
-
-//         // free parent nodes
-//         free(node);    
-
-// 	    num_workers_used = 2;
-
-	
-//         /************* MAIN LOOP for master **************/
-//         do {
-
-//             /*** wait for messages: extract source from status ***/
-//             MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MESSAGE, MPI_COMM_WORLD, &status);
-//             source = status.MPI_SOURCE;
-
-//             master_Bab_Main(message, source, busyWorkers, numbWorkers, &numbFreeWorkers, BabSolutiontype);
-
-//         } while ( numbFreeWorkers != numbWorkers - 1 );
-//         /*************************************************/
-
-//         // send over messages to the workers
-//         over = 1;
-//         for(int i = 1; i < numbWorkers; ++i) {
-//             MPI_Send(&over, 1, MPI_INT, i, OVER, MPI_COMM_WORLD);
-//         }
-
-//     }
-//      /******************** WORKER PROCESS ********************/
-//     else
-//     {
-// 	// receive diff
-// 	if (params.use_diff)
-// 	    MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
-
-// 	// receive over (stop or continue)
-// 	MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-//         // receive lower bound
-// 	if (over == -1 || params.root )   // root node is pruned
-// 	    goto FINISH;
-// 	else
-//             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-// 	// update lower bound
-// 	BabSolution solx;
-// 	Bab_LBUpd(g_lowerBound, &solx);
+        MPI_Recv(&num_free_workers, 1, MPI_INT, 0, NUM_FREE_WORKERS, MPI_COMM_WORLD, &status);
         
-//         /************* MAIN LOOP for worker **************/
-//         do {
-
-//             // wait for info: stop (from master) or receive new subproblem from other worker
-//             MPI_Recv(&over, 1, MPI_INT, MPI_ANY_SOURCE, OVER, MPI_COMM_WORLD, &status);
-
-//             if (!over) {
-
-// 		        alloc(node, BabNode);
-
-//                 // receive subproblem from master or other worker
-// 		        MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, MPI_ANY_SOURCE, LOWER_BOUND, MPI_COMM_WORLD, &status);
-//                 MPI_Recv(node, 1, BabNodetype, MPI_ANY_SOURCE, PROBLEM, MPI_COMM_WORLD, &status);
-		
-// 		        // update
-// 		        Bab_LBUpd(g_lowerBound, &solx);
-
-//                 // start local queue
-//                 Bab_PQInsert(node);
-
-//                 while(!isPQEmpty()){
-
-//                     // check if time limit reached
-//                     if (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) {
-//                         break;
-//                     }
-
-//                     worker_Bab_Main(BabSolutiontype, BabNodetype, rank);
-//                 }
-
-//                 message = IDLE;
-//                 MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
-//             }
-            
-//         } while (over != 1);
-
-//         //free(node);
-//     }
-
-//     FINISH:
-
-//     /* Print results to the standard output and to the output file */
-//     if (rank == 0) {
-//         printFinalOutput(stdout,Bab_numEvalNodes());
-//         printFinalOutput(output,Bab_numEvalNodes());
-// 	    fprintf(output, "Number of cores: %d\n", numbWorkers);
-// 	    fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
-// 	    printf("Maximum number of workers used: %d\n", num_workers_used);
-//         fclose(output);
-//     }
-
-//     /* free memory */
-//     Bab_End();
-
-//     free(heap->data);
-//     free(heap);
-
-//     // MPI finish
-//     MPI_Finalize();
-
-//     return 0;
-// }
-
-// int master_compute() {
-//     MPI_Status status;
-//     Message message;
-
-//     // tag to FINISH set to false
-//     int over = 0;
-//     // helper variables
-//     BabNode *node;
-//     double g_lowerBound;
-
-//     /******************** MASTER PROCESS ********************/
-//     if (rank == 0)
-//     {
-
-//         // only master evaluates the root node
-//         // and places it in priority queue if not able to prune
-//         over = Init_PQ();
-
-// 	    printf("Initial lower bound: %.0lf\n", Bab_LBGet());    
-
-//         // broadcast diff
-//         printf("diff = %f", globals->diff);
-//         if (params.use_diff)
-//             MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
-
-//             // broadcast lower bound to others or -1 to exit
-//         MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-//         if ( (over == -1) || params.root) {          
-//             goto FINISH;
-//         }
-//         else {
-//             g_lowerBound = Bab_LBGet();
-//             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-//         }
-
-
-//         // array of busy workers: 0 = free, 1 = busy
-//         // only master is busy
-//         // int busyWorkers[numbWorkers];
-//         busyWorkers = (int*)malloc(numbWorkers * sizeof(int));
-//         busyWorkers[0] = 1;
-//         for (int i = 1; i < numbWorkers; ++i)
-//             busyWorkers[i] = 0;
-
-//         int numbFreeWorkers = numbWorkers - 1;
-//         int source;
-
-
-//         /***** branch root node and send to workers *****/
-//         node = Bab_PQPop();
-
-//         // Determine the variable x[ic] to branch on
-//         int ic = getBranchingVariable(node);
-
-//         // send two nodes to workers 1 and 2
-//         BabNode *child_node;
-//         int worker;
+        int free_workers[num_free_workers];
         
-//         for (int xic = 0; xic <= 1; ++xic) { 
+        MPI_Recv(free_workers, num_free_workers, MPI_INT, 0, FREEWORKER, MPI_COMM_WORLD, &status);
+        MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
 
-//             // Create a new child node from the parent node
-//             child_node = newNode(node);
+        Bab_LBUpd(g_lowerBound, &solx);
 
-//             // split on node ic
-//             child_node->xfixed[ic] = 1;
-//             child_node->sol.X[ic] = xic;
+        // send subproblems to free workers
+        if ( num_free_workers != 0 ) {// free workers found
+      
+            for (int i = 0; i < num_free_workers; ++i){
 
-//             // increment the number of explored nodes
-//             Bab_incEvalNodes();
+                // get next subproblem from queue and send it
+                node = Bab_PQPop();
 
-//             worker = xic + 1;
-//             busyWorkers[worker] = 1;
-//             --numbFreeWorkers;
+                // send subproblem to free worker
+                MPI_Send(&over, 1, MPI_INT, free_workers[i], OVER, MPI_COMM_WORLD);
+                MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, free_workers[i], LOWER_BOUND, MPI_COMM_WORLD);
+                MPI_Send(node, 1, BabNodetype, free_workers[i], PROBLEM, MPI_COMM_WORLD);
 
-//             MPI_Send(&over, 1, MPI_INT, worker, OVER, MPI_COMM_WORLD);
-// 	        MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, worker, LOWER_BOUND, MPI_COMM_WORLD);
-//             MPI_Send(child_node, 1, BabNodetype, worker, PROBLEM, MPI_COMM_WORLD);
+                free(node);
+            }    
+        }
 
-//             free(child_node);
-//         }
+    }
+    else {
+        // otherwise, intbound <= BabLB, so we can prune
+        free(node);
+    }
+}
 
-//         // free parent nodes
-//         free(node);    
-
-// 	    num_workers_used = 2;
-
-	
-//         /************* MAIN LOOP for master **************/
-//         do {
-
-//             /*** wait for messages: extract source from status ***/
-//             MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MESSAGE, MPI_COMM_WORLD, &status);
-//             source = status.MPI_SOURCE;
-
-//             master_Bab_Main(message, source, busyWorkers, numbWorkers, &numbFreeWorkers, BabSolutiontype);
-
-//         } while ( numbFreeWorkers != numbWorkers - 1 );
-//         /*************************************************/
-
-//         // send over messages to the workers
-//         over = 1;
-//         for(int i = 1; i < numbWorkers; ++i) {
-//             MPI_Send(&over, 1, MPI_INT, i, OVER, MPI_COMM_WORLD);
-//         }
-
-//     }
-
-//     FINISH:
-
-//     /* Print results to the standard output and to the output file */
-//     printFinalOutput(stdout,Bab_numEvalNodes());
-//     printFinalOutput(output,Bab_numEvalNodes());
-//     fprintf(output, "Number of cores: %d\n", numbWorkers);
-//     fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
-//     printf("Maximum number of workers used: %d\n", num_workers_used);
-//     fclose(output);
-
-//     /* free memory */
-//     Bab_End();
-
-//     free(busyWorkers);
-//     free(heap->data);
-//     free(heap);
-
-//     // MPI finish
-//     MPI_Finalize();
-
-//     return 0;
-// }
+void worker_send_idle() {
+    Message message = IDLE;
+    MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
+}

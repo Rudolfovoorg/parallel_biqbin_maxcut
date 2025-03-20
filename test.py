@@ -19,7 +19,7 @@ if rank == 0:
     adj, num_verts, num_edge, name = help.read_maxcut_input(graph_path)
     L_matrix = help.get_SP_L_matrix(adj)
     # initialize master, if over == True don't go into main loop
-    over = biqbin.master_init(name, L_matrix, num_verts, params)
+    over = biqbin.master_init(name, L_matrix, num_verts, num_edge, params)
     while not over:
         over = biqbin.master_main_loop()
     # tell workers to end, release memory and finalize MPI

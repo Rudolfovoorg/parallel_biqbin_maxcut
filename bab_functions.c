@@ -232,10 +232,10 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
 
     // save "old" lower bound
     double g_lowerBound = Bab_LBGet();
-
+    ///
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
     node->upper_bound = Evaluate(node, globals->SP, globals->PP, rank);
-
+    //
     // check if better lower bound found --> update info with master
     if (Bab_LBGet() > g_lowerBound){
 

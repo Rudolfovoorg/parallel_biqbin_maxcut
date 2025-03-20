@@ -29,6 +29,6 @@ else:
     # Initialize solver for workers, needs params, master lets them know if is over
     over = biqbin.worker_init(params)
     while not over:
-        over = biqbin.worker_main_loop()
+        over = biqbin.worker_main_loop(rank)
     # Free memory and finalize MPI
     biqbin.worker_end()

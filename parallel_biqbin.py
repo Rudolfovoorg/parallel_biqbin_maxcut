@@ -54,7 +54,10 @@ class ParallelBiqbin:
         self.biqbin.Bab_LBGet.restype = ctypes.c_double
 
         # Argument type for evaluate_node_wrapped is also pointer to BabNode
-        self.biqbin.evaluate_node_wrapped.argtypes = [ctypes.POINTER(BabNode)]
+        self.biqbin.evaluate_node_wrapped.argtypes = [
+            ctypes.POINTER(BabNode),
+            ctypes.c_int
+        ]
         self.biqbin.evaluate_node_wrapped.restype = None
 
         # after eval
@@ -78,14 +81,14 @@ class ParallelBiqbin:
         return rank
 
     # master rank evaluates the root node and decides if further branching is needed
-    def master_init(self, filename, L: NDArray[np.float64], num_verts: int, num_edge: int, params: BiqBinParameters) -> bool:
+    def master_init(self, filename, L: NDArray[np.float64], num_verts: int, num_edge: int, parameters: BiqBinParameters) -> bool:
         # returns 0 if not over
         return self.biqbin.master_init(
             filename,
             L,
             num_verts,
             num_edge,
-            params
+            parameters
         ) != 0
 
     # Main loop for master rank, waits for communication from workers and responds until all are free
@@ -102,7 +105,7 @@ class ParallelBiqbin:
         return self.biqbin.worker_init(params) != 0
 
     # worker main loop in C, waits for either the over signal or babnode to process, branches and sends more nodes to other workers
-    def worker_main_loop(self) -> bool:
+    def worker_main_loop(self, rank: int) -> bool:
         # Wait for over signal
         over = self.biqbin.worker_check_over() != 0
         if over:
@@ -110,7 +113,7 @@ class ParallelBiqbin:
         # receive problem, insert it into priority queue in C
         self.biqbin.worker_receive_problem()
 
-        # Get node from PQ
+        # loops until worker becomes idle
         while self.biqbin.isPQEmpty() == 0:
             # check time limit
             if self.biqbin.time_limit_reached() != 0:
@@ -121,8 +124,8 @@ class ParallelBiqbin:
             # Save previous g_lowerbound
             old_lb = self.biqbin.Bab_LBGet()
             # Evaluate Node
-            self.biqbin.evaluate_node_wrapped(babnode)
-            # After eval, updates solution, frees node etc
+            self.biqbin.evaluate_node_wrapped(babnode, rank)
+            # After eval, communicate new solution, frees node etc
             self.biqbin.after_evaluation(babnode, old_lb)
         # if PQ empty notify master of being idle
         self.biqbin.worker_send_idle()

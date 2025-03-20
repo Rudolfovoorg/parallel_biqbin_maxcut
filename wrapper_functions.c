@@ -22,7 +22,6 @@ extern int num_workers_used; // number of worker processes used by the solver
 int numbWorkers; // MPI comm size
 int numbFreeWorkers;
 int *busyWorkers;
-int rank; // rank of each process: from 0 to numWorkers-1
 /***** user defined MPI struct: for sending and receiving *****/
 MPI_Datatype BabSolutiontype;
 MPI_Datatype BabNodetype;
@@ -32,6 +31,7 @@ int initMPI(int argc, char** argv) {
     MPI_Init(&argc, &argv);
 
     // get number of proccesses and corresponding ranks
+    int rank;
     MPI_Comm_size(MPI_COMM_WORLD, &numbWorkers);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank == 0)
@@ -80,7 +80,6 @@ int master_init(char* filename, double* L, int num_vertices, int num_edges, BiqB
     // OUTPUT information on instance
     fprintf(stdout, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
     fprintf(output, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
-    
     // READING INSTANCE FILE
     // allocate memory for original problem SP and subproblem PP
     alloc(globals->SP, Problem);
@@ -335,7 +334,7 @@ int time_limit_reached() {
 }
  
 //
-void evaluate_node_wrapped(BabNode *node) {
+void evaluate_node_wrapped(BabNode *node, int rank) {
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
     // printf("node to eval: %p\n", (void*) node);
     node->upper_bound = Evaluate(node, globals->SP, globals->PP, rank);

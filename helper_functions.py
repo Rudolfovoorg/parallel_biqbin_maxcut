@@ -24,8 +24,6 @@ class HelperFunctions:
 
             # Create the MaxCutInputData struct
             name = filename.encode('utf-8')
-
-            # Returning the matrix for debugging
             return adj_matrix, num_vertices, num_edges, name
 
     # Construct the L matrix, which is [ Laplacian,  Laplacian*e; (Laplacian*e)',  e'*Laplacian*e]

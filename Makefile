@@ -85,6 +85,37 @@ TEST_ALL_PYTHON_100 = 	for i in $(shell seq 0 9); do \
 	done
 
 
+TEST_P = ./test.sh \
+	"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
+	test/Instances/rudy/g05_60.0 \
+	test/Instances/rudy/g05_60.0-expected_output \
+	test/params
+
+TEST_ALL_P_60 = 	for i in $(shell seq 0 9); do \
+			./test.sh \
+			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
+			test/Instances/rudy/g05_60.$$i \
+			test/Instances/rudy/g05_60.$$i-expected_output \
+			params ;\
+	done
+
+TEST_ALL_P_80 = 	for i in $(shell seq 0 9); do \
+			./test.sh \
+			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
+			test/Instances/rudy/g05_80.$$i \
+			test/Instances/rudy/g05_80.$$i-expected_output \
+			params ;\
+	done
+
+TEST_ALL_P_100 = 	for i in $(shell seq 0 9); do \
+			./test.sh \
+			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
+			test/Instances/rudy/g05_100.$$i \
+			test/Instances/rudy/g05_100.$$i-expected_output \
+			params ;\
+	done
+
+
 # BiqBin objects
 BBOBJS = $(OBJ)/bundle.o $(OBJ)/allocate_free.o $(OBJ)/bab_functions.o \
 		 $(OBJ)/bounding.o $(OBJ)/cutting_planes.o \
@@ -125,6 +156,11 @@ test-all-python:
 	$(TEST_ALL_PYTHON_60)
 	$(TEST_ALL_PYTHON_80)
 	$(TEST_ALL_PYTHON_100)
+
+test-all-p:
+	$(TEST_ALL_P_60)
+	$(TEST_ALL_P_80)
+	$(TEST_ALL_P_100)
 
 run:
 	mpirun -n 8 ./$(BINS) \

@@ -3,7 +3,6 @@
 #include <math.h>
 #include <time.h>
 #include <mpi.h>
-
 #include "biqbin.h"
   
   /* defined in heap.c */  
@@ -49,7 +48,7 @@ int Init_PQ(void) {
     Bab_incEvalNodes();
 
     // Evaluate root node: compute upper and lower bound 
-    globals->root_bound = Evaluate(BabRoot, globals->SP, globals->PP, 0);
+    globals->root_bound = Evaluate(BabRoot, globals, 0);
     printf("Root node bound: %.2f\n", globals->root_bound);
 
     // save upper bound
@@ -125,7 +124,7 @@ int updateSolution(int *x) {
 
     sol_value = evaluateSolution(x); // computes objective value of solx
 
-    /* If new solution is better than the global solution, 
+    /* If new solution is better than the global solution,
      * then update and print the new solution. */
     if (Bab_LBUpd(sol_value, &solx)) {
         solutionAdded = 1;
@@ -234,7 +233,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
     double g_lowerBound = Bab_LBGet();
     ///
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
-    node->upper_bound = Evaluate(node, globals->SP, globals->PP, rank);
+    node->upper_bound = Evaluate(node, globals, rank);
     //
     // check if better lower bound found --> update info with master
     if (Bab_LBGet() > g_lowerBound){

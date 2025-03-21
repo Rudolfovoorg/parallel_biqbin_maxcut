@@ -265,7 +265,7 @@ int getBranchingVariable(BabNode *node);
 int countFixedVariables(BabNode *node);
 
 /* bounding.c */
-double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank);
+double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals);
 
 /* bundle.c */
 double fct_eval(const Problem *PP, double *gamma, double *X, double *g);
@@ -276,14 +276,14 @@ void bundle_method(Problem *PP, double *t, int bdl_iter);
 /* cutting_planec.c */
 double evaluateTriangleInequality(double *XX, int N, int type, int ii, int jj, int kk);
 double getViolated_TriangleInequalities(double *X, int N, Triangle_Inequality *List, int *ListSize);
-double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted);
+double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, GlobalVariables *globals);
 double getViolated_PentagonalInequalities(double *X, int N, Pentagonal_Inequality *Pent_List, int *ListSize);
-double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int triag);
+double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int triag, GlobalVariables *globals);
 double getViolated_HeptagonalInequalities(double *X, int N, Heptagonal_Inequality *Hepta_List, int *ListSize);
-double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int hept_index);
+double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int hept_index, GlobalVariables *globals);
 
 /* evaluate.c */
-double Evaluate(BabNode *node, Problem *SP, Problem *PP, int rank);
+double Evaluate(BabNode *node, GlobalVariables *globals, int rank);
 void createSubproblem(BabNode *node, Problem *SP, Problem *PP);
 double getFixedValue(BabNode *node, Problem *SP);
 
@@ -335,5 +335,6 @@ double qap_simulated_annealing(int *H, int k, double *X, int n, int *pent);
 /* biqbin.c */
 void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbin_parameters);
 void EvaluateWrapped(BabNode *node, int rank);
+BabNode* init_return_root(double* L, int num_vertices, BiqBinParameters params_in);
 
 #endif /*BIQBIN_H */

@@ -1,3 +1,5 @@
+import glob
+import re
 import ctypes
 import numpy as np
 from biqbin_data_objects import BiqBinParameters
@@ -76,3 +78,23 @@ class HelperFunctions:
                 else:
                     print(f"Unknown parameter: {key}")
         return params
+
+    def find_latest_output_file(self, input_file_path):
+        # Match: input_path.output or input_path.output_<number>
+        pattern = f"{input_file_path}.output*"
+        candidates = glob.glob(pattern)
+
+        if not candidates:
+            return None
+
+        def extract_suffix(file):
+            # Match .output or .output_X
+            match = re.match(re.escape(input_file_path) +
+                             r"\.output(?:_(\d+))?$", file)
+            if match:
+                return int(match.group(1)) if match.group(1) else 0
+            return -1  # fallback, shouldn't happen
+
+        # Sort by suffix number
+        candidates.sort(key=extract_suffix, reverse=True)
+        return candidates[0]

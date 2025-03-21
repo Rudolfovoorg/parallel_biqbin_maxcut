@@ -1,7 +1,14 @@
 #include "biqbin.h"
 #include <string.h>
+#include <sys/time.h>
 
+
+// For external Init()
 extern GlobalVariables *globals;
+#define HEAP_SIZE 1000000
+extern Heap *heap;
+extern BabSolution *BabSol;
+extern BiqBinParameters params;
 
 extern int BabPbSize;
 
@@ -28,7 +35,7 @@ void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbi
     int incy = 1;
     dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
 
-    srand(2024);
+    srand(2020);
     setParams(biqbin_parameters);
     
     // Provide B&B with an initial solution
@@ -37,9 +44,16 @@ void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbi
     allocMemory();
     globals->TIME = MPI_Wtime();
 }
+/* timer */
+double time_wall_clock(void)  {
+    struct timeval timecheck;
+    gettimeofday(&timecheck, NULL);
+    return timecheck.tv_sec + timecheck.tv_usec * 1e-6;
+
+}
 
 void EvaluateWrapped(BabNode *node, int rank) {
     Bab_incEvalNodes();
-    double upper = Evaluate(node, globals->SP, globals->PP, rank);
+    double upper = Evaluate(node, globals, rank);
     node->upper_bound = upper;
 }

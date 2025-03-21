@@ -337,7 +337,7 @@ int time_limit_reached() {
 void evaluate_node_wrapped(BabNode *node, int rank) {
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
     // printf("node to eval: %p\n", (void*) node);
-    node->upper_bound = Evaluate(node, globals->SP, globals->PP, rank);
+    node->upper_bound = Evaluate(node, globals, rank);
 }
 
 // Check if solution is better, update, communicate with master, send problems to workers etc..
@@ -441,4 +441,39 @@ void after_evaluation(BabNode *node, double old_lowerbound) {
 void worker_send_idle() {
     Message message = IDLE;
     MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
+}
+
+
+
+/******************   UNIT TEST INIT FUNCTIONS   ********************/
+
+// Minimum initialization of the solver to test evaluate separately
+void unit_test_init(double* L, int num_vertices, BiqBinParameters params_in) {
+    globals = calloc(1, sizeof(GlobalVariables));
+    // allocate memory for original problem SP and subproblem PP
+    alloc(globals->SP, Problem);
+    alloc(globals->PP, Problem);
+
+    globals->SP->n = num_vertices;
+    globals->PP->n = num_vertices;
+    // allocate memory for objective matrices for SP and PP
+    // globals->SP->L = L;
+    alloc_matrix(globals->SP->L, globals->SP->n, double);
+    memcpy(globals->SP->L, L, num_vertices * num_vertices * sizeof(double));
+    BabPbSize = num_vertices - 1;
+
+    alloc_matrix(globals->PP->L, globals->SP->n, double);
+    int N2 = globals->SP->n * globals->SP->n;
+    int incx = 1;
+    int incy = 1;
+    dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
+
+    // set global parameters
+    setParams(params_in);
+    // Seed the random number generator
+    srand(2020);
+    // Provide B&B with an initial solution
+    initializeBabSolution();
+    // Allocate the memory
+    allocMemory();
 }

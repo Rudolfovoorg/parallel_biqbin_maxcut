@@ -2,7 +2,7 @@
 #include "biqbin.h"
 
 extern BiqBinParameters params;
-extern GlobalVariables *globals;
+// extern GlobalVariables *globals;
 
 /************************* TRIANGLE INEQUALITIES *************************/
 
@@ -119,7 +119,7 @@ double getViolated_TriangleInequalities(double *X, int N, Triangle_Inequality *L
 
 /* update inequalities: purge old ones and separate new ones */
 /* returns the new maximum violation of triangle inequalities */
-double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted) {
+double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, GlobalVariables *globals) {
 
     int ineq;                   // index for inequality        
     int yindex;                 // index for dual multipliers          
@@ -303,7 +303,7 @@ double getViolated_PentagonalInequalities(double *X, int N, Pentagonal_Inequalit
 /* update inequalities: purge old ones and separate new ones */
 /* returns the new maximum violation of pentagonal inequalities */
 
-double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int triag) {
+double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int triag, GlobalVariables *globals) {
 
     int ineq;                   // index for inequality        
     int yindex;                 // index for dual multipliers          
@@ -496,7 +496,7 @@ double getViolated_HeptagonalInequalities(double *X, int N, Heptagonal_Inequalit
 /* update inequalities: purge old ones and separate new ones */
 /* returns the new maximum violation of heptagonal inequalities */
 
-double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int hept_index) {
+double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int hept_index, GlobalVariables *globals) {
 
     int ineq;                   // index for inequality        
     int yindex;                 // index for dual multipliers          

@@ -4,7 +4,7 @@ extern BiqBinParameters params;
 extern FILE *output;
 extern int BabPbSize;
 
-extern GlobalVariables *globals;
+// extern GlobalVariables *globals;
 
 // extern double TIME;                 
 // extern Triangle_Inequality *Cuts;            // vector of triangle inequality constraints
@@ -23,7 +23,7 @@ extern GlobalVariables *globals;
 // extern double diff;		                     // difference between basic SDP relaxation and bound with added cutting planes
 
 /******** main bounding routine calling bundle method ********/
-double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
+double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals) {
 
     int index;                      // helps to store the fractional solution in the node
     double bound;                   // f + fixedvalue
@@ -53,7 +53,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
     int bdl_iter = params.init_bundle_iter;      
 
     // fixed value contributes to the objective value
-    double fixedvalue = getFixedValue(node, SP);
+    double fixedvalue = getFixedValue(node, globals->SP);
 
     /*** start with no cuts ***/
     // triangle inequalities
@@ -99,7 +99,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
         }
     }
 
-    runHeuristic(SP, PP, node, x);
+    runHeuristic(globals->SP, PP, node, x);
     if (updateSolution(x))
     {
         // Beno's note - I need to store the solution into current nodes BabSolution struct to read it in python
@@ -123,7 +123,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
     }
 
     /* separate first triangle inequality */
-    viol3 = updateTriangleInequalities(PP, globals->dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
+    viol3 = updateTriangleInequalities(PP, globals->dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted, globals);
 
     /***************
      * Bundle init *
@@ -195,7 +195,7 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
                 }
             }
 
-            runHeuristic(SP, PP, node, x);
+            runHeuristic(globals->SP, PP, node, x);
             if (updateSolution(x))
             {
                 // Beno's note - I need to store the solution into current nodes BabSolution struct to read it in python
@@ -235,14 +235,14 @@ double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
             penta = PP->NPentIneq;      // --> to know with which index in dual vector dual_gamma, pentagonal
                                         // and heptagonal inequalities start!
 
-            viol3 = updateTriangleInequalities(PP, globals->dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
+            viol3 = updateTriangleInequalities(PP, globals->dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted, globals);
                       
             /* include pentagonal and heptagonal inequalities */          
             if ( params.include_Pent && (count > params.triag_iter || viol3 < 0.2) )
-                viol5 = updatePentagonalInequalities(PP, globals->dual_gamma, &Pent_NumAdded, &Pent_NumSubtracted, triag);  
+                viol5 = updatePentagonalInequalities(PP, globals->dual_gamma, &Pent_NumAdded, &Pent_NumSubtracted, triag, globals);  
 
             if ( params.include_Hepta && ( (count > params.triag_iter + params.pent_iter) || (viol3 < 0.2 && (1 - viol5 < 0.4)) ) )
-                viol7 = updateHeptagonalInequalities(PP, globals->dual_gamma, &Hepta_NumAdded, &Hepta_NumSubtracted, triag + penta);      
+                viol7 = updateHeptagonalInequalities(PP, globals->dual_gamma, &Hepta_NumAdded, &Hepta_NumSubtracted, triag + penta, globals);      
         }
         else {               
             Tri_NumAdded = 0;

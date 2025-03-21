@@ -70,6 +70,17 @@ class ParallelBiqbin:
         self.biqbin.setParams.argtypes = [BiqBinParameters]
         self.biqbin.setParams.restype = ctypes.c_int
 
+        # Unit test functions
+        self.biqbin.unit_test_init.argtypes = [
+            np.ctypeslib.ndpointer(
+                dtype=np.float64,
+                ndim=2,
+                flags='C_CONTIGUOUS'
+            ),
+            ctypes.c_int,
+            BiqBinParameters
+        ]
+
     # Initializes MPI in C, returns rank
     def init_MPI(self, graph_path, params_path) -> int:
         args = [b"./biqbin",
@@ -135,3 +146,14 @@ class ParallelBiqbin:
     def worker_end(self):
         self.biqbin.worker_end()
         self.biqbin.finalizeMPI()
+
+    # Unit test functions
+    def unit_test_init(self, L: NDArray[np.float64], num_verts: int, parameters: BiqBinParameters) -> bool:
+        self.biqbin.unit_test_init(
+            L,
+            num_verts,
+            parameters
+        )
+
+    def evaluate_node(self, node: BabNode, rank: int):
+        self.biqbin.evaluate_node_wrapped(node, rank)

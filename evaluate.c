@@ -8,12 +8,12 @@ extern int BabPbSize;
  * This function computes the upper and lower bounds of a specific node
  * (calls SDP bound function) and returns the upper bound of the node
  */
-double Evaluate(BabNode *node, Problem *SP, Problem *PP, int rank) {
+double Evaluate(BabNode *node, GlobalVariables *globals, int rank) {
     
     // create subproblem PP
-    createSubproblem(node, SP, PP);
+    createSubproblem(node, globals->SP, globals->PP);
     // compute the SDP upper bound and run heuristic
-    double bound = SDPbound(node, SP, PP, rank);
+    double bound = SDPbound(node, globals->PP, rank, globals);
     return bound;
 }
 

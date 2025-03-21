@@ -5,6 +5,7 @@ import numpy as np
 from mpi4py import MPI
 from parallel_biqbin_maxcut import ParallelBiqBinMaxCut, BabFunctions
 from biqbin_data_objects import BabSolution
+from helper_functions import HelperFunctions
 
 """
 tags
@@ -20,26 +21,25 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 biqbin = ParallelBiqBinMaxCut()
+help = HelperFunctions()
 num_vertices = 0
 name = ''.encode('utf-8')
 status = MPI.Status()
 over = False
 diff = None
 
-# Master reads the data and converts it for Init
 if rank == 0:
-    start = time.time()
+    start_time = time.time()
     input_file_path = sys.argv[1]
-    adj_matrix, num_vertices, num_edges, name = biqbin.read_maxcut_input(
+    # Read Instance file
+    adj_matrix, num_vertices, num_edges, name = help.read_maxcut_input(
         input_file_path)
 
-    output_pre = f"Input file: {input_file_path}\n\nGraph has {num_vertices} vertices and {num_edges} edges.\n"
+    output_pre = f"Input file: {input_file_path}\n\nGraph has {num_vertices} vertices and {num_edges} edges."
     print(output_pre)
-
-    L_matrix = biqbin.get_SP_L_matrix(adj_matrix)
-    params_np_array = biqbin.read_parameters_return_np_array(sys.argv[2])
+    # Construct L-matrix
+    L_matrix = help.get_SP_L_matrix(adj_matrix)
     biqbin.open_output_file(name)
-
 
 # Get shape of L from root process
 num_vertices = comm.bcast(num_vertices, root=0)
@@ -49,36 +49,44 @@ if rank != 0:
     L_matrix = np.empty((num_vertices, num_vertices),
                         dtype=np.float64)  # Ensure the correct dtype
 
-# Broadcast the L matrix and params
+# Broadcast the L matrix
 comm.Bcast(L_matrix, root=0)
-comm.Bcast(params_np_array, root=0)
+# All of them read params from file
+params = help.read_parameters_file(sys.argv[2])
 
-params = biqbin.unpack_params_from_np_array(params_np_array)
-
+# this allocates and sets SP and PP, srand, params, initBabsolution, globals->TIME
 biqbin.init_solver(L_matrix, num_vertices, params)
 babfuns = BabFunctions(L_matrix, num_vertices, params)
-# Python version of Bab_Init and Bab_GenChild
-# MASTER PROCESS
+
+
 if rank == 0:
     free_workers = [i for i in range(1, size)]
-    # create root node and branch it to distribute it to 2 free workers
+    # Init_PQ() equivalent
+    # create root node
     root_node = babfuns.generate_node()
-    # biqbin.evaluate(root_node, rank)
-    babfuns.branch(root_node, biqbin, rank)
-
+    biqbin.evaluate(root_node, rank)
+    # there is a small difference with this result between C and python
     root_node_upper_bound = root_node.upper_bound
+    # Update solution, evaluate updates this in C
     sol_val = babfuns.evaluate_solution(root_node.sol)
-    # Update solution
     babfuns.best_lower_bound = sol_val
     babfuns.solution = root_node.sol
+
+    if babfuns.best_lower_bound + 1 < root_node_upper_bound:
+        heapq.heappush(babfuns.pq, (-root_node.upper_bound, root_node))
+
     # Broadcast over
     if len(babfuns.pq) == 0:
         over = True
 
-    # Send data to workers
+    # broadcast diff
     diff = biqbin.get_diff()
-    diff = comm.bcast(diff, root=0)
+    print(f"{diff = }")
+    if params.use_diff > 0:
+        diff = comm.bcast(diff, root=0)
 
+    # this gets broadcaster every time anyway, but this way it's more 1 to 1
+    over = comm.bcast(over, root=0)
     num_workers = 0
     while len(babfuns.pq) > 0:
         _, current_node = heapq.heappop(babfuns.pq)
@@ -136,8 +144,11 @@ if rank == 0:
 
 # WORKER PROCESS MAIN LOOP
 else:
-    diff = comm.bcast(diff, root=0)
-    biqbin.set_diff(diff)
+    if params.use_diff > 0:
+        diff = comm.bcast(diff, root=0)
+        biqbin.set_diff(diff)  # set diff in C
+
+    over = comm.bcast(over, root=0)
     while not over:
         # print(f"{rank = } WHILE NOT OVER")
         # First check if it is over
@@ -203,10 +214,10 @@ if rank == 0:
     biqbin.close_output_file()
     # Final output string
     sol_str = babfuns.get_solution_string()
-    output_post = f"\nNodes = {babfuns.num_eval_nodes}\nRoot node bound = {root_node_upper_bound:.3f}\nMaximum value = {babfuns.best_lower_bound:.0f}\n{sol_str}\nTime = {end - start:.2f} s\n"
+    output_post = f"\nNodes = {babfuns.num_eval_nodes}\nRoot node bound = {root_node_upper_bound:.2f}\nMaximum value = {babfuns.best_lower_bound:.0f}\n{sol_str}\nTime = {end - start_time:.2f} s\n"
     print(output_post)
 
-    output_file_path = biqbin.find_latest_output_file(
+    output_file_path = help.find_latest_output_file(
         input_file_path)  # output file is created by C
     if output_file_path:
         with open(output_file_path, "r") as f:

@@ -3,6 +3,7 @@ import pytest
 from parallel_biqbin import ParallelBiqbin
 from helper_functions import HelperFunctions
 from parallel_biqbin_maxcut import BabFunctions
+from biqbin_data_objects import GlobalVariables
 
 # Load the json with expected root node bounds
 with open("test/evaluate_results.json", "r") as f:
@@ -22,12 +23,21 @@ def test_root_node_bound(graph_path, expected_bound):
 
     babfun = BabFunctions(L_matrix, num_verts, params)
 
-    biqbin.unit_test_init(L_matrix, num_verts, params)
-    node = babfun.generate_node()
-    biqbin.evaluate_node(node, 0)
+    biqbin.biqbin.set_BabPbSize(num_verts)
+    biqbin.set_parameters(params)
 
-    print(f"\nGraph: {graph_path} root node: Computed upper bound: {node.upper_bound:.2f} - Expected upper bound: {expected_bound:.2f}")
+    num_test_nodes = 3
+    for i in range(1, num_test_nodes + 1):
+        biqbin.set_random_seed(2020)
+        globals = biqbin.get_globals(L_matrix, num_verts)
 
-    # Allow small floating point tolerance
-    assert abs(node.upper_bound - expected_bound) < 1e-2, \
-        f"Upper bound mismatch for {graph_path}"
+        node = babfun.generate_node()
+        node.upper_bound = biqbin.evaluate(node, globals, 0)
+        biqbin.free_globals(globals)
+
+        print(f"Graph: {graph_path} node {i}:")
+        print(
+            f"Upper bound diff: {round(node.upper_bound, 2) - expected_bound:.2f};")
+        # Allow small floating point tolerance
+        assert abs(round(node.upper_bound, 2) == expected_bound), \
+            f"Upper bound mismatch for {graph_path}"

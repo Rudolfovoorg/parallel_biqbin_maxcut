@@ -3,12 +3,11 @@
 #include <math.h>
 
 #include "biqbin.h"
-extern GlobalVariables *globals;
 
 // extern double *X;
 // extern double *Z;       // stores Cholesky decomposition: X = ZZ^T
 
-double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
+double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, double *Z) {
 
     // Problem *P0 ... the original problem
     // Problem *P  ... the current subproblem
@@ -43,21 +42,19 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
         }
     }
 
-    double fh = evaluateSolution(temp_x);
-
+    double fh = evaluateSolution(temp_x, P0);
     int done = 0;
     double constant;    // scalar in convex combiantion
     double alpha;
 
     // Z = X
-    dcopy_(&nn, globals->X, &inc, globals->Z, &inc);
+    dcopy_(&nn, X, &inc, Z, &inc);
 
     while (done < 2) {
-
         ++done;
         
         // compute Cholesky factorization
-        dpotrf_(&UPLO, &n, globals->Z, &n, &info);
+        dpotrf_(&UPLO, &n, Z, &n, &info);
 
         if (info != 0) {
             fprintf(stderr, "%s: Problem with Cholesky factorization \
@@ -68,10 +65,10 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
         // set lower triangle of Z to zero
         for (int i = 0; i < n; ++i)
             for (int j = 0; j < i; ++j)
-                globals->Z[j + i*n] = 0.0;
+                Z[j + i*n] = 0.0;
 
         // Goemans-Williamson heuristic
-        heur_val = GW_heuristic(P0, P, node, x, P0->n);
+        heur_val = GW_heuristic(P0, P, node, x, P0->n, Z);
 
         if (heur_val > fh) {
 
@@ -96,10 +93,10 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
 
         // Z = (1-constant)*X + constant* xh *xh'
         alpha = 1.0 - constant;
-        dcopy_(&nn, globals->X, &inc, globals->Z, &inc);
-        dscal_(&nn, &alpha, globals->Z, &inc);
+        dcopy_(&nn, X, &inc, Z, &inc);
+        dscal_(&nn, &alpha, Z, &inc);
         alpha = constant;
-        dsyr_(&UPLO, &n, &alpha, xh, &inc, globals->Z, &n);
+        dsyr_(&UPLO, &n, &alpha, xh, &inc, Z, &n);
 
     }
 
@@ -108,7 +105,7 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
 
 
 /* Goemans-Williamson random hyperplane heuristic */
-double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num) {
+double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num, double *Z) {
 
     // Problem *P0 ... the original problem
     // Problem *P  ... the current subproblem
@@ -140,7 +137,7 @@ double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num) {
 
                 sca = 0.0;
                 for (int j = 0; j < N; ++j)
-                    sca += v[j] * globals->Z[j * N + index];
+                    sca += v[j] * Z[j * N + index];
 
                 if (sca < 0) {
 
@@ -298,7 +295,7 @@ int update_best(int *xbest, int *xnew, double *best, Problem *P0) {
     int success = 0;
     int N = P0->n - 1; // N = BabPbSize
 
-    double heur_val = evaluateSolution(xnew);
+    double heur_val = evaluateSolution(xnew, P0);
 
     if ( *best < heur_val ) {
         memcpy(xbest, xnew, sizeof(int) * N);

@@ -2,7 +2,7 @@
 
 #include "biqbin.h"
 
-extern GlobalVariables *globals;
+// extern GlobalVariables *globals;
 
 
 /***************** diag *********************/
@@ -46,7 +46,7 @@ void Diag(double *X, const double *y, int n) {
  * computes y = y - B(X), where operator B
  * corresponds to cutting planes: triangle, pentagonal and heptagonal inequalities
  */
-void op_B(const Problem *P, double *y, const double *X) {
+void op_B(const Problem *P, double *y, const double *X, GlobalVariables *globals) {
 
     int N = P->n;
     int type, ii, jj, kk, ll, mm, nn, oo;
@@ -135,7 +135,7 @@ void op_B(const Problem *P, double *y, const double *X) {
  * computes X = X - Bt(t), where operator B
  * corresponds to cutting planes: triangle, pentagonal and heptagonal inequalities
  */
-void op_Bt(const Problem *P, double *X, const double *tt) {
+void op_Bt(const Problem *P, double *X, const double *tt, GlobalVariables *globals) {
 
     int N = P->n;
     int type, ii, jj, kk, ll, mm, nn, oo;

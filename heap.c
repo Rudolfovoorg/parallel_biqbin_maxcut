@@ -15,7 +15,7 @@ Heap *heap = NULL;                  // heap is allocated as array of BabNode*
 double Bab_LBGet(void) { return BabLB; }
 int Bab_numEvalNodes(void) { return Bab_numNodes; }
 void Bab_incEvalNodes(void) { ++Bab_numNodes; }
-
+void set_BabPbSize(int num_vertices) { BabPbSize = num_vertices - 1;}
 
 /* Function that determines priority of the BaBNode-s.
  * Priority is based on upper bound: 

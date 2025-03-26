@@ -17,8 +17,6 @@ double Evaluate(BabNode *node, GlobalVariables *globals, int rank) {
     return bound;
 }
 
-
-
 /*
  * Writes subproblem to PP.
  *

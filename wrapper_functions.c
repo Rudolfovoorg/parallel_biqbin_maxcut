@@ -113,7 +113,7 @@ int master_init(char* filename, double* L, int num_vertices, int num_edges, BiqB
     initializeBabSolution();
 
     // Allocate the memory
-    allocMemory();
+    allocMemory(globals);
     // End of Bab_Init(argc, argv, rank)
     // AFTER INPUT DATA HAS BEEN PROCESSED
     // helper variables
@@ -268,7 +268,7 @@ int worker_init(BiqBinParameters params_in) {
     initializeBabSolution();
 
     // Allocate the memory
-    allocMemory();
+    allocMemory(globals);
     // End Bab_Init
 
     // helper variables
@@ -446,34 +446,53 @@ void worker_send_idle() {
 
 
 /******************   UNIT TEST INIT FUNCTIONS   ********************/
+// Get the SP main problem
+Problem* get_SP(double *L, int num_vertices) {
+    Problem *SP;
+    alloc(SP, Problem);
+    SP->n = num_vertices;
+    // SP->L = L;
+    alloc_matrix(SP->L, num_vertices, double);
+    memcpy(SP->L, L, num_vertices * num_vertices * sizeof(double));
+    return SP;
+}
 
-// Minimum initialization of the solver to test evaluate separately
-void unit_test_init(double* L, int num_vertices, BiqBinParameters params_in) {
-    globals = calloc(1, sizeof(GlobalVariables));
-    // allocate memory for original problem SP and subproblem PP
-    alloc(globals->SP, Problem);
-    alloc(globals->PP, Problem);
-
-    globals->SP->n = num_vertices;
-    globals->PP->n = num_vertices;
-    // allocate memory for objective matrices for SP and PP
-    // globals->SP->L = L;
-    alloc_matrix(globals->SP->L, globals->SP->n, double);
-    memcpy(globals->SP->L, L, num_vertices * num_vertices * sizeof(double));
-    BabPbSize = num_vertices - 1;
-
-    alloc_matrix(globals->PP->L, globals->SP->n, double);
-    int N2 = globals->SP->n * globals->SP->n;
+// Get initial PP, could be build elsewhere?
+Problem* get_PP(Problem *SP) {
+    Problem *PP;
+    alloc(PP, Problem);
+    PP->n = SP->n;
+    alloc_matrix(PP->L, PP->n, double);
+    int N2 = SP->n * SP->n;
     int incx = 1;
     int incy = 1;
-    dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
+    dcopy_(&N2, SP->L, &incx, PP->L, &incy);
 
-    // set global parameters
-    setParams(params_in);
-    // Seed the random number generator
-    srand(2020);
+    return PP;
+}
+// Get global variables struct, needs global *params to be set
+GlobalVariables* get_globals(double *L, int num_vertices) {
+    GlobalVariables *globe = calloc(1, sizeof(GlobalVariables));
+    // allocate memory for original problem SP and subproblem PP
+    alloc(globe->SP, Problem);
+    alloc(globe->PP, Problem);
+
+    globe->SP->n = num_vertices;
+    globe->PP->n = num_vertices;
+    // allocate memory for objective matrices for SP and PP
+    // globals->SP->L = L;
+    alloc_matrix(globe->SP->L, globe->SP->n, double);
+    memcpy(globe->SP->L, L, num_vertices * num_vertices * sizeof(double));
+
+    alloc_matrix(globe->PP->L, globe->SP->n, double);
+    // Parallel specific
+    int N2 = globe->SP->n * globe->SP->n;
+    int incx = 1;
+    int incy = 1;
+    dcopy_(&N2, globe->SP->L, &incx, globe->PP->L, &incy);    
     // Provide B&B with an initial solution
     initializeBabSolution();
     // Allocate the memory
-    allocMemory();
+    allocMemory(globe);
+    return globe;
 }

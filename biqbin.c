@@ -41,7 +41,7 @@ void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbi
     // Provide B&B with an initial solution
     initializeBabSolution();
     // Allocate the memory
-    allocMemory();
+    allocMemory(globals);
     globals->TIME = MPI_Wtime();
 }
 /* timer */

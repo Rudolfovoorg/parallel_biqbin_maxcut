@@ -247,15 +247,15 @@ extern void dposv_(char *uplo, int *n, int *nrhs, double *A, int *lda, double *B
 /**** Declarations of functions per file ****/
 
 /* allocate_free.c */
-void allocMemory(void);
-void freeMemory(void);
+void allocMemory(GlobalVariables *globals_in);
+void freeMemory(GlobalVariables *globals_in);
 
 /* bab_functions.c */
 void initializeBabSolution(void);
 int Init_PQ(void);
 int Bab_Init(int argc, char **argv, int rank);
-double evaluateSolution(int *sol);
-int updateSolution(int *x);
+double evaluateSolution(int *sol, Problem *SP);
+int updateSolution(int *x, Problem *SP);
 void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWorkers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype);
 void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank);
 void printSolution(FILE *file);
@@ -268,10 +268,10 @@ int countFixedVariables(BabNode *node);
 double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals);
 
 /* bundle.c */
-double fct_eval(const Problem *PP, double *gamma, double *X, double *g);
+double fct_eval(const Problem *PP, double *gamma, double *X, double *g, GlobalVariables *globals);
 void solve_lambda(int k, double *Q, double *c, double *lambda);
 void lambda_eta(const Problem *PP, double *zeta, double *G, double *gamma, double *dgamma, double *lambda, double *eta, double *t);
-void bundle_method(Problem *PP, double *t, int bdl_iter);
+void bundle_method(Problem *PP, double *t, int bdl_iter, GlobalVariables *globals);
 
 /* cutting_planec.c */
 double evaluateTriangleInequality(double *XX, int N, int type, int ii, int jj, int kk);
@@ -301,8 +301,8 @@ Heap* Init_Heap(int size);                                 // allocates space fo
 void LBUpdate(double new_LB);
 
 /* heuristic.c */
-double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x);
-double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num);
+double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, double *Z);
+double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num, double *Z);
 double mc_1opt(int *x, Problem *P0);
 int update_best(int *xbest, int *xnew, double *best, Problem *P0);
 
@@ -312,8 +312,8 @@ void ipm_mc_pk(double *L, int n, double *X, double *phi, int print);
 /* operators.c */
 void diag(const double *X, double *y, int n);
 void Diag(double *X, const double *y, int n);
-void op_B(const Problem *P, double *y, const double *X);
-void op_Bt(const Problem *P, double *X, const double *tt);
+void op_B(const Problem *P, double *y, const double *X,  GlobalVariables *globals);
+void op_Bt(const Problem *P, double *X, const double *tt,  GlobalVariables *globals);
 
 /* process_input.c */
 void print_symmetric_matrix(double *Mat, int N);

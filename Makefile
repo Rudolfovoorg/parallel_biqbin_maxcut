@@ -21,8 +21,8 @@ BINS =  biqbin
 # test command
 NUM_PROC = 8
 PARAMS = test/params
-TEST_INSTANCE = test/Instances/rudy/g05_60.4
-TEST_EXPECTED = test/Instances/rudy/g05_60.4-expected_output
+TEST_INSTANCE = test/Instances/rudy/g05_100.1
+TEST_EXPECTED = $(TEST_INSTANCE)-expected_output
 
 TEST = ./test.sh \
 	"mpiexec -n $(NUM_PROC) ./$(BINS)" \
@@ -56,8 +56,8 @@ TEST_ALL_100 = 	for i in $(shell seq 0 9); do \
 
 TEST_PYTHON = ./test.sh \
 	"mpiexec -n $(NUM_PROC) python3 test.py" \
-	test/Instances/rudy/g05_60.0 \
-	test/Instances/rudy/g05_60.0-expected_output \
+	$(TEST_INSTANCE) \
+	$(TEST_EXPECTED) \
 	test/params
 
 TEST_ALL_PYTHON_60 = 	for i in $(shell seq 0 9); do \
@@ -85,13 +85,13 @@ TEST_ALL_PYTHON_100 = 	for i in $(shell seq 0 9); do \
 	done
 
 
-TEST_P = ./test.sh \
+TEST_PYPQ = ./test.sh \
 	"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
-	test/Instances/rudy/g05_60.0 \
-	test/Instances/rudy/g05_60.0-expected_output \
+	$(TEST_INSTANCE) \
+	$(TEST_EXPECTED) \
 	test/params
 
-TEST_ALL_P_60 = 	for i in $(shell seq 0 9); do \
+TEST_ALL_PYPQ_60 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
 			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
 			test/Instances/rudy/g05_60.$$i \
@@ -99,7 +99,7 @@ TEST_ALL_P_60 = 	for i in $(shell seq 0 9); do \
 			params ;\
 	done
 
-TEST_ALL_P_80 = 	for i in $(shell seq 0 9); do \
+TEST_ALL_PYPQ_80 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
 			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
 			test/Instances/rudy/g05_80.$$i \
@@ -107,7 +107,7 @@ TEST_ALL_P_80 = 	for i in $(shell seq 0 9); do \
 			params ;\
 	done
 
-TEST_ALL_P_100 = 	for i in $(shell seq 0 9); do \
+TEST_ALL_PYPQ_100 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
 			"mpiexec -n $(NUM_PROC) python3 mpi_test.py" \
 			test/Instances/rudy/g05_100.$$i \
@@ -138,8 +138,9 @@ CFLAGS = $(OPTI) -Wall -W -pedantic
 all: $(BINS) biqbin.so
 
 test: all
-	$(TEST)
+	$(TEST_PYPQ)
 	$(TEST_PYTHON)
+	$(TEST)
 
 # test-memory:
 # 	mpiexec -n 8 valgrind --leak-check=full --show-leak-kinds=all ./$(BINS) $(TEST_INSTANCE) $(PARAMS)
@@ -147,20 +148,23 @@ test: all
 test-all:
 	$(TEST_ALL_60)
 	$(TEST_ALL_PYTHON_60)
+	$(TEST_ALL_PYPQ_60)
 	$(TEST_ALL_80)
 	$(TEST_ALL_PYTHON_80)
+	$(TEST_ALL_PYPQ_80)
 	$(TEST_ALL_100)
 	$(TEST_ALL_PYTHON_100)
+	$(TEST_ALL_PYPQ_100)
 
 test-all-python:
 	$(TEST_ALL_PYTHON_60)
 	$(TEST_ALL_PYTHON_80)
 	$(TEST_ALL_PYTHON_100)
 
-test-all-p:
-	$(TEST_ALL_P_60)
-	$(TEST_ALL_P_80)
-	$(TEST_ALL_P_100)
+test-all-pypq:
+	$(TEST_ALL_PYPQ_60)
+	$(TEST_ALL_PYPQ_80)
+	$(TEST_ALL_PYPQ_100)
 
 run:
 	mpirun -n 8 ./$(BINS) \

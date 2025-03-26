@@ -2,12 +2,11 @@
 #define ABS(i) ((i)>0 ? (i) : -(i))
 
 
-extern GlobalVariables *globals;
 /******************** Bundle method *********************/
 /* Bundle method for solving Max-Cut SDP relaxation
  * strengthened with cutting planes.
  ******************************************************/
-void bundle_method(Problem *PP, double *t, int bdl_iter) {
+void bundle_method(Problem *PP, double *t, int bdl_iter, GlobalVariables *globals) {
 
     // extern double f;                // opt. value of SDP 
     // extern double *g;               // subgradient 
@@ -71,7 +70,7 @@ void bundle_method(Problem *PP, double *t, int bdl_iter) {
             globals->gamma_test[i] = globals->dual_gamma[i] + globals->dgamma[i];
 
         /*** evaluate function at gamma_test ***/
-        f_test = fct_eval(PP, globals->gamma_test, globals->X_test, globals->g);
+        f_test = fct_eval(PP, globals->gamma_test, globals->X_test, globals->g, globals);
 
         /* del = f - f_appr(gamma_test) = f - (F'lambda + gamma_test'*G*lambda) */
         dcopy_(&k, globals->F, &inc, zeta, &inc); // copy F into zeta
@@ -240,7 +239,7 @@ void bundle_method(Problem *PP, double *t, int bdl_iter) {
 }
 
 /*** evaluate dual function: compute its value f and subgradient g ***/
-double fct_eval(const Problem *PP, double *dual_gamma, double *X, double *g) {
+double fct_eval(const Problem *PP, double *dual_gamma, double *X, double *g, GlobalVariables *globals) {
 
     int n = PP->n;
     int m = PP->NIneq + PP->NPentIneq + PP->NHeptaIneq;
@@ -254,7 +253,7 @@ double fct_eval(const Problem *PP, double *dual_gamma, double *X, double *g) {
     dcopy_(&nn, PP->L, &inc, L0, &inc);
 
     if (m > 0)
-        op_Bt(PP, L0, dual_gamma);
+        op_Bt(PP, L0, dual_gamma, globals);
 
     /* solve basic SDP relaxation */
     ipm_mc_pk(L0, n, X, &f, 0);
@@ -267,7 +266,7 @@ double fct_eval(const Problem *PP, double *dual_gamma, double *X, double *g) {
             g[i] = 1.0; 
         }
 
-        op_B(PP, g, X);
+        op_B(PP, g, X, globals);
     }
 
     free(L0);

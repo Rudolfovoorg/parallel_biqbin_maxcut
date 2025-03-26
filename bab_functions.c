@@ -85,7 +85,7 @@ int Bab_Init(int argc, char **argv, int rank) {
     initializeBabSolution();
 
     // Allocate the memory
-    allocMemory();
+    allocMemory(globals);
 
     return read_error;
 }
@@ -93,13 +93,13 @@ int Bab_Init(int argc, char **argv, int rank) {
 /* NOTE: int *sol in functions evaluateSolution and updateSolution have length BabPbSize
  * -> to get objecive multiple with Laplacian that is stored in upper left corner of SP->L
  */
-double evaluateSolution(int *sol) {
+double evaluateSolution(int *sol, Problem *SP) {
 
     double val = 0.0;
     
     for (int i = 0; i < BabPbSize; ++i) {
         for (int j = 0; j < BabPbSize; ++j) {
-            val += globals->SP->L[j + i * globals->SP->n] * sol[i] * sol[j];
+            val += SP->L[j + i * SP->n] * sol[i] * sol[j];
         }
     }
 
@@ -111,7 +111,7 @@ double evaluateSolution(int *sol) {
  * Only this function can update best solution and value.
  * Returns 1 if success.
  */
-int updateSolution(int *x) {
+int updateSolution(int *x, Problem *SP) {
     
     int solutionAdded = 0;
     double sol_value;
@@ -122,7 +122,7 @@ int updateSolution(int *x) {
       solx.X[i] = x[i];
     }
 
-    sol_value = evaluateSolution(x); // computes objective value of solx
+    sol_value = evaluateSolution(x, SP); // computes objective value of solx
 
     /* If new solution is better than the global solution,
      * then update and print the new solution. */
@@ -373,7 +373,7 @@ void printFinalOutput(FILE *file, int num_nodes) {
 /* Bab function called at the end of the execution.
  * This function frees the memory allocated by the program. */
 void Bab_End(void) {
-    freeMemory();   
+    freeMemory(globals);   
 }
 
 

@@ -185,7 +185,7 @@ int readParameters(const char *path, int rank) {
 void setParams(BiqBinParameters params_in) {
     params = params_in;
     if (params.adjust_TriIneq)
-    params.TriIneq = globals->SP->n * 10;
+        params.TriIneq = (BabPbSize + 1) * 10;
 }
 
 void printParameters(BiqBinParameters params_in) {

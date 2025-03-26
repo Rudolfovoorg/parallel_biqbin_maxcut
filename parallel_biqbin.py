@@ -3,7 +3,7 @@ import os
 import ctypes
 import numpy as np
 from numpy.typing import NDArray
-from biqbin_data_objects import BiqBinParameters, BabNode
+from biqbin_data_objects import BiqBinParameters, BabNode, GlobalVariables, Problem
 
 
 class ParallelBiqbin:
@@ -71,15 +71,26 @@ class ParallelBiqbin:
         self.biqbin.setParams.restype = ctypes.c_int
 
         # Unit test functions
-        self.biqbin.unit_test_init.argtypes = [
+        self.biqbin.get_globals.argtypes = [
             np.ctypeslib.ndpointer(
                 dtype=np.float64,
                 ndim=2,
                 flags='C_CONTIGUOUS'
             ),
-            ctypes.c_int,
-            BiqBinParameters
+            ctypes.c_int
         ]
+        self.biqbin.get_globals.restype = ctypes.POINTER(GlobalVariables)
+        self.biqbin.freeMemory.argtypes = [ctypes.POINTER(GlobalVariables)]
+
+        self.biqbin.Evaluate.argtypes = [
+            ctypes.POINTER(BabNode),
+            ctypes.POINTER(GlobalVariables),
+            ctypes.c_int
+        ]
+        self.biqbin.Evaluate.restype = ctypes.c_double
+
+        self.biqbin.srand.argtypes = [ctypes.c_int]
+        self.biqbin.set_BabPbSize.argtypes = [ctypes.c_int]
 
     # Initializes MPI in C, returns rank
     def init_MPI(self, graph_path, params_path) -> int:
@@ -148,12 +159,17 @@ class ParallelBiqbin:
         self.biqbin.finalizeMPI()
 
     # Unit test functions
-    def unit_test_init(self, L: NDArray[np.float64], num_verts: int, parameters: BiqBinParameters) -> bool:
-        self.biqbin.unit_test_init(
-            L,
-            num_verts,
-            parameters
-        )
+    def set_random_seed(self, seed: int):
+        self.biqbin.srand(seed)
 
-    def evaluate_node(self, node: BabNode, rank: int):
-        self.biqbin.evaluate_node_wrapped(node, rank)
+    def set_parameters(self, params: BiqBinParameters):
+        self.biqbin.setParams(params)
+
+    def get_globals(self, L: NDArray[np.float64], num_verts: int):
+        return self.biqbin.get_globals(L, num_verts)
+
+    def free_globals(self, globals):
+        self.biqbin.freeMemory(globals)
+
+    def evaluate(self, node: BabNode, globals, rank: int):
+        return self.biqbin.Evaluate(node, globals, rank)

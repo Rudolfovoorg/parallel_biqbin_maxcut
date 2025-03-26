@@ -1,75 +1,81 @@
 #include <stdio.h>
 
 #include "biqbin.h"
-#include "global_var.h"
 
 extern BabSolution *BabSol;     // global solution of B&B algorithm defined in heap.c
-extern GlobalVariables *globals;
-void allocMemory(void) {
+extern BiqBinParameters params;
+
+void allocMemory(GlobalVariables *globals_in) {
     /* 
      * SP, SP->n, SP->L, PP, PP->n and PP->L 
      * are all allocated and defined in readData (process_input.c),
      * before this function is called
      */
-    int N = globals->SP->n;
+    int num_vertices = globals_in->SP->n;
 
     /* triangle inequalities */
-    alloc_vector(globals->Cuts, MaxTriIneqAdded, Triangle_Inequality);
-    alloc_vector(globals->List, params.TriIneq, Triangle_Inequality);
+    alloc_vector(globals_in->Cuts, MaxTriIneqAdded, Triangle_Inequality);
+    alloc_vector(globals_in->List, params.TriIneq, Triangle_Inequality);
 
     /* pentagonal inequalities */
-    alloc_vector(globals->Pent_Cuts, MaxPentIneqAdded, Pentagonal_Inequality);
-    alloc_vector(globals->Pent_List, params.PentIneq, Pentagonal_Inequality);
+    alloc_vector(globals_in->Pent_Cuts, MaxPentIneqAdded, Pentagonal_Inequality);
+    alloc_vector(globals_in->Pent_List, params.PentIneq, Pentagonal_Inequality);
 
     /* heptagonal inequalities */
-    alloc_vector(globals->Hepta_Cuts, MaxHeptaIneqAdded, Heptagonal_Inequality);
-    alloc_vector(globals->Hepta_List, params.HeptaIneq, Heptagonal_Inequality);
+    alloc_vector(globals_in->Hepta_Cuts, MaxHeptaIneqAdded, Heptagonal_Inequality);
+    alloc_vector(globals_in->Hepta_List, params.HeptaIneq, Heptagonal_Inequality);
 
     /* primal and dual variables */
-    alloc_matrix(globals->X, N, double);
-    alloc_matrix(globals->Z, N, double);
-    alloc_vector(globals->X_bundle, N * N * MaxBundle, double);
-    alloc_matrix(globals->X_test, N, double);
-    alloc_vector(globals->dual_gamma, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double);
-    alloc_vector(globals->dgamma, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double);
-    alloc_vector(globals->gamma_test, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double);
-    alloc_vector(globals->lambda, MaxBundle, double);
-    alloc_vector(globals->eta, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double);
-    alloc_vector(globals->F, MaxBundle, double);
-    alloc_vector(globals->G, (MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded) * MaxBundle, double);   
-    alloc_vector(globals->g, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double); 
+    alloc_matrix(globals_in->X, num_vertices, double);
+    alloc_matrix(globals_in->Z, num_vertices, double);
+    alloc_vector(globals_in->X_bundle, num_vertices * num_vertices * MaxBundle, double);
+    alloc_matrix(globals_in->X_test, num_vertices, double);
+    alloc_vector(globals_in->dual_gamma, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double);
+    alloc_vector(globals_in->dgamma, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double);
+    alloc_vector(globals_in->gamma_test, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double);
+    alloc_vector(globals_in->lambda, MaxBundle, double);
+    alloc_vector(globals_in->eta, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double);
+    alloc_vector(globals_in->F, MaxBundle, double);
+    alloc_vector(globals_in->G, (MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded) * MaxBundle, double);   
+    alloc_vector(globals_in->g, MaxTriIneqAdded + MaxPentIneqAdded + MaxHeptaIneqAdded, double); 
 }
 
 
-void freeMemory(void) {
+void freeMemory(GlobalVariables *globals_in) {
 
-    free(globals->SP->L);
-    free(globals->SP);
-    free(globals->PP->L);
-    free(globals->PP);
+    if (globals_in->SP) {
+        free(globals_in->SP->L);
+        free(globals_in->SP);
+    }
+    if (globals_in->PP) {
+        free(globals_in->PP->L);
+        free(globals_in->PP);
+    }
 
-    free(globals->Cuts);
-    free(globals->List);
+    free(globals_in->Cuts);
+    free(globals_in->List);
 
-    free(globals->Pent_Cuts);
-    free(globals->Pent_List);
+    free(globals_in->Pent_Cuts);
+    free(globals_in->Pent_List);
 
-    free(globals->Hepta_Cuts);
-    free(globals->Hepta_List);
+    free(globals_in->Hepta_Cuts);
+    free(globals_in->Hepta_List);
 
-    free(globals->X);
-    free(globals->Z);
-    free(globals->X_bundle);
-    free(globals->X_test);
-    free(globals->dual_gamma);
-    free(globals->dgamma);
-    free(globals->gamma_test);
-    free(globals->lambda);
-    free(globals->eta);
-    free(globals->F);
-    free(globals->G);
-    free(globals->g);
+    free(globals_in->X);
+    free(globals_in->Z);
+    free(globals_in->X_bundle);
+    free(globals_in->X_test);
+    free(globals_in->dual_gamma);
+    free(globals_in->dgamma);
+    free(globals_in->gamma_test);
+    free(globals_in->lambda);
+    free(globals_in->eta);
+    free(globals_in->F);
+    free(globals_in->G);
+    free(globals_in->g);
 
-    free(globals);
-    free(BabSol);
+    free(globals_in);
+    if (BabSol) {
+        free(BabSol);
+    }
 }

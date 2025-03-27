@@ -1,6 +1,7 @@
 import json
 import pytest
 import numpy as np
+from scipy.sparse import csr_matrix
 from parallel_biqbin import ParallelBiqbin
 from helper_functions import HelperFunctions
 from parallel_biqbin_maxcut import BabFunctions
@@ -60,7 +61,13 @@ def test_seed_results(graph_data):
     params = helper.read_parameters_file(params_path)
 
     graph_path = graph_data["graph"]
-    adj = np.array(graph_data["adjacency_matrix"])
+    csr_dict = graph_data["csr_matrix"]
+    adj = csr_matrix(
+        (csr_dict["values"],
+         csr_dict["indices"],
+         csr_dict["indptr"]),
+        shape=tuple(csr_dict["shape"])
+    ).toarray()
     num_verts = adj.shape[0]  # Fix: Get number of vertices
     L_matrix = helper.get_SP_L_matrix(adj)
 

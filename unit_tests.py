@@ -13,6 +13,7 @@ ROOT_NODE_BOUNDS = data["root_node_bounds"]
 SEED_TEST_DATA = data["seed_test_data"]
 
 
+@pytest.mark.root_bound
 @pytest.mark.parametrize("graph_path, expected_bound", ROOT_NODE_BOUNDS.items())
 def test_root_node_bound(graph_path, expected_bound):
     biqbin = ParallelBiqbin()
@@ -46,6 +47,7 @@ def test_root_node_bound(graph_path, expected_bound):
             f"Upper bound mismatch for {graph_path}"
 
 
+@pytest.mark.seed_tests
 @pytest.mark.parametrize("graph_data", SEED_TEST_DATA)
 def test_seed_results(graph_data):
     """

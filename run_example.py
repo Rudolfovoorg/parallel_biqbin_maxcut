@@ -2,10 +2,12 @@ import sys
 from parallel_biqbin import ParallelBiqbin
 from helper_functions import HelperFunctions
 
-biqbin = ParallelBiqbin()
-help = HelperFunctions()
+biqbin = ParallelBiqbin()  # Biqbin Wrapper, runs C functions
+help = HelperFunctions()  # Helper functions to parse data from files
 
+# path to the graphs file (i.e. "Instances/rudy/g05.60.0" or "test/Instances/rudy/g05_100.3")
 graph_path = sys.argv[1]
+# path to parameters (i.e. "test/params" or "params")
 params_path = sys.argv[2]
 
 # init MPI in C, get rank

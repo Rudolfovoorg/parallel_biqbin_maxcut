@@ -7,5 +7,9 @@
     - added clean-output to clean only the output files
     - added test, test-all commands to run the tests from test.sh
     - added run, run-all commands to run the solver on the g05 instances
+    - added test, test-all commands to test the output for all g05 instances
 
 - added test.sh to test the g05 solution on the expected solution
+- added unit tests using pytest
+- added python wrapper in parallel_biqbin.py
+- added supporting classes for the wrapper in helper_functions.py, biqbin_data_objects.py, bab_functions.py

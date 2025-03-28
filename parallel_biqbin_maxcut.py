@@ -17,7 +17,7 @@ class ParallelBiqBinMaxCut:
         self.biqbin = ctypes.CDLL(os.path.abspath(biqbin_path))
 
         # Initialize solver for evaluation
-        self.biqbin.InitSolverWrapped.argtypes = [
+        self.biqbin.init_solver_wrapped.argtypes = [
             np.ctypeslib.ndpointer(
                 dtype=np.float64,
                 ndim=2,
@@ -27,18 +27,14 @@ class ParallelBiqBinMaxCut:
             BiqBinParameters
         ]
 
-        self.biqbin.InitSolverWrapped.restype = None
-
         # Update lower bound
         self.biqbin.LBUpdate.argtypes = [ctypes.c_double]
-        self.biqbin.LBUpdate.restype = None
 
         # Evaluate Node
-        self.biqbin.EvaluateWrapped.argtypes = [
+        self.biqbin.evaluate_wrapped.argtypes = [
             ctypes.POINTER(BabNode),
             ctypes.c_int
         ]
-        self.biqbin.EvaluateWrapped.restype = None
 
         # Get diff from Master
         self.biqbin.getDiff.argtypes = None
@@ -66,7 +62,7 @@ class ParallelBiqBinMaxCut:
         self.biqbin.closeOutputFile.restype = None
 
     def init_solver(self, L_matrix, num_vertices, params):
-        self.biqbin.InitSolverWrapped(L_matrix, num_vertices, params)
+        self.biqbin.init_solver_wrapped(L_matrix, num_vertices, params)
 
     def open_output_file(self, name):
         self.biqbin.openOutputFile(name)
@@ -75,7 +71,7 @@ class ParallelBiqBinMaxCut:
         self.biqbin.closeOutputFile()
 
     def evaluate(self, node: BabNode, rank: int):
-        self.biqbin.EvaluateWrapped(ctypes.pointer(node), rank)
+        self.biqbin.evaluate_wrapped(ctypes.pointer(node), rank)
 
     def get_diff(self):
         return self.biqbin.getDiff()

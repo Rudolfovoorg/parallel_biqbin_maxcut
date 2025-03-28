@@ -333,8 +333,8 @@ void setDiff(double diff);
 double qap_simulated_annealing(int *H, int k, double *X, int n, int *pent);
 
 /* biqbin.c */
-void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbin_parameters);
-void EvaluateWrapped(BabNode *node, int rank);
+void init_solver_wrapped(double *L, int number_of_vertices, BiqBinParameters biqbin_parameters);
+void evaluate_wrapped(BabNode *node, int rank);
 BabNode* init_return_root(double* L, int num_vertices, BiqBinParameters params_in);
 
 #endif /*BIQBIN_H */

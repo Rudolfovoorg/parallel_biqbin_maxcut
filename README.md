@@ -126,7 +126,7 @@ make run-python-all
 
 ## Explanation of the Python Wrapper
 
-For easiest overview into how the wrapper is setup and run in code, please see `run_example.py` file.
+For easiest overview into how the wrapper is setup and run in code, please see **`run_example.py`** file.
 
 ### **Class: `ParallelBiqbin`**
 

@@ -8,12 +8,7 @@ from biqbin_data_objects import BabSolution
 from helper_functions import HelperFunctions
 
 """
-tags
-0 = over
-1 = idle
-2 = freeworkers
-3 = new_solution
-4 = babnode
+Priority queue and MPI communication done in python, needs further testing.
 """
 
 comm = MPI.COMM_WORLD

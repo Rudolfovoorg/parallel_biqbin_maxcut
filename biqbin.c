@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/time.h>
 
+/*****  wrapper functions for the priority queue and MPI to be ran in python, incomplete, needs further testing  *****/
 
 // For external Init()
 extern GlobalVariables *globals;
@@ -13,7 +14,7 @@ extern BiqBinParameters params;
 extern int BabPbSize;
 
 // Set all the necessary globals and variables for Evaluate to run
-void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbin_parameters)
+void init_solver_wrapped(double *L, int number_of_vertices, BiqBinParameters biqbin_parameters)
 {
     globals = calloc(1, sizeof(GlobalVariables));
     // allocate memory for original problem SP and subproblem PP
@@ -37,22 +38,23 @@ void InitSolverWrapped(double *L, int number_of_vertices, BiqBinParameters biqbi
 
     srand(2020);
     setParams(biqbin_parameters);
-    
+
     // Provide B&B with an initial solution
     initializeBabSolution();
     // Allocate the memory
     allocMemory(globals);
     globals->TIME = MPI_Wtime();
 }
-/* timer */
-double time_wall_clock(void)  {
+/* timer without mpi */
+double time_wall_clock(void)
+{
     struct timeval timecheck;
     gettimeofday(&timecheck, NULL);
     return timecheck.tv_sec + timecheck.tv_usec * 1e-6;
-
 }
 
-void EvaluateWrapped(BabNode *node, int rank) {
+void evaluate_wrapped(BabNode *node, int rank)
+{
     Bab_incEvalNodes();
     double upper = Evaluate(node, globals, rank);
     node->upper_bound = upper;

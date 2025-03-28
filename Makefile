@@ -21,7 +21,7 @@ BINS =  biqbin
 # test command
 NUM_PROC = 8
 PARAMS = test/params
-TEST_INSTANCE = test/Instances/rudy/g05_100.1
+TEST_INSTANCE = test/Instances/rudy/g05_60.0
 TEST_EXPECTED = $(TEST_INSTANCE)-expected_output
 
 TEST = ./test.sh \

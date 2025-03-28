@@ -13,7 +13,7 @@ params_path = sys.argv[2]
 # init MPI in C, get rank
 rank = biqbin.init_MPI(graph_path, params_path)
 
-# everyone reads params file
+# every process reads params file
 params = help.read_parameters_file(params_path)
 
 if rank == 0:

@@ -11,7 +11,7 @@ extern int BabPbSize;
 extern BabSolution *BabSol;
    
 extern BiqBinParameters params;
-extern GlobalVariables *globals;
+extern GlobalVariables globals;
 // extern Problem *SP;
 // extern Problem *PP;
 
@@ -48,11 +48,11 @@ int Init_PQ(void) {
     Bab_incEvalNodes();
 
     // Evaluate root node: compute upper and lower bound 
-    globals->root_bound = Evaluate(BabRoot, globals, 0);
-    printf("Root node bound: %.2f\n", globals->root_bound);
+    globals.root_bound = Evaluate(BabRoot, &globals, 0);
+    printf("Root node bound: %.2f\n", globals.root_bound);
 
     // save upper bound
-    BabRoot->upper_bound = globals->root_bound;
+    BabRoot->upper_bound = globals.root_bound;
 
     /* insert node into the priority queue or prune */
     // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
@@ -85,7 +85,7 @@ int Bab_Init(int argc, char **argv, int rank) {
     initializeBabSolution();
 
     // Allocate the memory
-    allocMemory(globals);
+    allocMemory(&globals);
 
     return read_error;
 }
@@ -138,10 +138,10 @@ int updateSolution(int *x, Problem *SP) {
 void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWorkers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype) {
 
     // If the algorithm stops before finding the optimal solution
-    if (!globals->stopped && (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) ) {
+    if (!globals.stopped && (params.time_limit > 0 && (MPI_Wtime() - globals.TIME) > params.time_limit) ) {
         
         // signal to printFinalOutput that algorihtm stopped early
-        globals->stopped = 1;
+        globals.stopped = 1;
     }
 
     MPI_Status status;
@@ -233,7 +233,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
     double g_lowerBound = Bab_LBGet();
     ///
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
-    node->upper_bound = Evaluate(node, globals, rank);
+    node->upper_bound = Evaluate(node, &globals, rank);
     //
     // check if better lower bound found --> update info with master
     if (Bab_LBGet() > g_lowerBound){
@@ -355,25 +355,25 @@ void printFinalOutput(FILE *file, int num_nodes) {
     fprintf(file, "\nNodes = %d\n", num_nodes);
     
     // normal termination
-    if (!globals->stopped) {
-        fprintf(file, "Root node bound = %.2lf\n", globals->root_bound);
+    if (!globals.stopped) {
+        fprintf(file, "Root node bound = %.2lf\n", globals.root_bound);
         fprintf(file, "Maximum value = %.0lf\n", best_sol);
         
     } else { // B&B stopped early
         fprintf(file, "TIME LIMIT REACHED.\n");
-        fprintf(file, "Root node bound = %.2lf\n", globals->root_bound); 
+        fprintf(file, "Root node bound = %.2lf\n", globals.root_bound); 
         fprintf(file, "Best value = %.0lf\n", best_sol);
     }
 
     printSolution(file);
-    fprintf(file, "Time = %.2f s\n\n", MPI_Wtime() - globals->TIME);
+    fprintf(file, "Time = %.2f s\n\n", MPI_Wtime() - globals.TIME);
 }
 
 
 /* Bab function called at the end of the execution.
  * This function frees the memory allocated by the program. */
 void Bab_End(void) {
-    freeMemory(globals);   
+    freeMemory(&globals);   
 }
 
 

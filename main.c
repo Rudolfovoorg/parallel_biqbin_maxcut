@@ -9,13 +9,11 @@ extern Heap *heap;
 
 extern BiqBinParameters params;
 extern FILE *output;
-extern GlobalVariables *globals;
+extern GlobalVariables globals;
 
 int num_workers_used = 0;
 
 int main(int argc, char **argv) {
-    globals = calloc(1, sizeof(GlobalVariables));
-
     /*******************************************************
     *********** BRANCH & BOUND: PARALLEL ALGORITHM ********
     ******************************************************/
@@ -61,8 +59,7 @@ int main(int argc, char **argv) {
     /***********************************/
 
     // Start the timer
-    globals->TIME = MPI_Wtime();
-
+    globals.TIME = MPI_Wtime();
     // type of message
     Message message;
 
@@ -87,7 +84,6 @@ int main(int argc, char **argv) {
     /******************** MASTER PROCESS ********************/
     if (rank == 0)
     {
-
         // only master evaluates the root node
         // and places it in priority queue if not able to prune
         over = Init_PQ();
@@ -95,9 +91,9 @@ int main(int argc, char **argv) {
 	    printf("Initial lower bound: %.0lf\n", Bab_LBGet());    
 
         // broadcast diff
-        printf("diff = %f", globals->diff);
+        printf("diff = %f", globals.diff);
         if (params.use_diff)
-            MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
+            MPI_Bcast(&globals.diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
 
             // broadcast lower bound to others or -1 to exit
         MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -185,7 +181,7 @@ int main(int argc, char **argv) {
     {
 	// receive diff
 	if (params.use_diff)
-	    MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
+	    MPI_Bcast(&globals.diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);	
 
 	// receive over (stop or continue)
 	MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -223,7 +219,7 @@ int main(int argc, char **argv) {
                 while(!isPQEmpty()){
 
                     // check if time limit reached
-                    if (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) {
+                    if (params.time_limit > 0 && (MPI_Wtime() - globals.TIME) > params.time_limit) {
                         break;
                     }
 

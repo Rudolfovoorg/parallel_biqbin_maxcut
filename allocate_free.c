@@ -74,7 +74,6 @@ void freeMemory(GlobalVariables *globals_in) {
     free(globals_in->G);
     free(globals_in->g);
 
-    free(globals_in);
     if (BabSol) {
         free(BabSol);
     }

@@ -13,16 +13,15 @@ with open("test/evaluate_results.json", "r") as f:
 ROOT_NODE_BOUNDS = data["root_node_bounds"]
 SEED_TEST_DATA = data["seed_test_data"]
 
+biqbin = ParallelBiqbin()
+helper = HelperFunctions()
+params_path = "test/params"
+params = helper.read_parameters_file(params_path)
+
 
 @pytest.mark.root_bound
 @pytest.mark.parametrize("graph_path, expected_bound", ROOT_NODE_BOUNDS.items())
 def test_root_node_bound(graph_path, expected_bound):
-    biqbin = ParallelBiqbin()
-    helper = HelperFunctions()
-
-    params_path = "test/params"
-    params = helper.read_parameters_file(params_path)
-
     adj, num_verts, _, _ = helper.read_maxcut_input(graph_path)
     L_matrix = helper.get_SP_L_matrix(adj)
 
@@ -54,12 +53,6 @@ def test_seed_results(graph_data):
     """
     Test multiple seeds on a given graph and compare the expected bounds.
     """
-    biqbin = ParallelBiqbin()
-    helper = HelperFunctions()
-
-    params_path = "test/params"
-    params = helper.read_parameters_file(params_path)
-
     graph_path = graph_data["graph"]
     csr_dict = graph_data["csr_matrix"]
     adj = csr_matrix(

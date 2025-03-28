@@ -14,7 +14,7 @@ extern BabSolution *BabSol;
 // other external globals
 extern BiqBinParameters params;
 extern FILE *output;
-extern GlobalVariables *globals;
+extern GlobalVariables globals;
 
 // local variables needed as globals
 int over = 0;
@@ -69,9 +69,8 @@ void finalizeMPI()
 // set globals, heap, print initial output, communicate main problem to worker processes, evaluate root node...
 int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqBinParameters params_in)
 {
-    globals = calloc(1, sizeof(GlobalVariables));
     // Start the timer here or in compute?
-    globals->TIME = MPI_Wtime();
+    globals.TIME = MPI_Wtime();
     /* each process allocates its local priority queue */
     heap = Init_Heap(HEAP_SIZE);
 
@@ -85,26 +84,26 @@ int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqB
     fprintf(output, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
     // READING INSTANCE FILE
     // allocate memory for original problem SP and subproblem PP
-    alloc(globals->SP, Problem);
-    alloc(globals->PP, Problem);
+    alloc(globals.SP, Problem);
+    alloc(globals.PP, Problem);
 
-    globals->SP->n = num_vertices;
-    globals->PP->n = num_vertices;
+    globals.SP->n = num_vertices;
+    globals.PP->n = num_vertices;
     // allocate memory for objective matrices for SP and PP
-    // globals->SP->L = L;
-    alloc_matrix(globals->SP->L, globals->SP->n, double);
-    memcpy(globals->SP->L, L, num_vertices * num_vertices * sizeof(double));
+    // globals.SP->L = L;
+    alloc_matrix(globals.SP->L, globals.SP->n, double);
+    memcpy(globals.SP->L, L, num_vertices * num_vertices * sizeof(double));
     BabPbSize = num_vertices - 1;
 
-    alloc_matrix(globals->PP->L, globals->SP->n, double);
+    alloc_matrix(globals.PP->L, globals.SP->n, double);
     // Parallel specific
-    int N2 = globals->SP->n * globals->SP->n;
+    int N2 = globals.SP->n * globals.SP->n;
     int incx = 1;
     int incy = 1;
-    dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
+    dcopy_(&N2, globals.SP->L, &incx, globals.PP->L, &incy);
     // END reading params
-    MPI_Bcast(&(globals->SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(globals->SP->L, globals->SP->n * globals->SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&(globals.SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(globals.SP->L, globals.SP->n * globals.SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // set global parameters
     setParams(params_in);
@@ -116,7 +115,7 @@ int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqB
     initializeBabSolution();
 
     // Allocate the memory
-    allocMemory(globals);
+    allocMemory(&globals);
     // End of Bab_Init(argc, argv, rank)
     // AFTER INPUT DATA HAS BEEN PROCESSED
     // helper variables
@@ -131,9 +130,9 @@ int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqB
     printf("Initial lower bound: %.0lf\n", Bab_LBGet());
 
     // broadcast diff
-    printf("diff = %f", globals->diff);
+    printf("diff = %f", globals.diff);
     if (params.use_diff)
-        MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&globals.diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // broadcast lower bound to others or -1 to exit
     MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -237,34 +236,33 @@ void master_end()
 // Worker receives the SP->L matrix and number of vertices from master process, needs params
 int worker_init(BiqBinParameters params_in)
 {
-    globals = calloc(1, sizeof(GlobalVariables));
     // Start the timer here or in compute?
-    globals->TIME = MPI_Wtime();
+    globals.TIME = MPI_Wtime();
     /* each process allocates its local priority queue */
     heap = Init_Heap(HEAP_SIZE);
 
     // Bab_Init - read input file
     // allocate memory for original problem SP and subproblem PP
-    alloc(globals->SP, Problem);
-    alloc(globals->PP, Problem);
+    alloc(globals.SP, Problem);
+    alloc(globals.PP, Problem);
 
-    MPI_Bcast(&(globals->SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&(globals.SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     // allocate memory for objective matrices for SP and PP
-    alloc_matrix(globals->SP->L, globals->SP->n, double);
-    alloc_matrix(globals->PP->L, globals->SP->n, double);
+    alloc_matrix(globals.SP->L, globals.SP->n, double);
+    alloc_matrix(globals.PP->L, globals.SP->n, double);
 
-    MPI_Bcast(globals->SP->L, globals->SP->n * globals->SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(globals.SP->L, globals.SP->n * globals.SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // IMPORTANT: last node is fixed to 0
     // --> BabPbSize is one less than the size of problem SP
-    BabPbSize = globals->SP->n - 1; // num_vertices - 1;
-    globals->PP->n = globals->SP->n;
+    BabPbSize = globals.SP->n - 1; // num_vertices - 1;
+    globals.PP->n = globals.SP->n;
 
-    int N2 = globals->SP->n * globals->SP->n;
+    int N2 = globals.SP->n * globals.SP->n;
     int incx = 1;
     int incy = 1;
-    dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
+    dcopy_(&N2, globals.SP->L, &incx, globals.PP->L, &incy);
 
     // set global parameters
     setParams(params_in);
@@ -275,7 +273,7 @@ int worker_init(BiqBinParameters params_in)
     initializeBabSolution();
 
     // Allocate the memory
-    allocMemory(globals);
+    allocMemory(&globals);
     // End Bab_Init
 
     // helper variables
@@ -283,7 +281,7 @@ int worker_init(BiqBinParameters params_in)
     /******************** WORKER PROCESS ********************/
     // receive diff
     if (params.use_diff)
-        MPI_Bcast(&globals->diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&globals.diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // receive over (stop or continue)
     MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -341,14 +339,14 @@ void worker_receive_problem()
 
 int time_limit_reached()
 {
-    return (params.time_limit > 0 && (MPI_Wtime() - globals->TIME) > params.time_limit) ? 1 : 0;
+    return (params.time_limit > 0 && (MPI_Wtime() - globals.TIME) > params.time_limit) ? 1 : 0;
 }
 
 // evaluate with global GlobalVariables struct already set
 void evaluate_node_wrapped(BabNode *node, int rank)
 {
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
-    node->upper_bound = Evaluate(node, globals, rank);
+    node->upper_bound = Evaluate(node, &globals, rank);
 }
 
 // Check if solution is better, update, communicate with master, send problems to workers etc..
@@ -498,7 +496,7 @@ GlobalVariables *get_globals(double *L, int num_vertices)
     globe->SP->n = num_vertices;
     globe->PP->n = num_vertices;
     // allocate memory for objective matrices for SP and PP
-    // globals->SP->L = L;
+    // globals.SP->L = L;
     alloc_matrix(globe->SP->L, globe->SP->n, double);
     memcpy(globe->SP->L, L, num_vertices * num_vertices * sizeof(double));
 
@@ -513,4 +511,9 @@ GlobalVariables *get_globals(double *L, int num_vertices)
     // Allocate the memory
     allocMemory(globe);
     return globe;
+}
+
+void free_globals(GlobalVariables *globals_in) {
+    freeMemory(globals_in);
+    free(globals_in);
 }

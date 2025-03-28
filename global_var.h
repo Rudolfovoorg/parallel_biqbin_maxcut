@@ -5,7 +5,7 @@
 /********************************************************/
 BiqBinParameters params;            // BiqBin parameters
 FILE *output;                       // output file
-GlobalVariables *globals;
+GlobalVariables globals;
 
 
 // Problem *SP;                        // original problem instance

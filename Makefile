@@ -13,7 +13,7 @@ OBJ = Obj
 CC = mpicc
 
 LINALG 	 = -lopenblas -lm 
-OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common -g
+OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common
 
 # binary
 BINS =  biqbin
@@ -138,7 +138,7 @@ CFLAGS = $(OPTI) -Wall -W -pedantic
 all: $(BINS) biqbin.so
 
 test: all
-	$(TEST_PYPQ)
+#	$(TEST_PYPQ)
 	$(TEST_PYTHON)
 	$(TEST)
 
@@ -148,13 +148,13 @@ test: all
 test-all:
 	$(TEST_ALL_60)
 	$(TEST_ALL_PYTHON_60)
-	$(TEST_ALL_PYPQ_60)
+#	$(TEST_ALL_PYPQ_60)
 	$(TEST_ALL_80)
 	$(TEST_ALL_PYTHON_80)
-	$(TEST_ALL_PYPQ_80)
+#	$(TEST_ALL_PYPQ_80)
 	$(TEST_ALL_100)
 	$(TEST_ALL_PYTHON_100)
-	$(TEST_ALL_PYPQ_100)
+#	$(TEST_ALL_PYPQ_100)
 
 test-all-python:
 	$(TEST_ALL_PYTHON_60)

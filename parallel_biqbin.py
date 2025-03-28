@@ -80,7 +80,7 @@ class ParallelBiqbin:
             ctypes.c_int
         ]
         self.biqbin.get_globals.restype = ctypes.POINTER(GlobalVariables)
-        self.biqbin.freeMemory.argtypes = [ctypes.POINTER(GlobalVariables)]
+        self.biqbin.free_globals.argtypes = [ctypes.POINTER(GlobalVariables)]
 
         self.biqbin.Evaluate.argtypes = [
             ctypes.POINTER(BabNode),
@@ -169,7 +169,7 @@ class ParallelBiqbin:
         return self.biqbin.get_globals(L, num_verts)
 
     def free_globals(self, globals):
-        self.biqbin.freeMemory(globals)
+        self.biqbin.free_globals(globals)
 
     def evaluate(self, node: BabNode, globals, rank: int):
         return self.biqbin.Evaluate(node, globals, rank)

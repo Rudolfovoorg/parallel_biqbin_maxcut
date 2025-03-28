@@ -8,7 +8,7 @@
 
 extern FILE *output;
 extern BiqBinParameters params;
-extern GlobalVariables *globals; 
+extern GlobalVariables globals; 
 extern int BabPbSize;
 
 // macro to handle the errors in the input reading
@@ -85,8 +85,8 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
         if (read_error)
             return read_error;
         else {
-            MPI_Bcast(&(globals->SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
-            MPI_Bcast(globals->SP->L, globals->SP->n * globals->SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
+            MPI_Bcast(&(globals.SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
+            MPI_Bcast(globals.SP->L, globals.SP->n * globals.SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
         }
             
     }
@@ -97,26 +97,26 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
             return read_error;    
 
         // allocate memory for original problem SP and subproblem PP
-        alloc(globals->SP, Problem);
-        alloc(globals->PP, Problem);
+        alloc(globals.SP, Problem);
+        alloc(globals.PP, Problem);
 
-        MPI_Bcast(&(globals->SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&(globals.SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         // allocate memory for objective matrices for SP and PP
-        alloc_matrix(globals->SP->L, globals->SP->n, double);
-        alloc_matrix(globals->PP->L, globals->SP->n, double);
+        alloc_matrix(globals.SP->L, globals.SP->n, double);
+        alloc_matrix(globals.PP->L, globals.SP->n, double);
 
-        MPI_Bcast(globals->SP->L, globals->SP->n * globals->SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(globals.SP->L, globals.SP->n * globals.SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         // IMPORTANT: last node is fixed to 0
         // --> BabPbSize is one less than the size of problem SP
-        BabPbSize = globals->SP->n - 1; // num_vertices - 1;
-        globals->PP->n = globals->SP->n;
+        BabPbSize = globals.SP->n - 1; // num_vertices - 1;
+        globals.PP->n = globals.SP->n;
 
-        int N2 = globals->SP->n * globals->SP->n;
+        int N2 = globals.SP->n * globals.SP->n;
         int incx = 1;
         int incy = 1;
-        dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
+        dcopy_(&N2, globals.SP->L, &incx, globals.PP->L, &incy);
     }    
     
     // Read the parameters from a user file
@@ -127,7 +127,7 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
     /* adjust parameters */
     // change number of added cutting planes per iteration to n*10
     if (params.adjust_TriIneq)
-        params.TriIneq = globals->SP->n * 10;
+        params.TriIneq = globals.SP->n * 10;
 
 
     if (rank == 0 && params.detailed_output) {
@@ -255,21 +255,21 @@ int readData(const char *instance) {
     fclose(f);
 
     // allocate memory for original problem SP and subproblem PP
-    alloc(globals->SP, Problem);
-    alloc(globals->PP, Problem);
+    alloc(globals.SP, Problem);
+    alloc(globals.PP, Problem);
 
     // size of matrix L
-    globals->SP->n = num_vertices;                 
+    globals.SP->n = num_vertices;                 
 
     // allocate memory for objective matrices for SP and PP
-    alloc_matrix(globals->SP->L, globals->SP->n, double);
-    alloc_matrix(globals->PP->L, globals->SP->n, double);
+    alloc_matrix(globals.SP->L, globals.SP->n, double);
+    alloc_matrix(globals.PP->L, globals.SP->n, double);
 
 
     // IMPORTANT: last node is fixed to 0
     // --> BabPbSize is one less than the size of problem SP
-    BabPbSize = globals->SP->n - 1; // num_vertices - 1;
-    globals->PP->n = globals->SP->n;
+    BabPbSize = globals.SP->n - 1; // num_vertices - 1;
+    globals.PP->n = globals.SP->n;
     
 
     /********** construct SP->L from Adj **********/
@@ -306,30 +306,30 @@ int readData(const char *instance) {
 
             // matrix part of L
             if ( (ii < num_vertices - 1) && (jj < num_vertices - 1) ) {
-                globals->SP->L[jj + ii * num_vertices] = tmp[jj + ii * num_vertices] - Adj[jj + ii * num_vertices]; 
-                sum_row += globals->SP->L[jj + ii * num_vertices];       
+                globals.SP->L[jj + ii * num_vertices] = tmp[jj + ii * num_vertices] - Adj[jj + ii * num_vertices]; 
+                sum_row += globals.SP->L[jj + ii * num_vertices];       
             }
             // vector part of L
             else if ( (jj == num_vertices - 1) && (ii != num_vertices - 1)  ) {
-                globals->SP->L[jj + ii * num_vertices] = sum_row;
+                globals.SP->L[jj + ii * num_vertices] = sum_row;
                 sum += sum_row;
             }
             // vector part of L
             else if ( (ii == num_vertices - 1) && (jj != num_vertices - 1)  ) {
-                globals->SP->L[jj + ii * num_vertices] = globals->SP->L[ii + jj * num_vertices];
+                globals.SP->L[jj + ii * num_vertices] = globals.SP->L[ii + jj * num_vertices];
             }
             // constant term in L
             else { 
-                globals->SP->L[jj + ii * num_vertices] = sum;
+                globals.SP->L[jj + ii * num_vertices] = sum;
             }
         }
         sum_row = 0.0;
     } 
 
-    int N2 = globals->SP->n * globals->SP->n;
+    int N2 = globals.SP->n * globals.SP->n;
     int incx = 1;
     int incy = 1;
-    dcopy_(&N2, globals->SP->L, &incx, globals->PP->L, &incy);
+    dcopy_(&N2, globals.SP->L, &incx, globals.PP->L, &incy);
 
 
     free(Adj);
@@ -340,9 +340,9 @@ int readData(const char *instance) {
 }
 
 double getDiff() {
-    return globals->diff;
+    return globals.diff;
 }
 
 void setDiff(double diff) {
-    globals->diff = diff;
+    globals.diff = diff;
 }

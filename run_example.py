@@ -1,36 +1,17 @@
 import sys
 from parallel_biqbin import ParallelBiqbin
 from helper_functions import HelperFunctions
-
-biqbin = ParallelBiqbin()  # Biqbin Wrapper, runs C functions
-help = HelperFunctions()  # Helper functions to parse data from files
+from biqbin_data_objects import ParametersWrapper
 
 # path to the graphs file (i.e. "Instances/rudy/g05.60.0" or "test/Instances/rudy/g05_100.3")
 graph_path = sys.argv[1]
-# path to parameters (i.e. "test/params" or "params")
+# path to parameters (i.e. "test/params" or "params") optional
 params_path = sys.argv[2]
 
-# init MPI in C, get rank
-rank = biqbin.init_MPI(graph_path, params_path)
+parameters = ParametersWrapper()
+# Read from params file if needed, can be set in the object
+parameters.read_from_file(params_path)
 
-# every process reads params file
-params = help.read_parameters_file(params_path)
-
-if rank == 0:
-    # Only rank 0 needs input data about the graph, name to open output file, L matrix and num verts for the problem
-    adj, num_verts, num_edge, name = help.read_maxcut_input(graph_path)
-    L_matrix = help.get_SP_L_matrix(adj)
-    # initialize master, if over == True don't go into main loop
-    over = biqbin.master_init(name, L_matrix, num_verts, num_edge, params)
-    while not over:
-        over = biqbin.master_main_loop()
-    # tell workers to end, release memory and finalize MPI
-    biqbin.master_end()
-
-else:
-    # Initialize solver for workers, needs params, master lets them know if is over
-    over = biqbin.worker_init(params)
-    while not over:
-        over = biqbin.worker_main_loop(rank)
-    # Free memory and finalize MPI
-    biqbin.worker_end()
+biqbin = ParallelBiqbin(params=parameters)  # Biqbin Wrapper, runs C functions
+# biqbin = ParallelBiqbin() -- can be run with default parameters
+biqbin.compute(graph_path=graph_path)  # Compute runs the solver

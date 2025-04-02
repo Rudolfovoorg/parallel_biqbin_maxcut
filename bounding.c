@@ -2,7 +2,6 @@
 
 extern BiqBinParameters params;
 extern FILE *output;
-extern int BabPbSize;
 
 // extern GlobalVariables *globals;
 
@@ -24,11 +23,13 @@ extern int BabPbSize;
 
 /******** main bounding routine calling bundle method ********/
 double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_in) {
+    int problem_size = globals_in->SP->n - 1;
+
     int index;                      // helps to store the fractional solution in the node
     double bound;                   // f + fixedvalue
     double gap;                     // difference between best lower bound and upper bound
     double oldf;                    // stores f from previous iteration 
-    int x[BabPbSize];               // vector for heuristic
+    int x[problem_size];            // vector for heuristic
     double viol3;                   // maximum violation of triangle inequalities
     double viol5 = 0.0;             // maximum violation of pentagonal inequalities
     double viol7 = 0.0;             // maximum violation of heptagonal inequalities
@@ -44,12 +45,12 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
     int mk;                         // (PP->NIneq + PP->NPentIneq + PP->NHeptaIneq) * PP->bundle
     
     /* stopping conditions */
-    int done = 0;                   
-    int giveup = 0;                                   
-    int prune = 0;
+    // int done = 0;                   
+    // int giveup = 0;                                   
+    // int prune = 0;
 
     // number of initial iterations of bundle method
-    int bdl_iter = params.init_bundle_iter;      
+    int bdl_iter = params.init_bundle_iter;
 
     // fixed value contributes to the objective value
     double fixedvalue = getFixedValue(node, globals_in->SP);
@@ -78,7 +79,7 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
     // Store the fractional solution in the node    
     index = 0;
 
-    for (int i = 0; i < BabPbSize; ++i) {
+    for (int i = 0; i < problem_size; ++i) {
         if (node->xfixed[i]) {
             node->fracsol[i] = (double) node->sol.X[i];
         }
@@ -89,7 +90,7 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
         }
     }
     /* run heuristic */
-    for (int i = 0; i < BabPbSize; ++i) {
+    for (int i = 0; i < problem_size; ++i) {
         if (node->xfixed[i]) {
             x[i] = node->sol.X[i];
         }
@@ -97,11 +98,12 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
             x[i] = 0;
         }
     }
+
     runHeuristic(globals_in->SP, PP, node, x, globals_in->X, globals_in->Z);
     if (updateSolution(x, globals_in->SP))
     {
         // Beno's note - I need to store the solution into current nodes BabSolution struct to read it in python
-        for (int i = 0; i < BabPbSize; ++i) {
+        for (int i = 0; i < problem_size; ++i) {
             node->sol.X[i] = x[i];
         }
     }
@@ -109,6 +111,9 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
     // upper bound
     bound = globals_in->f + fixedvalue;
 
+    // Check if done
+    int giveup = 0;                                   
+    int prune = 0;
     // check pruning condition
     if ( bound < Bab_LBGet() + 1.0 ) {
         prune = 1;
@@ -166,7 +171,7 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
     // initialize the bundle counter
     PP->bundle = 1;
 
-
+    int done = 0;
     /*** Main loop ***/
     while (!done) {
 
@@ -185,7 +190,7 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
         /******** heuristic ********/
         if (!prune) {
 
-            for (int i = 0; i < BabPbSize; ++i) {
+            for (int i = 0; i < problem_size; ++i) {
                 if (node->xfixed[i]) {
                     x[i] = node->sol.X[i];
                 }
@@ -198,7 +203,7 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
             if (updateSolution(x, globals_in->SP))
             {
                 // Beno's note - I need to store the solution into current nodes BabSolution struct to read it in python
-                for (int i = 0; i < BabPbSize; ++i) {
+                for (int i = 0; i < problem_size; ++i) {
                     node->sol.X[i] = x[i];
                 }
             }
@@ -259,7 +264,7 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
 
         // Store the fractional solution in the node    
         index = 0;
-        for (int i = 0; i < BabPbSize; ++i) {
+        for (int i = 0; i < problem_size; ++i) {
             if (node->xfixed[i]) {
                 node->fracsol[i] = (double) node->sol.X[i];
             }

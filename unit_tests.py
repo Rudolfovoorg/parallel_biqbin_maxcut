@@ -5,6 +5,7 @@ from scipy.sparse import csr_matrix
 from parallel_biqbin import ParallelBiqbin
 from helper_functions import HelperFunctions
 from parallel_biqbin_maxcut import BabFunctions
+from biqbin_data_objects import ParametersWrapper
 
 # Load the JSON with expected results
 with open("test/evaluate_results.json", "r") as f:
@@ -13,10 +14,9 @@ with open("test/evaluate_results.json", "r") as f:
 ROOT_NODE_BOUNDS = data["root_node_bounds"]
 SEED_TEST_DATA = data["seed_test_data"]
 
-biqbin = ParallelBiqbin()
 helper = HelperFunctions()
-params_path = "test/params"
-params = helper.read_parameters_file(params_path)
+params = ParametersWrapper()
+biqbin = ParallelBiqbin()
 
 
 @pytest.mark.root_bound
@@ -27,8 +27,7 @@ def test_root_node_bound(graph_path, expected_bound):
 
     babfun = BabFunctions(L_matrix, num_verts, params)
 
-    biqbin.biqbin.set_BabPbSize(num_verts)
-    biqbin.set_parameters(params)
+    biqbin.set_parameters(params=params)
 
     num_test_nodes = 3
     print(f"Graph: {graph_path}: ")
@@ -65,8 +64,6 @@ def test_seed_results(graph_data):
     L_matrix = helper.get_SP_L_matrix(adj)
 
     babfun = BabFunctions(L_matrix, num_verts, params)
-
-    biqbin.biqbin.set_BabPbSize(num_verts)
     biqbin.set_parameters(params)
 
     tests = graph_data["tests"]

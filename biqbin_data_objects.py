@@ -1,8 +1,102 @@
+import os
 import ctypes
 import numpy as np
 
 
-class BiqBinParameters(ctypes.Structure):
+class ParametersWrapper:
+    def __init__(self,
+                 init_bundle_iter: int = 5,
+                 max_bundle_iter: int = 15,
+                 triag_iter: int = 5,
+                 pent_iter: int = 5,
+                 hept_iter: int = 5,
+                 max_outer_iter: int = 20,
+                 extra_iter: int = 10,
+                 violated_TriIneq: float = 0.05,
+                 TriIneq: int = 5000,
+                 adjust_TriIneq: int = 1,
+                 PentIneq: int = 5000,
+                 HeptaIneq: int = 5000,
+                 Pent_Trials: int = 60,
+                 Hepta_Trials: int = 50,
+                 include_Pent: int = 1,
+                 include_Hepta: int = 1,
+                 root: int = 0,
+                 use_diff: int = 1,
+                 time_limit: int = 0,
+                 branchingStrategy: int = 1,
+                 detailed_output: int = 0
+                 ):
+
+        self.init_bundle_iter = init_bundle_iter
+        self.max_bundle_iter = max_bundle_iter
+        self.triag_iter = triag_iter
+        self.pent_iter = pent_iter
+        self.hept_iter = hept_iter
+        self.max_outer_iter = max_outer_iter
+        self.extra_iter = extra_iter
+        self.violated_TriIneq = violated_TriIneq
+        self.TriIneq = TriIneq
+        self.adjust_TriIneq = adjust_TriIneq
+        self.PentIneq = PentIneq
+        self.HeptaIneq = HeptaIneq
+        self.Pent_Trials = Pent_Trials
+        self.Hepta_Trials = Hepta_Trials
+        self.include_Pent = include_Pent
+        self.include_Hepta = include_Hepta
+        self.root = root
+        self.use_diff = use_diff
+        self.time_limit = time_limit
+        self.branchingStrategy = branchingStrategy
+        self.detailed_output = detailed_output
+
+    def read_from_file(self, filepath: str):
+        if not os.path.exists(filepath):
+            raise FileExistsError(f"{filepath} does not exist")
+
+        with open(filepath, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or "=" not in line:
+                    continue
+
+                key, value = map(str.strip, line.split("=", 1))
+                if hasattr(self, key):
+                    attr_type = type(getattr(self, key))
+
+                    if attr_type == int:
+                        value = int(value)
+                    elif attr_type == float:
+                        value = float(value)
+                    setattr(self, key, value)
+
+    def get_c_struct(self):
+        return _BiqBinParameters(
+            self.init_bundle_iter,
+            self.max_bundle_iter,
+            self.triag_iter,
+            self.pent_iter,
+            self.hept_iter,
+            self.max_outer_iter,
+            self.extra_iter,
+            self.violated_TriIneq,
+            self.TriIneq,
+            self.adjust_TriIneq,
+            self.PentIneq,
+            self.HeptaIneq,
+            self.Pent_Trials,
+            self.Hepta_Trials,
+            self.include_Pent,
+            self.include_Hepta,
+            self.root,
+            self.use_diff,
+            self.time_limit,
+            self.branchingStrategy,
+            self.detailed_output
+        )
+
+
+class _BiqBinParameters(ctypes.Structure):
     """ creates a struct to match emxArray_real_T """
 
     _fields_ = [
@@ -30,39 +124,74 @@ class BiqBinParameters(ctypes.Structure):
     ]
 
 
-NMAX = 1024
+NMAX = 1024  # Const currently
 
 
-class BabSolution(ctypes.Structure):
-    # Binary vector storing the solution
+class _BabSolution(ctypes.Structure):
     _fields_ = [("X", ctypes.c_int * NMAX)]
 
 
-class BabNode(ctypes.Structure):
+class _BabNode(ctypes.Structure):
     _fields_ = [
-        # 0-1 vector specifying which nodes are fixed
         ("xfixed", ctypes.c_int * NMAX),
-        ("sol", BabSolution),                 # 0-1 solution vector
-        # Fractional vector from primal matrix
+        ("sol", _BabSolution),
         ("fracsol", ctypes.c_double * NMAX),
-        ("level", ctypes.c_int),              # Level (depth) in the B&B tree
-        ("upper_bound", ctypes.c_double)      # Upper bound on max-cut solution
+        ("level", ctypes.c_int),
+        ("upper_bound", ctypes.c_double)
     ]
 
     def __lt__(self, other):
         return self.upper_bound < other.upper_bound
 
 
-# typedef struct Problem {
-#     double *L;          // Objective matrix
-#     int n;              // size of L
-#     int NIneq;          // number of triangle inequalities
-#     int NPentIneq;      // number of pentagonal inequalities
-#     int NHeptaIneq;     // number of heptagonal inequalities
-#     int bundle;         // size of bundle
-# } Problem;
+class BabNodeWrapper:
+    def __init__(self, problem_size: int, babnode_c_struct: _BabNode, babnode_pointer=None, parent_node=None):
+        self.problem_size = problem_size
+
+        self.parent_node: BabNodeWrapper = parent_node
+
+        self.__c_struct: _BabNode = babnode_c_struct
+        self.__pointer: ctypes.POINTER = babnode_pointer
+
+        if babnode_c_struct is None and babnode_pointer is not None:
+            self.__c_struct = self.__pointer.contents
+
+        elif babnode_c_struct is not None and babnode_pointer is None:
+            self.__pointer = ctypes.pointer(self.__c_struct)
+
+    def get_c_struct(self) -> _BabNode:
+        return self.__c_struct
+
+    def get_pointer(self) -> ctypes.POINTER:
+        return self.__pointer
+
+    def generate_babnode(self):
+        c_node = _BabNode()
+        parent_node = self.parent_node.get_c_struct()
+
+        for i in range(self.problem_size):  # Loop over all possible indices
+            if self.parent_node is None:
+                c_node.xfixed[i] = 0
+                c_node.sol.X[i] = 0
+            else:
+                c_node.xfixed[i] = parent_node.xfixed[i]
+                c_node.sol.X[i] = parent_node.sol.X[i] if c_node.xfixed[i] else 0
+
+        # Set level: root node starts at 0, children are +1 from parent
+        c_node.level = 0 if parent_node is None else parent_node.level + 1
+
+        return c_node
+
 
 class Problem(ctypes.Structure):
+    # typedef struct Problem {
+    #     double *L;          // Objective matrix
+    #     int n;              // size of L
+    #     int NIneq;          // number of triangle inequalities
+    #     int NPentIneq;      // number of pentagonal inequalities
+    #     int NHeptaIneq;     // number of heptagonal inequalities
+    #     int bundle;         // size of bundle
+    # } Problem;
     _fields_ = [
         ("L", ctypes.POINTER(ctypes.c_double)),
         ("n", ctypes.c_int),

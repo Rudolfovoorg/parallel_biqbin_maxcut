@@ -193,6 +193,6 @@ int Bab_LBUpd(double new_LB, BabSolution *bs) {
 }
 
 // Checked in python if it's better, then update here
-void LBUpdate(double new_LB) {
+void set_lower_bound(double new_LB) {
     BabLB = new_LB;
 }

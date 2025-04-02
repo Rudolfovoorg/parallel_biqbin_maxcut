@@ -2,7 +2,7 @@ import glob
 import re
 import ctypes
 import numpy as np
-from biqbin_data_objects import BiqBinParameters
+from biqbin_data_objects import ParametersWrapper, _BiqBinParameters
 
 
 class HelperFunctions:
@@ -55,29 +55,11 @@ class HelperFunctions:
 
         return L
 
-    def read_parameters_file(self, filename):
-        params = BiqBinParameters()
-        # Mapping field names to types
-        field_types = {name: typ for name, typ in BiqBinParameters._fields_}
-        with open(filename, 'r') as f:
-            for line in f.readlines():
-                key_val = line.strip().split('=')
-                if len(key_val) != 2:
-                    print(f"Skipping invalid line: {line.strip()}")
-                    continue  # Skip invalid lines
-                key, value = key_val[0].strip(), key_val[1].strip()
-                if hasattr(params, key):
-                    field_type = field_types[key]
-                    # Convert value to the correct type
-                    if field_type == ctypes.c_int:
-                        setattr(params, key, int(value))
-                    elif field_type == ctypes.c_double:
-                        setattr(params, key, float(value))
-                    else:
-                        print(f"Unknown type for field: {key}")
-                else:
-                    print(f"Unknown parameter: {key}")
-        return params
+    # marked for deletion
+    def read_parameters_file(self, filename) -> _BiqBinParameters:
+        params = ParametersWrapper()
+        params.read_from_file(filename)
+        return params.get_c_struct()
 
     def find_latest_output_file(self, input_file_path):
         # Match: input_path.output or input_path.output_<number>

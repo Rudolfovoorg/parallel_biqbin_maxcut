@@ -107,6 +107,9 @@ int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqB
 
     // set global parameters
     setParams(params_in);
+    if (params.adjust_TriIneq) {
+        params.TriIneq = (BabPbSize + 1) * 10;
+    }
 
     // Seed the random number generator
     srand(2020);
@@ -266,6 +269,9 @@ int worker_init(BiqBinParameters params_in)
 
     // set global parameters
     setParams(params_in);
+    if (params.adjust_TriIneq) {
+        params.TriIneq = (BabPbSize + 1) * 10;
+    }
     // Seed the random number generator
     srand(2020);
 
@@ -339,14 +345,26 @@ void worker_receive_problem()
 
 int time_limit_reached()
 {
-    return (params.time_limit > 0 && (MPI_Wtime() - globals.TIME) > params.time_limit) ? 1 : 0;
+    return (params.time_limit > 0 && (MPI_Wtime() - globals.TIME) > params.time_limit);
 }
 
 // evaluate with global GlobalVariables struct already set
-void evaluate_node_wrapped(BabNode *node, int rank)
+double evaluate_node_wrapped(BabNode *node, int rank)
 {
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
     node->upper_bound = Evaluate(node, &globals, rank);
+
+    return node->upper_bound;
+}
+// Updates the globals PP based on node and SP
+void create_subproblem_wrapped(BabNode *node) {
+    createSubproblem(node, globals.SP, globals.PP);
+}
+
+double sdp_bound_wrapped(BabNode *node, int rank)
+{
+    /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
+    return SDPbound(node,globals.PP, rank, &globals);
 }
 
 // Check if solution is better, update, communicate with master, send problems to workers etc..
@@ -486,13 +504,15 @@ Problem *get_PP(Problem *SP)
     return PP;
 }
 // Get global variables struct pointer, needs global *params to be set
-GlobalVariables *get_globals(double *L, int num_vertices)
+GlobalVariables* get_globals(double *L, int num_vertices)
 {
     GlobalVariables *globe = calloc(1, sizeof(GlobalVariables));
+    if (params.adjust_TriIneq) {
+        params.TriIneq = num_vertices * 10;
+    }
     // allocate memory for original problem SP and subproblem PP
     alloc(globe->SP, Problem);
     alloc(globe->PP, Problem);
-
     globe->SP->n = num_vertices;
     globe->PP->n = num_vertices;
     // allocate memory for objective matrices for SP and PP

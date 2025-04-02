@@ -38,7 +38,9 @@ void init_solver_wrapped(double *L, int number_of_vertices, BiqBinParameters biq
 
     srand(2020);
     setParams(biqbin_parameters);
-
+    if (params.adjust_TriIneq) {
+        params.TriIneq = (BabPbSize + 1) * 10;
+    }
     // Provide B&B with an initial solution
     initializeBabSolution();
     // Allocate the memory
@@ -56,6 +58,5 @@ double time_wall_clock(void)
 void evaluate_wrapped(BabNode *node, int rank)
 {
     Bab_incEvalNodes();
-    double upper = Evaluate(node, globals, rank);
-    node->upper_bound = upper;
+    node->upper_bound = Evaluate(node, globals, rank);
 }

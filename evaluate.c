@@ -1,7 +1,6 @@
 #include "biqbin.h"
 
 extern BiqBinParameters params;
-extern int BabPbSize;      
 
 /*
  * Evaluate a specific node.
@@ -34,7 +33,7 @@ double Evaluate(BabNode *node, GlobalVariables *globals, int rank) {
 void createSubproblem(BabNode *node, Problem *SP, Problem *PP) {
 
     // Subproblem size is the number of non-fixed variables in the node
-    PP->n = BabPbSize + 1 - countFixedVariables(node);
+    PP->n = SP->n - countFixedVariables(node);
 
     /* build objective:
      * Laplacian;
@@ -62,9 +61,9 @@ void createSubproblem(BabNode *node, Problem *SP, Problem *PP) {
     // last element (lower right corner) is sum
     double sum = 0.0;   
 
-
-    for (int i = 0; i < BabPbSize; ++i) {
-        for (int j = 0; j < BabPbSize; ++j) {
+    int problem_size = SP->n - 1;
+    for (int i = 0; i < problem_size; ++i) {
+        for (int j = 0; j < problem_size; ++j) {
             if (!node->xfixed[i] && !node->xfixed[j]) {     // delete rows and cols of SP->L
                 PP->L[index] = SP->L[j + i*N];
                 row_sum += PP->L[index];
@@ -119,10 +118,11 @@ void createSubproblem(BabNode *node, Problem *SP, Problem *PP) {
 double getFixedValue(BabNode *node, Problem *SP) {
 
     int N = SP->n;
+    int problem_size = SP->n - 1;
     double fixedvalue = 0.0;
 
-    for (int i = 0; i < BabPbSize; ++i) {
-        for (int j = 0; j < BabPbSize; ++j) {
+    for (int i = 0; i < problem_size; ++i) {
+        for (int j = 0; j < problem_size; ++j) {
             if (node->xfixed[i] && node->xfixed[j]) {
                 fixedvalue += SP->L[j + i*N] * node->sol.X[i] * node->sol.X[j];
             }

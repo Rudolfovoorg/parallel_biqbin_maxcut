@@ -30,6 +30,12 @@ TEST = ./test.sh \
 	$(TEST_EXPECTED) \
 	test/params
 
+TEST_HUGE = ./test.sh \
+	"mpiexec -n $(NUM_PROC) ./$(BINS)" \
+	test/Instances/rudy/be250.10 \
+	test/Instances/rudy/be250.10-expected_output \
+	test/params
+
 TEST_ALL_60 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
 			"mpiexec -n $(NUM_PROC) ./$(BINS)" \
@@ -58,6 +64,12 @@ TEST_PYTHON = ./test.sh \
 	"mpiexec -n $(NUM_PROC) python3 run_example.py" \
 	$(TEST_INSTANCE) \
 	$(TEST_EXPECTED) \
+	test/params
+
+TEST_PYTHON_HUGE = ./test.sh \
+	"mpiexec -n $(NUM_PROC) python3 run_example.py" \
+	test/Instances/rudy/be250.10 \
+	test/Instances/rudy/be250.10-expected_output \
 	test/params
 
 TEST_ALL_PYTHON_60 = 	for i in $(shell seq 0 9); do \
@@ -146,14 +158,14 @@ test: all
 # 	mpiexec -n 8 valgrind --leak-check=full --show-leak-kinds=all ./$(BINS) $(TEST_INSTANCE) $(PARAMS)
 
 test-all:
-	$(TEST_ALL_60)
 	$(TEST_ALL_PYTHON_60)
+	$(TEST_ALL_60)
 #	$(TEST_ALL_PYPQ_60)
-	$(TEST_ALL_80)
 	$(TEST_ALL_PYTHON_80)
+	$(TEST_ALL_80)
 #	$(TEST_ALL_PYPQ_80)
-	$(TEST_ALL_100)
 	$(TEST_ALL_PYTHON_100)
+	$(TEST_ALL_100)
 #	$(TEST_ALL_PYPQ_100)
 
 test-all-python:
@@ -170,6 +182,14 @@ run:
 	mpirun -n 8 ./$(BINS) \
 	$(TEST_INSTANCE) \
 	$(PARAMS)
+
+run-huge:
+#	mpirun -n 8 ./$(BINS) test/Instances/rudy/be250.10 test/params
+	mpirun -n 8 python3 run_example.py test/Instances/rudy/be250.10 test/params
+
+test-huge:
+	$(TEST_PYTHON_HUGE)
+	$(TEST_HUGE)
 
 run-all-60:
 	for i in $(shell seq 0 9); do \

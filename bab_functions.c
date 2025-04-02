@@ -96,9 +96,9 @@ int Bab_Init(int argc, char **argv, int rank) {
 double evaluateSolution(int *sol, Problem *SP) {
 
     double val = 0.0;
-    
-    for (int i = 0; i < BabPbSize; ++i) {
-        for (int j = 0; j < BabPbSize; ++j) {
+    int problem_size = SP->n - 1;
+    for (int i = 0; i < problem_size; ++i) {
+        for (int j = 0; j < problem_size; ++j) {
             val += SP->L[j + i * SP->n] * sol[i] * sol[j];
         }
     }
@@ -118,7 +118,7 @@ int updateSolution(int *x, Problem *SP) {
     BabSolution solx;
 
     // Copy x into solx --> because Bab_LBUpd needs BabSolution and not int*
-    for (int i = 0; i < BabPbSize; ++i) {
+    for (int i = 0; i < SP->n - 1; ++i) {
       solx.X[i] = x[i];
     }
 
@@ -329,8 +329,6 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
     }
 
 } 
-
-
 
 
 /* print solution 0-1 vector */

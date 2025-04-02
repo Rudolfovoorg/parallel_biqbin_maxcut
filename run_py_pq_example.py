@@ -4,7 +4,7 @@ import heapq
 import numpy as np
 from mpi4py import MPI
 from parallel_biqbin_maxcut import ParallelBiqBinMaxCut, BabFunctions
-from biqbin_data_objects import BabSolution
+from biqbin_data_objects import _BabSolution
 from helper_functions import HelperFunctions
 
 """
@@ -124,12 +124,12 @@ if rank == 0:
 
         elif tag == 3:  # NEW VALUE MESSAGE
             new_lowerbound = value
-            new_solution_array = np.zeros(babfuns.BabPbSize, dtype=np.int32)
+            new_solution_array = np.zeros(babfuns.problem_size, dtype=np.int32)
             comm.Recv(new_solution_array, source=source)
 
             if new_lowerbound > babfuns.best_lower_bound:
                 babfuns.best_lower_bound = new_lowerbound
-                babfuns.solution = BabSolution(new_solution_array)
+                babfuns.solution = _BabSolution(new_solution_array)
             comm.send(babfuns.best_lower_bound, dest=source)
 
     # print(f"{rank = } - {free_workers = }")
@@ -156,7 +156,7 @@ else:
             comm.recv(source=MPI.ANY_SOURCE, tag=1))
         biqbin.update_lowerbound(babfuns.best_lower_bound)
         # then get the node array
-        node_array = np.zeros(3 * babfuns.BabPbSize + 2, dtype=np.float64)
+        node_array = np.zeros(3 * babfuns.problem_size + 2, dtype=np.float64)
         comm.Recv(node_array, source=MPI.ANY_SOURCE, tag=2)
         # Process node and decide how to move forward
         node = babfuns.numpy_to_babnode(node_array)

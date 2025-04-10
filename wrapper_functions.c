@@ -353,12 +353,11 @@ double evaluate_node_wrapped(BabNode *node, int rank)
 {
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
     node->upper_bound = Evaluate(node, &globals, rank);
-
     return node->upper_bound;
 }
-// Updates the globals PP based on node and SP
-void create_subproblem_wrapped(BabNode *node) {
-    createSubproblem(node, globals.SP, globals.PP);
+// Updates the globals PP based on node and
+void create_subproblem_wrapped(BabNode *node, GlobalVariables *globals_in) {
+    createSubproblem(node, globals_in->SP, globals_in->PP);
 }
 
 double sdp_bound_wrapped(BabNode *node, int rank)
@@ -536,4 +535,8 @@ GlobalVariables* get_globals(double *L, int num_vertices)
 void free_globals(GlobalVariables *globals_in) {
     freeMemory(globals_in);
     free(globals_in);
+}
+
+GlobalVariables* get_globals_pointer() {
+    return &globals;
 }

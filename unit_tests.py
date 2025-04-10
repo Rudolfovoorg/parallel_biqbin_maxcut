@@ -16,6 +16,7 @@ SEED_TEST_DATA = data["seed_test_data"]
 
 helper = HelperFunctions()
 params = ParametersWrapper()
+
 biqbin = ParallelBiqbin()
 
 
@@ -35,14 +36,14 @@ def test_root_node_bound(graph_path, expected_bound):
         biqbin.set_random_seed(2020)
         globals = biqbin.get_globals(L_matrix, num_verts)
 
-        node = babfun.generate_node()
-        node.upper_bound = biqbin.evaluate(node, globals, 0)
+        node_pointer = babfun.generate_node()
+        biqbin.evaluate(node_pointer, globals, 0)
         biqbin.free_globals(globals)
 
         print(
-            f"Node {i} Upper bound diff: {round(node.upper_bound, 2) - expected_bound:.2f}")
+            f"Node {i} Upper bound diff: {round(node_pointer.upper_bound, 2) - expected_bound:.2f}")
         # Allow small floating point tolerance
-        assert abs(round(node.upper_bound, 2) - expected_bound) < 1e-5, \
+        assert abs(round(node_pointer.upper_bound, 2) - expected_bound) < 1e-5, \
             f"Upper bound mismatch for {graph_path}"
 
 

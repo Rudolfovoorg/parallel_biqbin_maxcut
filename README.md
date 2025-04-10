@@ -30,9 +30,9 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 
 ---
 
-## 🔧 BiqBin Setup Requirements (Ubuntu 22.04)
+##  BiqBin Setup Requirements (Ubuntu 22.04)
 
-### 📦 System Dependencies:
+###  System Dependencies:
 
 - `build-essential`
 - `libopenblas-dev`
@@ -40,12 +40,12 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 - `python3`
 - `python3-pip`
 
-### 📦 Python Packages:
+###  Python Packages:
 
 - `numpy`
 - `pytest`: for unit tests
 
-## ⚙️ Installation
+##  Installation
 
 1. Open the `Makefile`.
 2. Set the **compiler** and **BLAS/LAPACK** package paths according to your system.
@@ -65,7 +65,7 @@ make docker
 
 ---
 
-## 🚀 Usage
+## Usage
 
 ### Original Biqbin Maxcut Parallel solver - C only
 
@@ -145,6 +145,9 @@ The `ParallelBiqbin` Python class serves as a Python wrapper for interacting wit
 ---
 
 #### **Master Process Methods**
+- **`compute(filepath: str) -> bool`**
+  Runs the solver for the graph instance in the filepath location.
+
 
 - **`master_init(filename, L, num_verts, num_edge, parameters) -> bool`**  
   Initializes the master process (rank 0), sets parameters, the initial problem (SP), and communicates it to other workers in the C-solver.  
@@ -206,6 +209,8 @@ The `HelperFunctions` class helps parse the graph input and params files located
   - `num_vertices`: number of vertices in the graph.
   - `num_edges`: number of edges in the graph.
   - `name`: filename encoded into a byte string
+
+  Can be overriden to return the same values for parsing different types of input data
 
 - **`get_SP_L_matrix(Adj)`**  
   Receives an adjacency matrix, constructs and returns the L matrix that the C-solver expects in `master_init` method in `ParallelBiqbin` class.

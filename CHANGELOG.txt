@@ -12,3 +12,4 @@
 - added test.sh to test the g05 solution on the expected solution
 - added unit tests using pytest
 - added python wrapper in parallel_biqbin.py wrapper_functions.c to call from python and an example on how to run it in run_example.py
+- seperated bounding.c in wrapped_bounding.c so run_heuristics() function can be overriden in ParallelBiqbin class

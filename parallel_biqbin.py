@@ -3,7 +3,7 @@ import os
 import ctypes
 import numpy as np
 from numpy.typing import NDArray
-from biqbin_data_objects import ParametersWrapper, GlobalVariables, _BiqBinParameters, _BabNode
+from biqbin_data_objects import ParametersWrapper, GlobalVariables, _BiqBinParameters, _BabNode, Problem
 from helper_functions import HelperFunctions
 
 
@@ -11,6 +11,9 @@ class ParallelBiqbin:
     def __init__(self, params: ParametersWrapper = ParametersWrapper()):
         self.params = params
         self.rank = None
+
+        self.num_vertices: int = 0
+        self._globals_p = None
 
         self.helper_functions = HelperFunctions()
 
@@ -85,6 +88,8 @@ class ParallelBiqbin:
             ),
             ctypes.c_int
         ]
+        self.__biqbin.get_globals_pointer.restype = ctypes.POINTER(
+            GlobalVariables)
         self.__biqbin.get_globals.restype = ctypes.POINTER(GlobalVariables)
         self.__biqbin.free_globals.argtypes = [ctypes.POINTER(GlobalVariables)]
 
@@ -96,6 +101,56 @@ class ParallelBiqbin:
         self.__biqbin.Evaluate.restype = ctypes.c_double
         self.__biqbin.srand.argtypes = [ctypes.c_int]
 
+        # Split SDP_bound function
+        self.__biqbin.create_subproblem_wrapped.argtypes = [
+            ctypes.POINTER(_BabNode)
+        ]
+
+        self.__biqbin.init_sdp.argtypes = [
+            ctypes.POINTER(_BabNode),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(GlobalVariables)
+        ]
+        self.__biqbin.heuristics_wrapped.argtypes = [
+            ctypes.POINTER(_BabNode),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(GlobalVariables)
+        ]
+        self.__biqbin.heuristics_wrapped.restype = ctypes.c_double
+
+        self.__biqbin.update_solution_wrapped.argtypes = [
+            ctypes.POINTER(_BabNode),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(GlobalVariables)
+        ]
+
+        self.__biqbin.init_main_sdp_loop.argtypes = [
+            ctypes.POINTER(GlobalVariables),
+            ctypes.c_int
+        ]
+        self.__biqbin.init_main_sdp_loop.restype = ctypes.c_int
+
+        self.__biqbin.main_sdp_loop_start.argtypes = [
+            ctypes.POINTER(GlobalVariables)
+        ]
+        self.__biqbin.main_sdp_loop_start.restype = ctypes.c_int
+
+        self.__biqbin.main_sdp_loop_end.argtypes = [
+            ctypes.POINTER(_BabNode),
+            ctypes.POINTER(GlobalVariables)
+        ]
+        self.__biqbin.main_sdp_loop_end.restype = ctypes.c_int
+
+        self.__biqbin.get_upper_bound.argtypes = [
+            ctypes.POINTER(_BabNode),
+            ctypes.POINTER(GlobalVariables)
+        ]
+        self.__biqbin.get_upper_bound.restype = ctypes.c_double
+
+        self.__biqbin.set_globals_diff.argtypes = [
+            ctypes.POINTER(GlobalVariables)
+        ]
+
     def compute(self, graph_path):
         # init MPI in C, get rank
         self.rank = self.__init_MPI(graph_path)
@@ -104,6 +159,7 @@ class ParallelBiqbin:
             # Only rank 0 needs input data about the graph, name to open output file, L matrix and num verts for the problem
             adj, num_verts, num_edge, name = self.helper_functions.read_maxcut_input(
                 graph_path)
+            self.num_vertices = num_verts
             L_matrix = self.helper_functions.get_SP_L_matrix(adj)
             # initialize master, if over == True don't go into main loop
             over = self.__master_init(
@@ -163,7 +219,7 @@ class ParallelBiqbin:
             # Save previous g_lowerbound
             old_lb = self.get_lower_bound()
             # Evaluate Node
-            self.evaluate_node(babnode)
+            self.__evaluate_node(babnode.contents)
             # After eval, communicate new solution, frees node etc
             self.__biqbin.after_evaluation(babnode, old_lb)
 
@@ -183,13 +239,15 @@ class ParallelBiqbin:
     # master rank evaluates the root node and decides if further branching is needed
     def __master_init(self, filename, L: NDArray[np.float64], num_verts: int, num_edge: int) -> bool:
         # returns 0 if not over
-        return self.__biqbin.master_init(
+        over = self.__biqbin.master_init(
             filename,
             L,
             num_verts,
             num_edge,
             self.params.get_c_struct()
         ) != 0
+        self._globals_p = self.__biqbin.get_globals_pointer()
+        return over
 
     # Main loop for master rank, waits for communication from workers and responds until all are free
     def __master_main_loop(self) -> bool:
@@ -202,7 +260,10 @@ class ParallelBiqbin:
 
     # workers first receive status if the solver is done, if not update the global lower bound
     def __worker_init(self) -> bool:
-        return self.__biqbin.worker_init(self.params.get_c_struct()) != 0
+        over = self.__biqbin.worker_init(self.params.get_c_struct()) != 0
+        self._globals_p = self.__biqbin.get_globals_pointer()
+        self.num_vertices = self._globals_p.contents.SP.contents.n - 1
+        return over
 
     # Frees memory in worker process, finalizes MPI
     def __worker_end(self):
@@ -210,8 +271,60 @@ class ParallelBiqbin:
         self.__biqbin.finalizeMPI()
 
     ##############################################################
+    ##################### evaluate seperatered ###################
+    ##############################################################
+
+    def __evaluate_node(self, babnode):
+        # changes globals->PP using globals->SP and current BabNode
+        self.__create_subproblem(babnode)
+        # Stores the best solution for node, updates it in BabNode x[BabPbSize] local variable in SDPbound function
+        sol_x = (ctypes.c_int * (self.num_vertices - 1))()
+        # update solution_vector_x for the given subproblem and node
+        self.__biqbin.init_sdp(babnode, sol_x, self._globals_p)
+        # Run heuristics and update solution first time
+        self.run_heuristics(babnode, sol_x)
+        self.__update_solution_wrapped(babnode, sol_x)
+
+        is_root = 1 if self.rank == 0 else 0  # runs differently on root node
+        over = self.__biqbin.init_main_sdp_loop(
+            self._globals_p,
+            is_root
+        )
+        while not over:
+            prune = self.__biqbin.main_sdp_loop_start(self._globals_p)
+            if not prune:
+                for i in range(self.num_vertices - 1):
+                    if babnode.xfixed[i]:
+                        sol_x[i] = babnode.sol.X[i]
+                    else:
+                        sol_x[i] = 0
+                self.run_heuristics(babnode, sol_x)
+                self.__update_solution_wrapped(babnode, sol_x)
+
+            over = self.__biqbin.main_sdp_loop_end(
+                babnode, self._globals_p
+            )
+
+        if self.rank == 0 and self.params.use_diff == 1:
+            self.__biqbin.set_globals_diff(self._globals_p)
+        return self.__biqbin.get_upper_bound(babnode, self._globals_p)
+
+    def __create_subproblem(self, babnode):
+        self.__biqbin.create_subproblem_wrapped(babnode, self._globals_p)
+
+    # should only need subproblem Laplacean and subproblem size
+    def run_heuristics(self, babnode, sol_x) -> float:
+        # returns lower bound for the given node and subproblem
+        return self.__biqbin.heuristics_wrapped(ctypes.pointer(babnode), sol_x, self._globals_p)
+
+    def __update_solution_wrapped(self, babnode, sol_x):
+        # if the heuristic solution (lower bound) in *x is better than the old one, it will update it in C
+        self.__biqbin.update_solution_wrapped(babnode, sol_x, self._globals_p)
+
+    ##############################################################
     ##################### Unit test functions ####################
     ##############################################################
+
     def set_random_seed(self, seed: int):
         self.__biqbin.srand(seed)
 
@@ -220,10 +333,14 @@ class ParallelBiqbin:
         self.__biqbin.setParams(params.get_c_struct())
 
     def get_globals(self, L: NDArray[np.float64], num_verts: int):
+        self.num_vertices = num_verts
         return self.__biqbin.get_globals(L, num_verts)
 
     def free_globals(self, globals):
         self.__biqbin.free_globals(globals)
 
     def evaluate(self, node: _BabNode, globals, rank: int):
-        return self.__biqbin.Evaluate(node, globals, rank)
+        # return self.__biqbin.Evaluate(node, globals, rank)
+        self._globals_p = globals
+        self.rank = rank
+        return self.__evaluate_node(node)

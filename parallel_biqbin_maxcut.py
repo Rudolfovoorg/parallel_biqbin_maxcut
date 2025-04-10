@@ -71,7 +71,7 @@ class ParallelBiqBinMaxCut:
         self.biqbin.closeOutputFile()
 
     def evaluate(self, node: _BabNode, rank: int):
-        self.biqbin.evaluate_wrapped(ctypes.pointer(node), rank)
+        self.biqbin.evaluate_wrapped(node, rank)
 
     def get_diff(self):
         return self.biqbin.getDiff()

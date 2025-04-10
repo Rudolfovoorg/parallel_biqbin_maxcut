@@ -21,7 +21,7 @@ BINS =  biqbin
 # test command
 NUM_PROC = 8
 PARAMS = test/params
-TEST_INSTANCE = test/Instances/rudy/g05_60.0
+TEST_INSTANCE = test/Instances/rudy/g05_60.4
 TEST_EXPECTED = $(TEST_INSTANCE)-expected_output
 
 TEST = ./test.sh \
@@ -134,7 +134,8 @@ BBOBJS = $(OBJ)/bundle.o $(OBJ)/allocate_free.o $(OBJ)/bab_functions.o \
          $(OBJ)/evaluate.o $(OBJ)/heap.o $(OBJ)/ipm_mc_pk.o \
          $(OBJ)/heuristic.o $(OBJ)/main.o $(OBJ)/operators.o \
          $(OBJ)/process_input.o $(OBJ)/qap_simulated_annealing.o \
-		 $(OBJ)/biqbin.o $(OBJ)/wrapper_functions.o
+		 $(OBJ)/biqbin.o $(OBJ)/wrapper_functions.o $(OBJ)/wrapped_bounding.o \
+		#  $(obj)
 
 
 # All objects

@@ -53,6 +53,7 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, d
     while (done < 2) {
         ++done;
         
+        // GW
         // compute Cholesky factorization
         dpotrf_(&UPLO, &n, Z, &n, &info);
 
@@ -71,7 +72,6 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, d
         heur_val = GW_heuristic(P0, P, node, x, P0->n, Z);
 
         if (heur_val > fh) {
-
             done = 0;
             fh = heur_val;
 
@@ -86,7 +86,6 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, d
                 }
             }
             xh[n-1] = -1.0;                  // last vertex in original is fixed to 0
-                      
         }
 
         constant = 0.3 + 0.6 * ( (double)rand()/(double)(RAND_MAX) );
@@ -97,7 +96,6 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, d
         dscal_(&nn, &alpha, Z, &inc);
         alpha = constant;
         dsyr_(&UPLO, &n, &alpha, xh, &inc, Z, &n);
-
     }
 
     return heur_val;
@@ -107,7 +105,7 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, d
 /* Goemans-Williamson random hyperplane heuristic */
 double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num, double *Z) {
 
-    // Problem *P0 ... the original problem
+    // Problem *P0 ... the original problem - int num vertices
     // Problem *P  ... the current subproblem
     //         num ... number of random hyperplanes
 

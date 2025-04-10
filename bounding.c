@@ -24,7 +24,6 @@ extern FILE *output;
 /******** main bounding routine calling bundle method ********/
 double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_in) {
     int problem_size = globals_in->SP->n - 1;
-
     int index;                      // helps to store the fractional solution in the node
     double bound;                   // f + fixedvalue
     double gap;                     // difference between best lower bound and upper bound
@@ -76,9 +75,11 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
 
     // store basic SDP bound to compute diff in the root node
     double basic_bound = globals_in->f + fixedvalue;
-    // Store the fractional solution in the node    
-    index = 0;
 
+    // Store the fractional solution in the node
+
+
+    index = 0;
     for (int i = 0; i < problem_size; ++i) {
         if (node->xfixed[i]) {
             node->fracsol[i] = (double) node->sol.X[i];
@@ -98,21 +99,22 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
             x[i] = 0;
         }
     }
-
+    // Updates x with the current best solution
     runHeuristic(globals_in->SP, PP, node, x, globals_in->X, globals_in->Z);
-    if (updateSolution(x, globals_in->SP))
+    //
+    if (updateSolution(x, globals_in->SP)) // updates lower bound if the current x solution is best
     {
         // Beno's note - I need to store the solution into current nodes BabSolution struct to read it in python
         for (int i = 0; i < problem_size; ++i) {
             node->sol.X[i] = x[i];
         }
     }
-
+    
     // upper bound
     bound = globals_in->f + fixedvalue;
 
     // Check if done
-    int giveup = 0;                                   
+    int giveup = 0;
     int prune = 0;
     // check pruning condition
     if ( bound < Bab_LBGet() + 1.0 ) {
@@ -172,6 +174,8 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
     PP->bundle = 1;
 
     int done = 0;
+
+    
     /*** Main loop ***/
     while (!done) {
 
@@ -200,20 +204,21 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
             }
 
             runHeuristic(globals_in->SP, PP, node, x, globals_in->X, globals_in->Z);
-            if (updateSolution(x, globals_in->SP))
+            
+            if (updateSolution(x, globals_in->SP)) // updates lower bound
             {
                 // Beno's note - I need to store the solution into current nodes BabSolution struct to read it in python
                 for (int i = 0; i < problem_size; ++i) {
                     node->sol.X[i] = x[i];
                 }
             }
-
             prune = ( bound < Bab_LBGet() + 1.0 ) ? 1 : 0;
         }
         /***************************/
 
-        // compute gap
+        // compute 
         gap = bound - Bab_LBGet();
+        // printf("Gap: %f\n", gap);
 
         /* check if we will not be able to prune the node */
         if (count == params.triag_iter + params.pent_iter + params.hept_iter) {
@@ -277,7 +282,6 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
 
         /*** bundle update: due to separation of new cutting planes ***/
         if (!done) {
-
             // adjust size of dual_gamma
             for (int i = 0; i < PP->NIneq; ++i)
                 globals_in->dual_gamma[i] = globals_in->Cuts[i].y;

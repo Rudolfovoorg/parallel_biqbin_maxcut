@@ -6,7 +6,7 @@ from biqbin_data_objects import ParametersWrapper, _BiqBinParameters
 
 
 class HelperFunctions:
-    def read_maxcut_input(self, filename):
+    def read_maxcut_input(self, filename) -> tuple[np.array, int, int, str]:
         with open(filename, 'r') as f:
             # Read number of vertices and edges
             num_vertices, num_edges = map(int, f.readline().split())

@@ -64,7 +64,6 @@ int Init_PQ(void) {
         over = -1;
         free(BabRoot);
     }
-
     return over;
 }
 

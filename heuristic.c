@@ -4,15 +4,15 @@
 
 #include "biqbin.h"
 
-// extern double *X;
-// extern double *Z;       // stores Cholesky decomposition: X = ZZ^T
-
-double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, double *Z) {
-
-    // Problem *P0 ... the original problem
-    // Problem *P  ... the current subproblem
-    // int *x      ... current best feasible solution 
-
+/// @brief 
+/// @param P0 main problem globals->SP
+/// @param P  subproblem globals->PP
+/// @param node current BabNode
+/// @param x current best feasible solution for the given node and subproblem
+/// @param X globals->X
+/// @param Z globals->Z, stores Cholesky decomposition: X = ZZ^T
+/// @return lower bound for the given node and subproblem
+double runHeuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, const double *X, double *Z) {
     int n = P->n;
     int N = P0->n - 1; // BabPbSize
     int nn = n * n;
@@ -69,6 +69,7 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, d
                 Z[j + i*n] = 0.0;
 
         // Goemans-Williamson heuristic
+        // x stores the best solution found in GW heuristics, it is the only value that changes
         heur_val = GW_heuristic(P0, P, node, x, P0->n, Z);
 
         if (heur_val > fh) {
@@ -102,8 +103,18 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x, double *X, d
 }
 
 
-/* Goemans-Williamson random hyperplane heuristic */
-double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num, double *Z) {
+/**
+ * @brief Goemans-Williamson random hyperplane heuristic.
+ *
+ * @param P0 The original Problem *SP struct, only uses *L (double* L matrix) and n (int number of nodes)
+ * @param P  The current subproblem Problem *PP
+ * @param node The current BabNode structure, uses only xfixed (int[] array) and sol.X (BabSol structures int[] X solution nodes).
+ * @param x Only value that changes, stores the solution of the heuristic (size is the main problem size: P0->n-1).
+ * @param num The number of random hyperplanes to try, set to the number of nodes.
+ * @return heurestic value, calculated lower bound of best solution found by GW heurestic.
+ * 
+ * @note from both P0 and P only int n and double *L values are used
+ */double GW_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, int num, const double *Z) {
 
     // Problem *P0 ... the original problem - int num vertices
     // Problem *P  ... the current subproblem
@@ -164,22 +175,22 @@ double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num, dou
                 ++index;
             }
         }
-
+        // replace x if a new solution is better
         update_best(x, sol, &best, P0);
-      
     }
 
     return best;
 }
 
 
-/*
- * Performs a simple local search starting from the given feasible solution x. 
- * Returns a feasible solution x that is locally optimal.
- * The objective value of x is returned.
+/**
+ * @brief Performs a simple local search starting from the given feasible solution x.
+ * @param x stores feasible solution x that is locally optimal.
+ * @param P: subproblem Problem *PP
+ * 
+ * @note This function is working in {-1,1} model!
  */
-// NOTE: this function is working in {-1,1} model!
-double mc_1opt(int *x, Problem *P) {
+double mc_1opt(int *x, const Problem *P) {
 
     int N = P->n;
 
@@ -283,12 +294,16 @@ double mc_1opt(int *x, Problem *P) {
 }
 
 
-/*
- * Given the current best solution, xbest, and a new solution, xnew, determines
- * the objective value of xnew, then replaces xbest with xnew if
- * xnew is better. Also updates the best objective value, best.
+/**
+ * @brief switches out_xbest with xnew if xnews solution is better
+ * @param xbest current best solution vector, values get copied into it from xnew if it is better
+ * @param xnew new solution vector, gets evaluated inside the function and replaces out_xbest if it is better
+ * @param best pointer to the current best heuristic value (lower bound) of out_xbest, value gets updated with xnew's heuristic value
+ * @param P0: main Problem *SP (declared in global_var.h) only n is read to get the problem size
+ * 
+ * @note All of this can be (and now is) done on it's own outside this function
  */
-int update_best(int *xbest, int *xnew, double *best, Problem *P0) {
+int update_best(int *xbest, const int *xnew, double *best, const Problem *P0) {
 
     int success = 0;
     int N = P0->n - 1; // N = BabPbSize

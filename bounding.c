@@ -117,14 +117,14 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
     int giveup = 0;
     int prune = 0;
     // check pruning condition
-    if ( bound < Bab_LBGet() + 1.0 ) {
+    if ( bound < get_lower_bound() + 1.0 ) {
         prune = 1;
         goto END;
     }
 
 
     // check if cutting planes need to be added
-    if (params.use_diff && (rank != 0) && (bound > Bab_LBGet() + globals_in->diff + 1.0)) {
+    if (params.use_diff && (rank != 0) && (bound > get_lower_bound() + globals_in->diff + 1.0)) {
         giveup = 1;
         goto END;
     }
@@ -142,7 +142,7 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
     }
 
     // t = 0.5 * (f - fh) / (PP->NIneq * viol3^2)
-    double t = 0.5 * (bound - Bab_LBGet()) / (PP->NIneq * viol3 * viol3);
+    double t = 0.5 * (bound - get_lower_bound()) / (PP->NIneq * viol3 * viol3);
 
     // first evaluation at dual_gamma: f = fct_eval(PP, dual_gamma, X, g)
     // since dual_gamma = 0, this is just basic SDP relaxation
@@ -189,8 +189,8 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
         // upper bound
         bound = globals_in->f + fixedvalue;
         // prune test
-        prune = ( bound < Bab_LBGet() + 1.0 ) ? 1 : 0;
- 
+        prune = ( bound < get_lower_bound() + 1.0 ) ? 1 : 0;
+
         /******** heuristic ********/
         if (!prune) {
 
@@ -212,12 +212,12 @@ double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals_i
                     node->sol.X[i] = x[i];
                 }
             }
-            prune = ( bound < Bab_LBGet() + 1.0 ) ? 1 : 0;
+            prune = ( bound < get_lower_bound() + 1.0 ) ? 1 : 0;
         }
         /***************************/
 
         // compute 
-        gap = bound - Bab_LBGet();
+        gap = bound - get_lower_bound();
         // printf("Gap: %f\n", gap);
 
         /* check if we will not be able to prune the node */

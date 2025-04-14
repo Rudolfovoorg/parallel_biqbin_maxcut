@@ -275,7 +275,7 @@ int readData(const char *instance) {
      * SP->L = [ Laplacian,  Laplacian*e; (Laplacian*e)',  e'*Laplacian*e]
      */
     // NOTE: we multiply with 1/4 afterwards when subproblems PP are created!
-    //       (in function createSubproblem)
+    //       (in function create_subproblem)
     // NOTE: Laplacian is stored in upper left corner of L
 
     // (1) construct vec Adje = Adj*e 

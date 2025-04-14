@@ -2,7 +2,7 @@ import glob
 import re
 import ctypes
 import numpy as np
-from biqbin_data_objects import ParametersWrapper, _BiqBinParameters
+from biqbin_data_objects import BiqbinParameters, _BiqBinParameters
 
 
 class HelperFunctions:
@@ -57,7 +57,7 @@ class HelperFunctions:
 
     # marked for deletion
     def read_parameters_file(self, filename) -> _BiqBinParameters:
-        params = ParametersWrapper()
+        params = BiqbinParameters()
         params.read_from_file(filename)
         return params.get_c_struct()
 

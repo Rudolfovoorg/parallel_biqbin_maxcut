@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
         // and places it in priority queue if not able to prune
         over = Init_PQ();
 
-	    printf("Initial lower bound: %.0lf\n", Bab_LBGet());    
+	    printf("Initial lower bound: %.0lf\n", get_lower_bound());    
 
         // broadcast diff
         printf("diff = %f", globals.diff);
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
             goto FINISH;
         }
         else {
-            g_lowerBound = Bab_LBGet();
+            g_lowerBound = get_lower_bound();
             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
 
@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
         for (int xic = 0; xic <= 1; ++xic) { 
 
             // Create a new child node from the parent node
-            child_node = newNode(node);
+            child_node = new_node(node);
 
             // split on node ic
             child_node->xfixed[ic] = 1;

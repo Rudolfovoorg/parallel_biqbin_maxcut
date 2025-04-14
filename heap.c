@@ -8,11 +8,10 @@ int BabPbSize;                      // number of nodes in original graph - 1 (la
 BabSolution *BabSol;                // global solution of B&B algorithm
 static double BabLB;                // global lower bound (use double since int may overflow!)
 static int Bab_numNodes = 0;        // number of B&B nodes
-BabNode *BabRoot;                   // root node
 Heap *heap = NULL;                  // heap is allocated as array of BabNode*
 
 
-double Bab_LBGet(void) { return BabLB; }
+double get_lower_bound(void) { return BabLB; }
 int Bab_numEvalNodes(void) { return Bab_numNodes; }
 void Bab_incEvalNodes(void) { ++Bab_numNodes; }
 void set_BabPbSize(int num_vertices) { BabPbSize = num_vertices - 1;}
@@ -136,11 +135,15 @@ void Bab_PQInsert(BabNode *node) {
 /*
  * Create a new B&B node.
  *
- * If parentNode == NULL, it will create the root node.
- * Otherwise, the new node will be a child of parentNode.
+ * If parent_node == NULL, it will create the root node.
+ * Otherwise, the new node will be a child of parent_node.
  */
 // NOTE: Bab_GenChild will place created child node in priority queue
-BabNode* newNode(BabNode *parentNode) {
+
+/// @brief Create a new B&B node.
+/// @param parent_node pointer, if parent_node is NULL it will create a root node
+/// @return *node pointer
+BabNode* new_node(BabNode *parent_node) {
 
     // allocate memory for the new child node
     BabNode *node = (BabNode *) malloc(sizeof(BabNode));
@@ -151,18 +154,18 @@ BabNode* newNode(BabNode *parentNode) {
 
     // copy the solution information from the parent node
     for (int i = 0; i < BabPbSize; ++i) {
-        if (parentNode == NULL) {
+        if (parent_node == NULL) {
             node->xfixed[i] = 0;
             node->sol.X[i] = 0;
         }
         else {
-            node->xfixed[i] = parentNode->xfixed[i];
-            node->sol.X[i] = (node->xfixed[i]) ? parentNode->sol.X[i] : 0;
+            node->xfixed[i] = parent_node->xfixed[i];
+            node->sol.X[i] = (node->xfixed[i]) ? parent_node->sol.X[i] : 0;
         }
     }
 
     // child is one level deeper than parent
-    node->level = (parentNode == NULL) ? 0 : parentNode->level + 1;
+    node->level = (parent_node == NULL) ? 0 : parent_node->level + 1;
 
     return node;
 }

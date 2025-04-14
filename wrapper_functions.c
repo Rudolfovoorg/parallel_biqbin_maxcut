@@ -26,7 +26,11 @@ int *busyWorkers;
 MPI_Datatype BabSolutiontype;
 MPI_Datatype BabNodetype;
 
-// Same for all processes, initialize MPI and return rank of process
+
+/// @brief First funtion to be run from python, initializes MPI
+/// @param argc number of CLI arguments passed
+/// @param argv CLI arguments
+/// @return rank of process, 0 if master
 int initMPI(int argc, char **argv)
 {
     // MPI Start: start parallel environment
@@ -62,12 +66,14 @@ int initMPI(int argc, char **argv)
     return rank;
 }
 
-void finalizeMPI()
-{
-    MPI_Finalize();
-}
-// set globals, heap, print initial output, communicate main problem to worker processes, evaluate root node...
-int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqBinParameters params_in)
+
+/// @brief Sets globals, heap, prints initial output, communicates main problem SP to worker processes
+/// @param filename 
+/// @param L 
+/// @param num_vertices 
+/// @param num_edges 
+/// @param params_in
+void master_init(char *filename, double *L, int num_vertices, int num_edges, BiqBinParameters params_in)
 {
     // Start the timer here or in compute?
     globals.TIME = MPI_Wtime();
@@ -121,32 +127,44 @@ int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqB
     allocMemory(&globals);
     // End of Bab_Init(argc, argv, rank)
     // AFTER INPUT DATA HAS BEEN PROCESSED
-    // helper variables
-    BabNode *node;
-    double g_lowerBound;
+}
 
-    /******************** MASTER PROCESS ********************/
-    // only master evaluates the root node
-    // and places it in priority queue if not able to prune
-    over = Init_PQ();
 
-    printf("Initial lower bound: %.0lf\n", Bab_LBGet());
+/// @brief Branch or prune from evaluated root node, communicate with child processes
+/// @param root_node already evaluated
+/// @return 1 if over or 0 if continue evaluating
+int master_init_end(BabNode *root_node){
+    globals.root_bound = root_node->upper_bound;
+    printf("Root node bound: %.2f\n", globals.root_bound);
 
+    /* insert node into the priority queue or prune */
+    // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
+    if (get_lower_bound() + 1.0 < root_node->upper_bound) {    
+        Bab_PQInsert(root_node); 
+    }
+    else {
+        // otherwise, intbound <= BabLB, so we can prune
+        over = -1;
+        free(root_node);
+    }
+    printf("Initial lower bound: %.0lf\n", get_lower_bound());
+    
     // broadcast diff
     printf("diff = %f", globals.diff);
     if (params.use_diff)
-        MPI_Bcast(&globals.diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
+    MPI_Bcast(&globals.diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    
     // broadcast lower bound to others or -1 to exit
     MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
+    
+    double g_lowerBound;
     if ((over == -1) || params.root)
     {
         return over;
     }
     else
     {
-        g_lowerBound = Bab_LBGet();
+        g_lowerBound = get_lower_bound();
         MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
 
@@ -159,7 +177,7 @@ int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqB
 
     numbFreeWorkers = numbWorkers - 1;
     /***** branch root node and send to workers *****/
-    node = Bab_PQPop();
+    BabNode *node = Bab_PQPop();
 
     // Determine the variable x[ic] to branch on
     int ic = getBranchingVariable(node);
@@ -172,7 +190,7 @@ int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqB
     {
 
         // Create a new child node from the parent node
-        child_node = newNode(node);
+        child_node = new_node(node);
 
         // split on node ic
         child_node->xfixed[ic] = 1;
@@ -197,7 +215,9 @@ int master_init(char *filename, double *L, int num_vertices, int num_edges, BiqB
     num_workers_used = 2;
     return over;
 }
-// master_Bab_Main remains unchanged, coordinates communication with workers main loop
+
+/// @brief Runs until over != 0, master_Bab_Main remains unchanged, coordinates communication with workers main loop
+/// @returns 1 if over else 0
 int master_main_loop()
 {
     MPI_Status status;
@@ -211,7 +231,8 @@ int master_main_loop()
 
     return over; // If it returns 0 end it
 }
-// Send over signal to all worker processes then print end output and free memory
+
+/// @brief Send over signal to all worker processes then print end output, free memory
 void master_end()
 {
     // send over messages to the workers
@@ -236,7 +257,10 @@ void master_end()
     free(heap);
 }
 
-// Worker receives the SP->L matrix and number of vertices from master process, needs params
+
+/// @brief Receives the SP->L matrix, number of vertices and lower bound from master process, sets them for this process
+/// @param params_in sets parameters in this process
+/// @return 0 if not over, non-0 if over
 int worker_init(BiqBinParameters params_in)
 {
     // Start the timer here or in compute?
@@ -304,9 +328,10 @@ int worker_init(BiqBinParameters params_in)
     return over;
 }
 
+/// @brief Frees globals struct and heap
 void worker_end()
 {
-    Bab_End();
+    freeMemory(&globals);   
     free(heap->data);
     free(heap);
 }
@@ -314,7 +339,10 @@ void worker_end()
 /*************************************************************************/
 /********************       WORKER MAIN LOOP          ********************/
 /*************************************************************************/
-// First communication check in worker loop
+/// 
+
+/// @brief First communication check in worker loop, if over ends loop
+/// @return 0 if not over, non-0 if over
 int worker_check_over()
 {
     MPI_Status status;
@@ -343,41 +371,27 @@ void worker_receive_problem()
     Bab_PQInsert(node);
 }
 
+/// @brief Ends evaluating if passed the time limit
+/// @return 1 if limit reached, 0 if not
 int time_limit_reached()
 {
     return (params.time_limit > 0 && (MPI_Wtime() - globals.TIME) > params.time_limit);
 }
 
-// evaluate with global GlobalVariables struct already set
-double evaluate_node_wrapped(BabNode *node, int rank)
-{
-    /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
-    node->upper_bound = Evaluate(node, &globals, rank);
-    return node->upper_bound;
-}
-// Updates the globals PP based on node and
-void create_subproblem_wrapped(BabNode *node, GlobalVariables *globals_in) {
-    createSubproblem(node, globals_in->SP, globals_in->PP);
-}
-
-double sdp_bound_wrapped(BabNode *node, int rank)
-{
-    /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
-    return SDPbound(node,globals.PP, rank, &globals);
-}
-
-// Check if solution is better, update, communicate with master, send problems to workers etc..
+/// @brief Update masters lowerbound, prune node or branch and distribute to other workers
+/// @param node current node, already evaluated
+/// @param old_lowerbound pre-evaluation lower bound of current worker
 void after_evaluation(BabNode *node, double old_lowerbound)
 {
     Message message;
     MPI_Status status;
 
     // check if better lower bound found --> update info with master
-    if (Bab_LBGet() > old_lowerbound)
+    if (get_lower_bound() > old_lowerbound)
     {
 
         message = NEW_VALUE;
-        old_lowerbound = Bab_LBGet();
+        old_lowerbound = get_lower_bound();
 
         MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
         MPI_Send(&old_lowerbound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD);
@@ -393,7 +407,7 @@ void after_evaluation(BabNode *node, double old_lowerbound)
      * then we must branch since there could be a better feasible
      * solution in this subproblem
      */
-    if (Bab_LBGet() + 1.0 < node->upper_bound)
+    if (get_lower_bound() + 1.0 < node->upper_bound)
     {
 
         /***** branch *****/
@@ -407,7 +421,7 @@ void after_evaluation(BabNode *node, double old_lowerbound)
         {
 
             // Create a new child node from the parent node
-            child_node = newNode(node);
+            child_node = new_node(node);
 
             // split on node ic
             child_node->xfixed[ic] = 1;
@@ -469,6 +483,7 @@ void after_evaluation(BabNode *node, double old_lowerbound)
     }
 }
 
+/// @brief Once pq is empty notify master rank that worker is idle 
 void worker_send_idle()
 {
     Message message = IDLE;
@@ -489,7 +504,7 @@ Problem *get_SP(double *L, int num_vertices)
 }
 
 // Get initial PP pointer
-Problem *get_PP(Problem *SP)
+Problem *get_PP(const Problem *SP)
 {
     Problem *PP;
     alloc(PP, Problem);
@@ -503,7 +518,7 @@ Problem *get_PP(Problem *SP)
     return PP;
 }
 // Get global variables struct pointer, needs global *params to be set
-GlobalVariables* get_globals(double *L, int num_vertices)
+GlobalVariables* init_globals(double *L, int num_vertices)
 {
     GlobalVariables *globe = calloc(1, sizeof(GlobalVariables));
     if (params.adjust_TriIneq) {

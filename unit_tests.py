@@ -5,7 +5,7 @@ from scipy.sparse import csr_matrix
 from parallel_biqbin import ParallelBiqbin
 from helper_functions import HelperFunctions
 from parallel_biqbin_maxcut import BabFunctions
-from biqbin_data_objects import ParametersWrapper
+from biqbin_data_objects import BiqbinParameters
 
 # Load the JSON with expected results
 with open("test/evaluate_results.json", "r") as f:
@@ -15,7 +15,7 @@ ROOT_NODE_BOUNDS = data["root_node_bounds"]
 SEED_TEST_DATA = data["seed_test_data"]
 
 helper = HelperFunctions()
-params = ParametersWrapper()
+params = BiqbinParameters()
 
 biqbin = ParallelBiqbin()
 

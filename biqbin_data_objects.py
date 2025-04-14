@@ -1,9 +1,10 @@
+import json
 import os
 import ctypes
 import numpy as np
 
 
-class ParametersWrapper:
+class BiqbinParameters:
     def __init__(self,
                  init_bundle_iter: int = 5,
                  max_bundle_iter: int = 15,
@@ -25,50 +26,63 @@ class ParametersWrapper:
                  use_diff: int = 1,
                  time_limit: int = 0,
                  branchingStrategy: int = 1,
-                 detailed_output: int = 0
+                 detailed_output: int = 0,
+                 params_filepath: str = None
                  ):
 
-        self.init_bundle_iter = init_bundle_iter
-        self.max_bundle_iter = max_bundle_iter
-        self.triag_iter = triag_iter
-        self.pent_iter = pent_iter
-        self.hept_iter = hept_iter
-        self.max_outer_iter = max_outer_iter
-        self.extra_iter = extra_iter
-        self.violated_TriIneq = violated_TriIneq
-        self.TriIneq = TriIneq
-        self.adjust_TriIneq = adjust_TriIneq
-        self.PentIneq = PentIneq
-        self.HeptaIneq = HeptaIneq
-        self.Pent_Trials = Pent_Trials
-        self.Hepta_Trials = Hepta_Trials
-        self.include_Pent = include_Pent
-        self.include_Hepta = include_Hepta
-        self.root = root
-        self.use_diff = use_diff
-        self.time_limit = time_limit
-        self.branchingStrategy = branchingStrategy
-        self.detailed_output = detailed_output
+        self.init_bundle_iter: int = init_bundle_iter
+        self.max_bundle_iter: int = max_bundle_iter
+        self.triag_iter: int = triag_iter
+        self.pent_iter: int = pent_iter
+        self.hept_iter: int = hept_iter
+        self.max_outer_iter: int = max_outer_iter
+        self.extra_iter: int = extra_iter
+        self.violated_TriIneq: float = violated_TriIneq
+        self.TriIneq: int = TriIneq
+        self.adjust_TriIneq: int = adjust_TriIneq
+        self.PentIneq: int = PentIneq
+        self.HeptaIneq: int = HeptaIneq
+        self.Pent_Trials: int = Pent_Trials
+        self.Hepta_Trials: int = Hepta_Trials
+        self.include_Pent: int = include_Pent
+        self.include_Hepta: int = include_Hepta
+        self.root: int = root
+        self.use_diff: int = use_diff
+        self.time_limit: int = time_limit
+        self.branchingStrategy: int = branchingStrategy
+        self.detailed_output: int = detailed_output
+
+        if params_filepath is not None:
+            self.read_from_file(params_filepath)
 
     def read_from_file(self, filepath: str):
         if not os.path.exists(filepath):
             raise FileExistsError(f"{filepath} does not exist")
 
         with open(filepath, "r") as f:
-            for line in f:
-                line = line.strip()
-                if not line or "=" not in line:
-                    continue
+            if ".json" in filepath:
+                data = json.load(f)
+            else:
+                data = {}
+                for line in f:
+                    line = line.strip()
+                    if not line or "=" not in line:
+                        continue
+                    key, value = map(str.strip, line.split("=", 1))
+                    data[key] = value
 
-                key, value = map(str.strip, line.split("=", 1))
+            # Assign attributes from loaded data
+            for key, value in data.items():
                 if hasattr(self, key):
                     attr_type = type(getattr(self, key))
 
-                    if attr_type == int:
-                        value = int(value)
-                    elif attr_type == float:
-                        value = float(value)
-                    setattr(self, key, value)
+                    try:
+                        if attr_type == int:
+                            value = int(value)
+                        elif attr_type == float:
+                            value = float(value)
+                    except ValueError:
+                        continue
 
     def get_c_struct(self):
         return _BiqBinParameters(
@@ -97,8 +111,7 @@ class ParametersWrapper:
 
 
 class _BiqBinParameters(ctypes.Structure):
-    """ creates a struct to match emxArray_real_T """
-
+    """ creates a struct to match """
     _fields_ = [
         ('init_bundle_iter', ctypes.c_int),
         ('max_bundle_iter', ctypes.c_int),
@@ -183,7 +196,7 @@ class BabNodeWrapper:
         return c_node
 
 
-class Problem(ctypes.Structure):
+class _Problem(ctypes.Structure):
     # typedef struct Problem {
     #     double *L;          // Objective matrix
     #     int n;              // size of L
@@ -245,7 +258,7 @@ class Problem(ctypes.Structure):
 # } GlobalVariables;
 
 # Triangle Inequality Structure
-class Triangle_Inequality(ctypes.Structure):
+class _Triangle_Inequality(ctypes.Structure):
     _fields_ = [
         ("i", ctypes.c_int),
         ("j", ctypes.c_int),
@@ -258,7 +271,7 @@ class Triangle_Inequality(ctypes.Structure):
 # Pentagonal Inequality Structure
 
 
-class Pentagonal_Inequality(ctypes.Structure):
+class _Pentagonal_Inequality(ctypes.Structure):
     _fields_ = [
         ("type", ctypes.c_int),                           # type: 1-3
         ("permutation", ctypes.c_int * 5),                # array of 5 ints
@@ -269,7 +282,7 @@ class Pentagonal_Inequality(ctypes.Structure):
 # Heptagonal Inequality Structure
 
 
-class Heptagonal_Inequality(ctypes.Structure):
+class _Heptagonal_Inequality(ctypes.Structure):
     _fields_ = [
         ("type", ctypes.c_int),                           # type: 1-4
         ("permutation", ctypes.c_int * 7),                # array of 7 ints
@@ -280,11 +293,11 @@ class Heptagonal_Inequality(ctypes.Structure):
 # Global Variables Structure
 
 
-class GlobalVariables(ctypes.Structure):
+class _GlobalVariables(ctypes.Structure):
     _fields_ = [
         # Problems
-        ("SP", ctypes.POINTER(Problem)),
-        ("PP", ctypes.POINTER(Problem)),
+        ("SP", ctypes.POINTER(_Problem)),
+        ("PP", ctypes.POINTER(_Problem)),
         # General info
         ("stopped", ctypes.c_int),
         ("root_bound", ctypes.c_double),
@@ -311,14 +324,14 @@ class GlobalVariables(ctypes.Structure):
         ("f", ctypes.c_double),
 
         # Triangle inequalities
-        ("Cuts", ctypes.POINTER(Triangle_Inequality)),
-        ("List", ctypes.POINTER(Triangle_Inequality)),
+        ("Cuts", ctypes.POINTER(_Triangle_Inequality)),
+        ("List", ctypes.POINTER(_Triangle_Inequality)),
 
         # Pentagonal inequalities
-        ("Pent_Cuts", ctypes.POINTER(Pentagonal_Inequality)),
-        ("Pent_List", ctypes.POINTER(Pentagonal_Inequality)),
+        ("Pent_Cuts", ctypes.POINTER(_Pentagonal_Inequality)),
+        ("Pent_List", ctypes.POINTER(_Pentagonal_Inequality)),
 
         # Heptagonal inequalities
-        ("Hepta_Cuts", ctypes.POINTER(Heptagonal_Inequality)),
-        ("Hepta_List", ctypes.POINTER(Heptagonal_Inequality)),
+        ("Hepta_Cuts", ctypes.POINTER(_Heptagonal_Inequality)),
+        ("Hepta_List", ctypes.POINTER(_Heptagonal_Inequality)),
     ]

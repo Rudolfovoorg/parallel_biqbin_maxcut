@@ -10,7 +10,7 @@ extern BiqBinParameters params;
 double Evaluate(BabNode *node, GlobalVariables *globals, int rank) {
     
     // create subproblem PP
-    createSubproblem(node, globals->SP, globals->PP);
+    create_subproblem(node, globals->SP, globals->PP);
     // compute the SDP upper bound and run heuristic
     double bound = SDPbound(node, globals->PP, rank, globals);
     return bound;
@@ -30,7 +30,7 @@ double Evaluate(BabNode *node, GlobalVariables *globals, int rank) {
  * 
  * max x'LX, s.t. x in {-1,1}^(PP->n)
  */
-void createSubproblem(BabNode *node, Problem *SP, Problem *PP) {
+void create_subproblem(BabNode *node, Problem *SP, Problem *PP) {
 
     // Subproblem size is the number of non-fixed variables in the node
     PP->n = SP->n - countFixedVariables(node);

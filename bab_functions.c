@@ -39,10 +39,10 @@ void initializeBabSolution() {
 int Init_PQ(void) {
     
     int over = 0;
-    extern BabNode *BabRoot;
+    BabNode *BabRoot;
 
     // Create the root node
-    BabRoot = newNode(NULL);
+    BabRoot = new_node(NULL);
 
     // increase number of evaluated nodes
     Bab_incEvalNodes();
@@ -56,7 +56,7 @@ int Init_PQ(void) {
 
     /* insert node into the priority queue or prune */
     // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
-    if (Bab_LBGet() + 1.0 < BabRoot->upper_bound) {    
+    if (get_lower_bound() + 1.0 < BabRoot->upper_bound) {    
         Bab_PQInsert(BabRoot); 
     }
     else {
@@ -92,7 +92,7 @@ int Bab_Init(int argc, char **argv, int rank) {
 /* NOTE: int *sol in functions evaluateSolution and updateSolution have length BabPbSize
  * -> to get objecive multiple with Laplacian that is stored in upper left corner of SP->L
  */
-double evaluateSolution(int *sol, Problem *SP) {
+double evaluateSolution(const int *sol, const Problem *SP) {
 
     double val = 0.0;
     int problem_size = SP->n - 1;
@@ -110,7 +110,7 @@ double evaluateSolution(int *sol, Problem *SP) {
  * Only this function can update best solution and value.
  * Returns 1 if success.
  */
-int updateSolution(int *x, Problem *SP) {
+int updateSolution(const int *x, const Problem *SP) {
     
     int solutionAdded = 0;
     double sol_value;
@@ -164,11 +164,11 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
             MPI_Recv(&solx, 1, BabSolutiontype, source, SOLUTION, MPI_COMM_WORLD, &status);  
 
             if ( Bab_LBUpd(g_lowerBound, &solx) ){
-                printf("Feasible solution %.0lf\n", Bab_LBGet());
+                printf("Feasible solution %.0lf\n", get_lower_bound());
             }
             
             // send update information back to worker
-            g_lowerBound = Bab_LBGet();
+            g_lowerBound = get_lower_bound();
 
             MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD);
             break;       
@@ -209,7 +209,7 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
 	        num_workers_used = (current_busy > num_workers_used) ? current_busy : num_workers_used;
 
 	        // send message back
-            double g_lowerBound = Bab_LBGet();            
+            double g_lowerBound = get_lower_bound();            
             MPI_Send(&num_workers_available, 1, MPI_INT, source, NUM_FREE_WORKERS, MPI_COMM_WORLD);              
             MPI_Send(available_workers, num_workers_available, MPI_INT, source, FREEWORKER, MPI_COMM_WORLD);
             MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD);     
@@ -229,16 +229,16 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
     BabNode *node = Bab_PQPop();
 
     // save "old" lower bound
-    double g_lowerBound = Bab_LBGet();
+    double g_lowerBound = get_lower_bound();
     ///
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
     node->upper_bound = Evaluate(node, &globals, rank);
     //
     // check if better lower bound found --> update info with master
-    if (Bab_LBGet() > g_lowerBound){
+    if (get_lower_bound() > g_lowerBound){
 
         message = NEW_VALUE;
-        g_lowerBound = Bab_LBGet();
+        g_lowerBound = get_lower_bound();
 
         MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
         MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD);
@@ -256,7 +256,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
      * then we must branch since there could be a better feasible 
      * solution in this subproblem
      */
-    if (Bab_LBGet() + 1.0 < node->upper_bound) {
+    if (get_lower_bound() + 1.0 < node->upper_bound) {
 
         /***** branch *****/
 
@@ -268,7 +268,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
         for (int xic = 0; xic <= 1; ++xic) { 
 
             // Create a new child node from the parent node
-            child_node = newNode(node);
+            child_node = new_node(node);
 
             // split on node ic
             child_node->xfixed[ic] = 1;
@@ -347,7 +347,7 @@ void printSolution(FILE *file) {
 void printFinalOutput(FILE *file, int num_nodes) {
 
     // Best solution found
-    double best_sol = Bab_LBGet();
+    double best_sol = get_lower_bound();
 
     fprintf(file, "\nNodes = %d\n", num_nodes);
     

@@ -4,17 +4,17 @@
 #include "biqbin.h"
 
 /* definitions of global variables for priority queue */
-int BabPbSize;                      // number of nodes in original graph - 1 (last variable fixed to 0)
-BabSolution *BabSol;                // global solution of B&B algorithm
-static double BabLB;                // global lower bound (use double since int may overflow!)
-static int Bab_numNodes = 0;        // number of B&B nodes
+int main_problem_size;                      // number of nodes in original graph - 1 (last variable fixed to 0)
+BabSolution *solution;                // global solution of B&B algorithm
+static double global_lower_bound;                // global lower bound (use double since int may overflow!)
+static int number_of_nodes = 0;        // number of B&B nodes
 Heap *heap = NULL;                  // heap is allocated as array of BabNode*
 
 
-double get_lower_bound(void) { return BabLB; }
-int Bab_numEvalNodes(void) { return Bab_numNodes; }
-void Bab_incEvalNodes(void) { ++Bab_numNodes; }
-void set_BabPbSize(int num_vertices) { BabPbSize = num_vertices - 1;}
+double get_lower_bound() { return global_lower_bound; }
+int num_evaluated_nodes() { return number_of_nodes; }
+void increase_num_eval_nodes() { ++number_of_nodes; }
+void set_problem_size(int num_vertices) { main_problem_size = num_vertices - 1;}
 
 /* Function that determines priority of the BaBNode-s.
  * Priority is based on upper bound: 
@@ -82,7 +82,7 @@ static void heapify_up(int current) {
 
 
 // initializes heap for storing B&B subproblems via BabNode*
-Heap* Init_Heap(int size) {
+Heap* init_heap(int size) {
 
     Heap *heap;
     alloc(heap, Heap);
@@ -95,12 +95,12 @@ Heap* Init_Heap(int size) {
 }
 
 
-int isPQEmpty(void) {
+int pq_is_empty(void) {
    return heap->used == 0;
 }
 
 
-BabNode* Bab_PQPop(void) {
+BabNode* pq_pop(void) {
 
    /* safe root, swap it with last node and heapify */     
    BabNode *node = heap->data[0];
@@ -116,7 +116,7 @@ BabNode* Bab_PQPop(void) {
 }
 
 
-void Bab_PQInsert(BabNode *node) {
+void pq_push(BabNode *node) {
    
     // check heap size
     if (heap->size == heap->used) {
@@ -153,7 +153,7 @@ BabNode* new_node(BabNode *parent_node) {
     }
 
     // copy the solution information from the parent node
-    for (int i = 0; i < BabPbSize; ++i) {
+    for (int i = 0; i < main_problem_size; ++i) {
         if (parent_node == NULL) {
             node->xfixed[i] = 0;
             node->sol.X[i] = 0;
@@ -172,24 +172,24 @@ BabNode* new_node(BabNode *parent_node) {
 
 
 /* Allocate and initialize global lower bound and solution vector */
-void Bab_LBInit(double lowerBound, BabSolution *bs) {
+void init_solution_lb(double lowerBound, BabSolution *bs) {
 
-    BabSol = (BabSolution *) malloc(sizeof(BabSolution));
-    if (BabSol == NULL) {
-        fprintf(stderr, "Not enough memory for BabSol.\n");
+    solution = (BabSolution *) malloc(sizeof(BabSolution));
+    if (solution == NULL) {
+        fprintf(stderr, "Not enough memory for solution.\n");
         MPI_Abort(MPI_COMM_WORLD,10);
     }
-    *BabSol = *bs;
-    BabLB = lowerBound;
+    *solution = *bs;
+    global_lower_bound = lowerBound;
 }
 
 
 /* If new solution is better than the global solution, update the solution */
-int Bab_LBUpd(double new_LB, BabSolution *bs) {
+int update_lower_bound(double new_LB, BabSolution *bs) {
 
-    if (new_LB > BabLB) {
-        BabLB = new_LB;
-        *BabSol = *bs;
+    if (new_LB > global_lower_bound) {
+        global_lower_bound = new_LB;
+        *solution = *bs;
         return 1;
     }
     return 0;
@@ -197,5 +197,5 @@ int Bab_LBUpd(double new_LB, BabSolution *bs) {
 
 // Checked in python if it's better, then update here
 void set_lower_bound(double new_LB) {
-    BabLB = new_LB;
+    global_lower_bound = new_LB;
 }

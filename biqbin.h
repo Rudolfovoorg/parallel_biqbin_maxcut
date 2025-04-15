@@ -174,6 +174,19 @@ typedef struct GlobalVariables
     Heptagonal_Inequality *Hepta_List; // vector (params.HeptaIneq) of new violated heptagonal inequalities
 } GlobalVariables;
 
+typedef struct
+{
+    int n;
+    int N;
+    int nn;
+    int inc;
+    char UPLO;
+
+    double *xh;      // Convex combination vector
+    double fh;       // Best value
+    int *temp_x;     // Buffer for evaluating solutions
+} HeurState;
+
 /* Maximum number of variables */
 #define NMAX 1024
 
@@ -263,9 +276,6 @@ void Bab_End(void);
 int getBranchingVariable(BabNode *node);
 int countFixedVariables(BabNode *node);
 
-/* bounding.c */
-double SDPbound(BabNode *node, Problem *PP, int rank, GlobalVariables *globals);
-
 /* bundle.c */
 double fct_eval(const Problem *PP, double *gamma, double *X, double *g, GlobalVariables *globals);
 void solve_lambda(int k, double *Q, double *c, double *lambda);
@@ -281,26 +291,21 @@ double updatePentagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
 double getViolated_HeptagonalInequalities(double *X, int N, Heptagonal_Inequality *Hepta_List, int *ListSize);
 double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int hept_index, GlobalVariables *globals);
 
-/* evaluate.c */
-double Evaluate(BabNode *node, GlobalVariables *globals, int rank);
-void create_subproblem(BabNode *node, Problem *SP, Problem *PP);
-double getFixedValue(BabNode *node, Problem *SP);
-
 /* heap.c */
 double get_lower_bound(void);                        // returns global lower bound
-int Bab_numEvalNodes(void);                          // returns number of evaluated nodes
-void Bab_incEvalNodes(void);                         // increment the number of evaluated nodes
-int isPQEmpty(void);                                 // checks if queue is empty
-int Bab_LBUpd(double new_lb, BabSolution *bs);       // checks and updates lower bound if better found, returns 1 if success
+int num_evaluated_nodes(void);                          // returns number of evaluated nodes
+void increase_num_eval_nodes(void);                         // increment the number of evaluated nodes
+int pq_is_empty(void);                                 // checks if queue is empty
+int update_lower_bound(double new_lb, BabSolution *bs);       // checks and updates lower bound if better found, returns 1 if success
 BabNode *new_node(BabNode *parentNode);              // create child node from parent
-BabNode *Bab_PQPop(void);                            // take and remove the node with the highest priority
-void Bab_PQInsert(BabNode *node);                    // insert node into priority queue based on intbound and level
-void Bab_LBInit(double lowerBound, BabSolution *bs); // initialize global lower bound and solution vector
-Heap *Init_Heap(int size);                           // allocates space for heap (array of BabNode*)
+BabNode *pq_pop(void);                            // take and remove the node with the highest priority
+void pq_push(BabNode *node);                    // insert node into priority queue based on intbound and level
+void init_solution_lb(double lowerBound, BabSolution *bs); // initialize global lower bound and solution vector
+Heap *init_heap(int size);                           // allocates space for heap (array of BabNode*)
 void set_lower_bound(double new_LB);
 
 /* heuristic.c */
-double runHeuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, const double *X, double *Z);
+// double runHeuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, const double *X, double *Z);
 double GW_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, int num, const double *Z);
 double mc_1opt(int *x, const Problem *P0);
 int update_best(int *xbest, const int *xnew, double *best, const Problem *P0);
@@ -318,9 +323,6 @@ void op_Bt(const Problem *P, double *X, const double *tt, GlobalVariables *globa
 void print_symmetric_matrix(double *Mat, int N);
 int openOutputFile(char *filename);
 void closeOutputFile();
-int processCommandLineArguments(int argc, char **argv, int rank);
-int readData(const char *instance);
-int readParameters(const char *path, int rank);
 void setParams(BiqBinParameters params_in);
 void printParameters(BiqBinParameters params_in);
 double getDiff();
@@ -329,9 +331,37 @@ void setDiff(double diff);
 /* qap_simuted_annealing.c */
 double qap_simulated_annealing(int *H, int k, double *X, int n, int *pent);
 
-/* biqbin.c */
-void init_solver_wrapped(double *L, int number_of_vertices, BiqBinParameters biqbin_parameters);
-void evaluate_wrapped(BabNode *node, int rank);
-BabNode *init_return_root(double *L, int num_vertices, BiqBinParameters params_in);
+/* wrapped_bounding.c */
+void init_sdp(BabNode *node, int *x, GlobalVariables *globals_in);
+int init_main_sdp_loop(GlobalVariables *globals_in, int is_root);
+int main_sdp_loop_start(GlobalVariables *globals_in);
+int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in);
+double get_upper_bound(BabNode *node, const GlobalVariables *globals_in);
+void set_globals_diff(GlobalVariables *globals_in);
+double heuristics_wrapped(BabNode *node, int *x, GlobalVariables *globals_in);
+double getFixedValue(BabNode *node, Problem *SP);
+
+/* wrapper_functions.c */
+int initMPI(int argc, char **argv);
+void master_init(char *filename, double *L, int num_vertices, int num_edges, BiqBinParameters params_in);
+int master_init_end(BabNode *root_node);
+int master_main_loop();
+void master_end();
+int worker_init(BiqBinParameters params_in);
+void worker_end();
+int worker_check_over();
+void worker_receive_problem();
+int time_limit_reached();
+void after_evaluation(BabNode *node, double old_lowerbound);
+void worker_send_idle();
+GlobalVariables* init_globals(double *L, int num_vertices);
+void free_globals(GlobalVariables *globals_in);
+GlobalVariables* get_globals_pointer();
+
+/* wrapped_heuristics.c */
+HeurState* heuristic_init(const Problem *P0, const Problem *P, const BabNode *node, const double *X, double *Z);
+int cholesky_factorization(HeurState *state, double *Z);
+int heuristic_postprocess(HeurState *state, const BabNode *node, const int *x, const double *X, double *Z, double heur_val);
+double heuristic_finalize(HeurState *state);
 
 #endif /*BIQBIN_H */

@@ -8,8 +8,8 @@
 // heap.c globals
 #define HEAP_SIZE 1000000
 extern Heap *heap;
-extern int BabPbSize;
-extern BabSolution *BabSol;
+extern int main_problem_size;
+extern BabSolution *solution;
 
 // other external globals
 extern BiqBinParameters params;
@@ -78,7 +78,7 @@ void master_init(char *filename, double *L, int num_vertices, int num_edges, Biq
     // Start the timer here or in compute?
     globals.TIME = MPI_Wtime();
     /* each process allocates its local priority queue */
-    heap = Init_Heap(HEAP_SIZE);
+    heap = init_heap(HEAP_SIZE);
 
     // Bab_Init(argc, argv, rank) start
     openOutputFile(filename);
@@ -99,7 +99,7 @@ void master_init(char *filename, double *L, int num_vertices, int num_edges, Biq
     // globals.SP->L = L;
     alloc_matrix(globals.SP->L, globals.SP->n, double);
     memcpy(globals.SP->L, L, num_vertices * num_vertices * sizeof(double));
-    BabPbSize = num_vertices - 1;
+    main_problem_size = num_vertices - 1;
 
     alloc_matrix(globals.PP->L, globals.SP->n, double);
     // Parallel specific
@@ -114,7 +114,7 @@ void master_init(char *filename, double *L, int num_vertices, int num_edges, Biq
     // set global parameters
     setParams(params_in);
     if (params.adjust_TriIneq) {
-        params.TriIneq = (BabPbSize + 1) * 10;
+        params.TriIneq = (main_problem_size + 1) * 10;
     }
 
     // Seed the random number generator
@@ -140,10 +140,10 @@ int master_init_end(BabNode *root_node){
     /* insert node into the priority queue or prune */
     // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
     if (get_lower_bound() + 1.0 < root_node->upper_bound) {    
-        Bab_PQInsert(root_node); 
+        pq_push(root_node); 
     }
     else {
-        // otherwise, intbound <= BabLB, so we can prune
+        // otherwise, intbound <= global_lower_bound, so we can prune
         over = -1;
         free(root_node);
     }
@@ -177,7 +177,7 @@ int master_init_end(BabNode *root_node){
 
     numbFreeWorkers = numbWorkers - 1;
     /***** branch root node and send to workers *****/
-    BabNode *node = Bab_PQPop();
+    BabNode *node = pq_pop();
 
     // Determine the variable x[ic] to branch on
     int ic = getBranchingVariable(node);
@@ -197,7 +197,7 @@ int master_init_end(BabNode *root_node){
         child_node->sol.X[ic] = xic;
 
         // increment the number of explored nodes
-        Bab_incEvalNodes();
+        increase_num_eval_nodes();
 
         worker = xic + 1;
         busyWorkers[worker] = 1;
@@ -242,8 +242,8 @@ void master_end()
     }
 
     /* Print results to the standard output and to the output file */
-    printFinalOutput(stdout, Bab_numEvalNodes());
-    printFinalOutput(output, Bab_numEvalNodes());
+    printFinalOutput(stdout, num_evaluated_nodes());
+    printFinalOutput(output, num_evaluated_nodes());
     fprintf(output, "Number of cores: %d\n", numbWorkers);
     fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
     printf("Maximum number of workers used: %d\n", num_workers_used);
@@ -266,7 +266,7 @@ int worker_init(BiqBinParameters params_in)
     // Start the timer here or in compute?
     globals.TIME = MPI_Wtime();
     /* each process allocates its local priority queue */
-    heap = Init_Heap(HEAP_SIZE);
+    heap = init_heap(HEAP_SIZE);
 
     // Bab_Init - read input file
     // allocate memory for original problem SP and subproblem PP
@@ -282,8 +282,8 @@ int worker_init(BiqBinParameters params_in)
     MPI_Bcast(globals.SP->L, globals.SP->n * globals.SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // IMPORTANT: last node is fixed to 0
-    // --> BabPbSize is one less than the size of problem SP
-    BabPbSize = globals.SP->n - 1; // num_vertices - 1;
+    // --> main_problem_size is one less than the size of problem SP
+    main_problem_size = globals.SP->n - 1; // num_vertices - 1;
     globals.PP->n = globals.SP->n;
 
     int N2 = globals.SP->n * globals.SP->n;
@@ -294,7 +294,7 @@ int worker_init(BiqBinParameters params_in)
     // set global parameters
     setParams(params_in);
     if (params.adjust_TriIneq) {
-        params.TriIneq = (BabPbSize + 1) * 10;
+        params.TriIneq = (main_problem_size + 1) * 10;
     }
     // Seed the random number generator
     srand(2020);
@@ -324,7 +324,7 @@ int worker_init(BiqBinParameters params_in)
 
     // update lower bound
     BabSolution solx;
-    Bab_LBUpd(g_lowerBound, &solx);
+    update_lower_bound(g_lowerBound, &solx);
     return over;
 }
 
@@ -364,11 +364,11 @@ void worker_receive_problem()
     MPI_Recv(node, 1, BabNodetype, MPI_ANY_SOURCE, PROBLEM, MPI_COMM_WORLD, &status);
 
     // update
-    Bab_LBUpd(g_lowerBound, &solx);
+    update_lower_bound(g_lowerBound, &solx);
 
     // printf("%d - node received: %p\n", rank, (void*) node);
     // start local queue
-    Bab_PQInsert(node);
+    pq_push(node);
 }
 
 /// @brief Ends evaluating if passed the time limit
@@ -395,15 +395,15 @@ void after_evaluation(BabNode *node, double old_lowerbound)
 
         MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
         MPI_Send(&old_lowerbound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD);
-        MPI_Send(BabSol, 1, BabSolutiontype, 0, SOLUTION, MPI_COMM_WORLD);
+        MPI_Send(solution, 1, BabSolutiontype, 0, SOLUTION, MPI_COMM_WORLD);
 
         MPI_Recv(&old_lowerbound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
 
         // update
         BabSolution solx;
-        Bab_LBUpd(old_lowerbound, &solx);
+        update_lower_bound(old_lowerbound, &solx);
     }
-    /* if BabLB + 1.0 < child_node->upper_bound,
+    /* if global_lower_bound + 1.0 < child_node->upper_bound,
      * then we must branch since there could be a better feasible
      * solution in this subproblem
      */
@@ -428,7 +428,7 @@ void after_evaluation(BabNode *node, double old_lowerbound)
             child_node->sol.X[ic] = xic;
 
             /* insert node into the priority queue */
-            Bab_PQInsert(child_node);
+            pq_push(child_node);
         }
 
         // free parent node
@@ -455,7 +455,7 @@ void after_evaluation(BabNode *node, double old_lowerbound)
         MPI_Recv(free_workers, num_free_workers, MPI_INT, 0, FREEWORKER, MPI_COMM_WORLD, &status);
         MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
 
-        Bab_LBUpd(g_lowerBound, &solx);
+        update_lower_bound(g_lowerBound, &solx);
 
         // send subproblems to free workers
         if (num_free_workers != 0)
@@ -465,7 +465,7 @@ void after_evaluation(BabNode *node, double old_lowerbound)
             {
 
                 // get next subproblem from queue and send it
-                node = Bab_PQPop();
+                node = pq_pop();
 
                 // send subproblem to free worker
                 MPI_Send(&over, 1, MPI_INT, free_workers[i], OVER, MPI_COMM_WORLD);
@@ -478,7 +478,7 @@ void after_evaluation(BabNode *node, double old_lowerbound)
     }
     else
     {
-        // otherwise, intbound <= BabLB, so we can prune
+        // otherwise, intbound <= global_lower_bound, so we can prune
         free(node);
     }
 }

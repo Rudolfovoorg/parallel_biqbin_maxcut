@@ -1,95 +1,12 @@
-import os
-import glob
-import re
-import time
 import heapq
-import ctypes
 from typing import Optional
 import numpy as np
-from biqbin_data_objects import _BabSolution, _BabNode, _BiqBinParameters, ParametersWrapper
-
-
-class ParallelBiqBinMaxCut:
-    def __init__(self, biqbin_path="biqbin.so"):
-        # Load the shared library
-        if not os.path.exists(biqbin_path):
-            raise FileNotFoundError(f"Shared library not found: {biqbin_path}")
-        self.biqbin = ctypes.CDLL(os.path.abspath(biqbin_path))
-
-        # Initialize solver for evaluation
-        self.biqbin.init_solver_wrapped.argtypes = [
-            np.ctypeslib.ndpointer(
-                dtype=np.float64,
-                ndim=2,
-                flags='C_CONTIGUOUS'
-            ),
-            ctypes.c_int,
-            _BiqBinParameters
-        ]
-
-        # Update lower bound
-        self.biqbin.set_lower_bound.argtypes = [ctypes.c_double]
-
-        # Evaluate Node
-        self.biqbin.evaluate_wrapped.argtypes = [
-            ctypes.POINTER(_BabNode),
-            ctypes.c_int
-        ]
-
-        # Get diff from Master
-        self.biqbin.getDiff.argtypes = None
-        self.biqbin.getDiff.restype = ctypes.c_double
-        # Set diff at workers
-        self.biqbin.setDiff.argtypes = [ctypes.c_double]
-        self.biqbin.setDiff.restype = None
-
-        # Read parameters
-        self.biqbin.readParameters.argtypes = [ctypes.c_char_p]
-        self.biqbin.readParameters.restype = _BiqBinParameters
-
-        # Open output file
-        self.biqbin.openOutputFile.argtypes = [ctypes.c_char_p]
-        self.biqbin.openOutputFile.restype = None
-
-        # Free memory, reset solver
-        self.biqbin.freeMemory.argtypes = None
-        self.biqbin.freeMemory.restype = None
-        # self.biqbin.reset_branch_and_bound_globals.argtypes = None
-        # self.biqbin.reset_branch_and_bound_globals.restype = None
-
-        # Close output file
-        self.biqbin.closeOutputFile.argtypes = None
-        self.biqbin.closeOutputFile.restype = None
-
-    def init_solver(self, L_matrix, num_vertices, params):
-        self.biqbin.init_solver_wrapped(L_matrix, num_vertices, params)
-
-    def open_output_file(self, name):
-        self.biqbin.openOutputFile(name)
-
-    def close_output_file(self):
-        self.biqbin.closeOutputFile()
-
-    def evaluate(self, node: _BabNode, rank: int):
-        self.biqbin.evaluate_wrapped(node, rank)
-
-    def get_diff(self):
-        return self.biqbin.getDiff()
-
-    def set_diff(self, diff: float):
-        self.biqbin.setDiff(diff)
-
-    def update_lowerbound(self, new_lb: float):
-        self.biqbin.set_lower_bound(new_lb)
-
-    def reset_solver(self):
-        self.biqbin.reset_branch_and_bound_globals()
-        self.biqbin.freeMemory()
-
-
+from biqbin_data_objects import BiqbinParameters, _BabSolution, _BabNode
 # Branch and bound helper functions
+
+
 class BabFunctions:
-    def __init__(self, L_mat, num_vert: int, params: ParametersWrapper):
+    def __init__(self, L_mat, num_vert: int, params: BiqbinParameters):
         self.L_mat = L_mat
         self.problem_size = num_vert - 1
         self.root_bound = None
@@ -187,7 +104,7 @@ class BabFunctions:
 
     # branches of a node, calls evaluate for both children nodes using C biqbin,
     # if needed pushes them into the priority queue
-    def branch(self, node: _BabNode, biqbin: ParallelBiqBinMaxCut, rank: int):
+    def branch(self, node: _BabNode, biqbin, rank: int):
         biqbin.evaluate(node, rank)
 
         if (self.best_lower_bound + 1 > node.upper_bound):

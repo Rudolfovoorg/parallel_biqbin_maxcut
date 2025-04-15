@@ -3,8 +3,7 @@ import pytest
 import numpy as np
 from scipy.sparse import csr_matrix
 from parallel_biqbin import ParallelBiqbin
-from helper_functions import HelperFunctions
-from parallel_biqbin_maxcut import BabFunctions
+from bab_functions import BabFunctions
 from biqbin_data_objects import BiqbinParameters
 
 # Load the JSON with expected results
@@ -14,21 +13,19 @@ with open("test/evaluate_results.json", "r") as f:
 ROOT_NODE_BOUNDS = data["root_node_bounds"]
 SEED_TEST_DATA = data["seed_test_data"]
 
-helper = HelperFunctions()
-params = BiqbinParameters()
-
+# params = BiqbinParameters()
 biqbin = ParallelBiqbin()
 
 
 @pytest.mark.root_bound
 @pytest.mark.parametrize("graph_path, expected_bound", ROOT_NODE_BOUNDS.items())
 def test_root_node_bound(graph_path, expected_bound):
-    adj, num_verts, _, _ = helper.read_maxcut_input(graph_path)
-    L_matrix = helper.get_SP_L_matrix(adj)
+    adj, num_verts, _, _ = biqbin.read_maxcut_input(graph_path)
+    L_matrix = biqbin.get_Laplacian_matrix(adj)
 
-    babfun = BabFunctions(L_matrix, num_verts, params)
+    babfun = BabFunctions(L_matrix, num_verts, biqbin.params)
 
-    biqbin.set_parameters(params=params)
+    biqbin.set_parameters(params=biqbin.params)
 
     num_test_nodes = 3
     print(f"Graph: {graph_path}: ")
@@ -62,10 +59,10 @@ def test_seed_results(graph_data):
         shape=tuple(csr_dict["shape"])
     ).toarray()
     num_verts = adj.shape[0]  # Fix: Get number of vertices
-    L_matrix = helper.get_SP_L_matrix(adj)
+    L_matrix = biqbin.get_Laplacian_matrix(adj)
 
-    babfun = BabFunctions(L_matrix, num_verts, params)
-    biqbin.set_parameters(params)
+    babfun = BabFunctions(L_matrix, num_verts, biqbin.params)
+    biqbin.set_parameters(biqbin.params)
 
     tests = graph_data["tests"]
     print(f"Graph {graph_path}")

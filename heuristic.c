@@ -4,117 +4,20 @@
 
 #include "biqbin.h"
 
-/// @brief 
-/// @param P0 main problem globals->SP
-/// @param P  subproblem globals->PP
-/// @param node current BabNode
-/// @param x current best feasible solution for the given node and subproblem
-/// @param X globals->X
-/// @param Z globals->Z, stores Cholesky decomposition: X = ZZ^T
-/// @return lower bound for the given node and subproblem
-double runHeuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, const double *X, double *Z) {
-    int n = P->n;
-    int N = P0->n - 1; // BabPbSize
-    int nn = n * n;
-    int inc = 1;
-    char UPLO = 'L';
-    int info = 0;
-    double heur_val;
-
-    double xh[n];       // is used for convex combination with matrix X (n x n)
-    int temp_x[N];      // stores xh + some variables are fixed in {0,1} model
-    int index;
-    
-    // generate first random cut vector {-1,1}^n
-    for (int i = 0; i < n; ++i)
-        xh[i] = 2 * (rand() % 2) - 1; 
-
-    // compute its objective value (store in temp_x and transform to {0,1})
-    index = 0;
-    for (int i = 0; i < N; ++i) {
-
-        if (node->xfixed[i]) 
-            temp_x[i] = node->sol.X[i];
-
-        else {
-            temp_x[i] = (xh[index] + 1) / 2.0;
-            ++index;
-        }
-    }
-
-    double fh = evaluateSolution(temp_x, P0);
-    int done = 0;
-    double constant;    // scalar in convex combiantion
-    double alpha;
-
-    // Z = X
-    dcopy_(&nn, X, &inc, Z, &inc);
-
-    while (done < 2) {
-        ++done;
-        
-        // GW
-        // compute Cholesky factorization
-        dpotrf_(&UPLO, &n, Z, &n, &info);
-
-        if (info != 0) {
-            fprintf(stderr, "%s: Problem with Cholesky factorization \
-                (line: %d).\n", __func__, __LINE__);
-            MPI_Abort(MPI_COMM_WORLD,10);
-        }
-
-        // set lower triangle of Z to zero
-        for (int i = 0; i < n; ++i)
-            for (int j = 0; j < i; ++j)
-                Z[j + i*n] = 0.0;
-
-        // Goemans-Williamson heuristic
-        // x stores the best solution found in GW heuristics, it is the only value that changes
-        heur_val = GW_heuristic(P0, P, node, x, P0->n, Z);
-
-        if (heur_val > fh) {
-            done = 0;
-            fh = heur_val;
-
-            // copy global cut vector x into xh
-            // NOTE: skip fixed vertices
-            index = 0;
-            for (int i = 0; i < N; ++i) {
-
-                if (!node->xfixed[i]) {
-                    xh[index] = 2 * x[i] - 1;
-                    ++index;
-                }
-            }
-            xh[n-1] = -1.0;                  // last vertex in original is fixed to 0
-        }
-
-        constant = 0.3 + 0.6 * ( (double)rand()/(double)(RAND_MAX) );
-
-        // Z = (1-constant)*X + constant* xh *xh'
-        alpha = 1.0 - constant;
-        dcopy_(&nn, X, &inc, Z, &inc);
-        dscal_(&nn, &alpha, Z, &inc);
-        alpha = constant;
-        dsyr_(&UPLO, &n, &alpha, xh, &inc, Z, &n);
-    }
-
-    return heur_val;
-}
-
 
 /**
  * @brief Goemans-Williamson random hyperplane heuristic.
  *
  * @param P0 The original Problem *SP struct, only uses *L (double* L matrix) and n (int number of nodes)
  * @param P  The current subproblem Problem *PP
- * @param node The current BabNode structure, uses only xfixed (int[] array) and sol.X (BabSol structures int[] X solution nodes).
+ * @param node The current BabNode structure, uses only xfixed (int[] array) and sol.X (solution structures int[] X solution nodes).
  * @param x Only value that changes, stores the solution of the heuristic (size is the main problem size: P0->n-1).
  * @param num The number of random hyperplanes to try, set to the number of nodes.
  * @return heurestic value, calculated lower bound of best solution found by GW heurestic.
  * 
  * @note from both P0 and P only int n and double *L values are used
- */double GW_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, int num, const double *Z) {
+ */
+double GW_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, int num, const double *Z) {
 
     // Problem *P0 ... the original problem - int num vertices
     // Problem *P  ... the current subproblem
@@ -126,7 +29,7 @@ double runHeuristic(const Problem *P0, const Problem *P, const BabNode *node, in
     // (local) temporary vector of size X
     int temp_x[N];                    
 
-    // (global) temporary vector of size BabPbSize to store heuristic solutions
+    // (global) temporary vector of size main_problem_size to store heuristic solutions
     int sol[P0->n - 1];                 
 
     double sca;                         // dot product of random vector v and col of Z
@@ -295,18 +198,16 @@ double mc_1opt(int *x, const Problem *P) {
 
 
 /**
- * @brief switches out_xbest with xnew if xnews solution is better
- * @param xbest current best solution vector, values get copied into it from xnew if it is better
- * @param xnew new solution vector, gets evaluated inside the function and replaces out_xbest if it is better
- * @param best pointer to the current best heuristic value (lower bound) of out_xbest, value gets updated with xnew's heuristic value
+ * @brief copies xnew into xbest if xnews solution is better
+ * @param xbest current best solution of heuristics
+ * @param xnew new solution, gets evaluated inside the function and copied into xbest if it is better
+ * @param best pointer to the current best heuristic value (lower bound) of xbest, value gets updated with xnew's heuristic value
  * @param P0: main Problem *SP (declared in global_var.h) only n is read to get the problem size
- * 
- * @note All of this can be (and now is) done on it's own outside this function
  */
 int update_best(int *xbest, const int *xnew, double *best, const Problem *P0) {
 
     int success = 0;
-    int N = P0->n - 1; // N = BabPbSize
+    int N = P0->n - 1; // N = main_problem_size
 
     double heur_val = evaluateSolution(xnew, P0);
 

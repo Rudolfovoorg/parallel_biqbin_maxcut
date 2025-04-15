@@ -1,7 +1,7 @@
 import os
 import ctypes
 import numpy as np
-from biqbin_data_objects import _BabNode, _BiqBinParameters, _GlobalVariables, _Problem
+from biqbin_data_objects import _BabNode, _BiqBinParameters, _GlobalVariables, _Problem, _HeurState
 
 
 class _BiqbinBase:
@@ -53,9 +53,9 @@ class _BiqbinBase:
         self._biqbin.time_limit_reached.restype = ctypes.c_int
 
         # Check if PQ empty then Pop node and evaluate
-        self._biqbin.isPQEmpty.restype = ctypes.c_int
+        self._biqbin.pq_is_empty.restype = ctypes.c_int
         # Return type of Bab_PQPop is a pointer to BabNode
-        self._biqbin.Bab_PQPop.restype = ctypes.POINTER(_BabNode)
+        self._biqbin.pq_pop.restype = ctypes.POINTER(_BabNode)
 
         # get and set lower bound functions
         self._biqbin.get_lower_bound.restype = ctypes.c_double
@@ -88,15 +88,6 @@ class _BiqbinBase:
         self._biqbin.init_globals.restype = ctypes.POINTER(_GlobalVariables)
         # free globals struct
         self._biqbin.free_globals.argtypes = [ctypes.POINTER(_GlobalVariables)]
-        # evaluate a node with the given globals struct and rank
-        self._biqbin.Evaluate.argtypes = [
-            ctypes.POINTER(_BabNode),
-            ctypes.POINTER(_GlobalVariables),
-            ctypes.c_int
-        ]
-        # return nodes upper bound
-        self._biqbin.Evaluate.restype = ctypes.c_double
-
         # set random seed
         self._biqbin.srand.argtypes = [ctypes.c_int]
 
@@ -113,13 +104,51 @@ class _BiqbinBase:
             ctypes.POINTER(ctypes.c_int),
             ctypes.POINTER(_GlobalVariables)
         ]
-        # heuristics that can be overriden
-        self._biqbin.heuristics_wrapped.argtypes = [
-            ctypes.POINTER(_BabNode),
-            ctypes.POINTER(ctypes.c_int),
-            ctypes.POINTER(_GlobalVariables)
+        # prepares globals->Z instantiates the HeurState structure
+        self._biqbin.heuristic_init.argtypes = [
+            ctypes.POINTER(_Problem),  # globals->SP
+            ctypes.POINTER(_Problem),  # globals->PP
+            ctypes.POINTER(_BabNode),  # current node
+            ctypes.POINTER(ctypes.c_double),  # globals->X
+            ctypes.POINTER(ctypes.c_double)  # globals->Z
         ]
-        self._biqbin.heuristics_wrapped.restype = ctypes.c_double
+        self._biqbin.heuristic_init.restype = ctypes.POINTER(_HeurState)
+
+        # preprocess for GW_heuristic
+        self._biqbin.cholesky_factorization.argtypes = [
+            ctypes.POINTER(_HeurState),
+            ctypes.POINTER(ctypes.c_double)  # globals->Z
+        ]
+        # return info if we want to check in python if Cholesky factorization was successful
+        self._biqbin.cholesky_factorization.restype = ctypes.c_int
+
+        # postprocess after GW_heuristic
+        self._biqbin.heuristic_postprocess.argtypes = [
+            ctypes.POINTER(_HeurState),
+            ctypes.POINTER(_BabNode),  # current node
+            ctypes.POINTER(ctypes.c_int),  # *x solution vector
+            ctypes.POINTER(ctypes.c_double),  # globals->X
+            ctypes.POINTER(ctypes.c_double),  # globals->Z
+            ctypes.c_double  # previous heuristics value
+        ]
+        # return 1 if new solution is better else 0
+        self._biqbin.heuristic_postprocess.restype = ctypes.c_int
+
+        # free HeurState memory, return lower bound
+        self._biqbin.heuristic_finalize.argtypes = [ctypes.POINTER(_HeurState)]
+        self._biqbin.heuristic_finalize.restype = ctypes.c_double
+
+        # GW_heuristic is unchanged
+        self._biqbin.GW_heuristic.argtypes = [
+            ctypes.POINTER(_Problem),  # globals->SP
+            ctypes.POINTER(_Problem),  # globals->PP
+            ctypes.POINTER(_BabNode),  # current node
+            ctypes.POINTER(ctypes.c_int),  # current solution vector
+            ctypes.c_int,  # int num, unsure of its purpose, set to number of vertices
+            ctypes.POINTER(ctypes.c_double)  # globals->Z
+        ]
+        self._biqbin.GW_heuristic.restype = ctypes.c_double
+
         # updates the best solution and lower bound in the solver if it is better than the previous one
         self._biqbin.update_solution_wrapped.argtypes = [
             ctypes.POINTER(_BabNode),

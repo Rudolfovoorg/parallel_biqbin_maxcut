@@ -7,89 +7,27 @@
   
   /* defined in heap.c */  
 extern Heap *heap;  
-extern int BabPbSize;           
-extern BabSolution *BabSol;
+extern int main_problem_size;           
+extern BabSolution *solution;
    
 extern BiqBinParameters params;
 extern GlobalVariables globals;
-// extern Problem *SP;
-// extern Problem *PP;
-
-// extern double root_bound;
-// extern double TIME;
-// extern int stopped;
 
 extern int num_workers_used;
-
 
 /* initialize global lower bound to 0 and global solution vector to zero */
 void initializeBabSolution() { 
 
     BabSolution bs;
 
-    for (int i = 0; i < BabPbSize; ++i) {
+    for (int i = 0; i < main_problem_size; ++i) {
         bs.X[i] = 0;
     }
 
-    Bab_LBInit(0, &bs);
+    init_solution_lb(0, &bs);
 }
 
-
-/************** Initialization: root node and priority queue **************/
-int Init_PQ(void) {
-    
-    int over = 0;
-    BabNode *BabRoot;
-
-    // Create the root node
-    BabRoot = new_node(NULL);
-
-    // increase number of evaluated nodes
-    Bab_incEvalNodes();
-
-    // Evaluate root node: compute upper and lower bound 
-    globals.root_bound = Evaluate(BabRoot, &globals, 0);
-    printf("Root node bound: %.2f\n", globals.root_bound);
-
-    // save upper bound
-    BabRoot->upper_bound = globals.root_bound;
-
-    /* insert node into the priority queue or prune */
-    // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
-    if (get_lower_bound() + 1.0 < BabRoot->upper_bound) {    
-        Bab_PQInsert(BabRoot); 
-    }
-    else {
-        // otherwise, intbound <= BabLB, so we can prune
-        over = -1;
-        free(BabRoot);
-    }
-    return over;
-}
-
-
-/* Bab function which initializes the problem and allocates the structures */
-int Bab_Init(int argc, char **argv, int rank) {
-
-    int read_error = 0;
-
-    // Process the command line arguments
-    if ( (read_error = processCommandLineArguments(argc, argv, rank)) )
-        return read_error;
-
-    // Seed the random number generator
-    srand(2020);
-
-    // Provide B&B with an initial solution
-    initializeBabSolution();
-
-    // Allocate the memory
-    allocMemory(&globals);
-
-    return read_error;
-}
-
-/* NOTE: int *sol in functions evaluateSolution and updateSolution have length BabPbSize
+/* NOTE: int *sol in functions evaluateSolution and updateSolution have length main_problem_size
  * -> to get objecive multiple with Laplacian that is stored in upper left corner of SP->L
  */
 double evaluateSolution(const int *sol, const Problem *SP) {
@@ -116,7 +54,7 @@ int updateSolution(const int *x, const Problem *SP) {
     double sol_value;
     BabSolution solx;
 
-    // Copy x into solx --> because Bab_LBUpd needs BabSolution and not int*
+    // Copy x into solx --> because update_lower_bound needs BabSolution and not int*
     for (int i = 0; i < SP->n - 1; ++i) {
       solx.X[i] = x[i];
     }
@@ -125,7 +63,7 @@ int updateSolution(const int *x, const Problem *SP) {
 
     /* If new solution is better than the global solution,
      * then update and print the new solution. */
-    if (Bab_LBUpd(sol_value, &solx)) {
+    if (update_lower_bound(sol_value, &solx)) {
         solutionAdded = 1;
     }
     
@@ -163,7 +101,7 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
             MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD, &status);
             MPI_Recv(&solx, 1, BabSolutiontype, source, SOLUTION, MPI_COMM_WORLD, &status);  
 
-            if ( Bab_LBUpd(g_lowerBound, &solx) ){
+            if ( update_lower_bound(g_lowerBound, &solx) ){
                 printf("Feasible solution %.0lf\n", get_lower_bound());
             }
             
@@ -195,8 +133,8 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
     
 
             // worker branched subproblem in local queue --> add 2 bab nodes
-            Bab_incEvalNodes();
-            Bab_incEvalNodes(); 
+            increase_num_eval_nodes();
+            increase_num_eval_nodes(); 
 
 	        // count current number of busy workers
 	        int current_busy = 0;
@@ -218,124 +156,12 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
     }
 }
 
-/* WORKER process main routine */
-void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank) {
-
-    Message message;
-    MPI_Status status;
-    int over = 0;
-
-    // get next subproblem from priority queue
-    BabNode *node = Bab_PQPop();
-
-    // save "old" lower bound
-    double g_lowerBound = get_lower_bound();
-    ///
-    /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
-    node->upper_bound = Evaluate(node, &globals, rank);
-    //
-    // check if better lower bound found --> update info with master
-    if (get_lower_bound() > g_lowerBound){
-
-        message = NEW_VALUE;
-        g_lowerBound = get_lower_bound();
-
-        MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
-        MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD);
-        MPI_Send(BabSol, 1, BabSolutiontype, 0, SOLUTION, MPI_COMM_WORLD);
-        
-        MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
-
-        // update
-        BabSolution solx;
-        Bab_LBUpd(g_lowerBound, &solx);
-    }
-
-
-    /* if BabLB + 1.0 < child_node->upper_bound, 
-     * then we must branch since there could be a better feasible 
-     * solution in this subproblem
-     */
-    if (get_lower_bound() + 1.0 < node->upper_bound) {
-
-        /***** branch *****/
-
-        // Determine the variable x[ic] to branch on
-        int ic = getBranchingVariable(node);
-
-        BabNode *child_node; 
-        
-        for (int xic = 0; xic <= 1; ++xic) { 
-
-            // Create a new child node from the parent node
-            child_node = new_node(node);
-
-            // split on node ic
-            child_node->xfixed[ic] = 1;
-            child_node->sol.X[ic] = xic;
-
-            /* insert node into the priority queue */
-            Bab_PQInsert(child_node);
-        }
-
-        // free parent node
-        free(node); 
-
-        /************ distribute subproblems ************/
-
-        // leave 1 problem for this worker and the rest is distributed
-        int workers_request = heap->used - 1;
-        int num_free_workers;
-        double g_lowerBound;
-        BabSolution solx;
-
-        // check if other subproblems can be send to free workers --> ask master
-        message = SEND_FREEWORKERS;
-        
-        MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
-        MPI_Send(&workers_request, 1, MPI_INT, 0, FREEWORKER, MPI_COMM_WORLD);
-        
-        MPI_Recv(&num_free_workers, 1, MPI_INT, 0, NUM_FREE_WORKERS, MPI_COMM_WORLD, &status);
-        
-        int free_workers[num_free_workers];
-        
-        MPI_Recv(free_workers, num_free_workers, MPI_INT, 0, FREEWORKER, MPI_COMM_WORLD, &status);
-        MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
-
-        Bab_LBUpd(g_lowerBound, &solx);
-
-        // send subproblems to free workers
-        if ( num_free_workers != 0 ) {// free workers found
-      
-            for (int i = 0; i < num_free_workers; ++i){
-
-                // get next subproblem from queue and send it
-                node = Bab_PQPop();
-
-                // send subproblem to free worker
-                MPI_Send(&over, 1, MPI_INT, free_workers[i], OVER, MPI_COMM_WORLD);
-                MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, free_workers[i], LOWER_BOUND, MPI_COMM_WORLD);
-                MPI_Send(node, 1, BabNodetype, free_workers[i], PROBLEM, MPI_COMM_WORLD);
-
-                free(node);
-            }    
-        }
-
-    }
-    else {
-        // otherwise, intbound <= BabLB, so we can prune
-        free(node);
-    }
-
-} 
-
-
 /* print solution 0-1 vector */
 void printSolution(FILE *file) {
 
     fprintf(file, "Solution = ( ");
-    for (int i = 0; i < BabPbSize; ++i) {
-        if (BabSol->X[i] == 1) {
+    for (int i = 0; i < main_problem_size; ++i) {
+        if (solution->X[i] == 1) {
             fprintf(file, "%d ", i + 1);
         }
     }
@@ -391,7 +217,7 @@ int getBranchingVariable(BabNode *node) {
     if (params.branchingStrategy == LEAST_FRACTIONAL) {
         // Branch on the variable x[ic] that has the least fractional value
         maxValue = -BIG_NUMBER;
-        for (int i = 0; i < BabPbSize; ++i) {
+        for (int i = 0; i < main_problem_size; ++i) {
             if (!(node->xfixed[i]) && fabs(0.5 - node->fracsol[i]) > maxValue) {
                 ic = i;
                 maxValue = fabs(0.5 - node->fracsol[ic]);
@@ -401,7 +227,7 @@ int getBranchingVariable(BabNode *node) {
     else if (params.branchingStrategy == MOST_FRACTIONAL) {
         // Branch on the variable x[ic] that has the most fractional value
         minValue = BIG_NUMBER;
-        for (int i = 0; i < BabPbSize; ++i) {
+        for (int i = 0; i < main_problem_size; ++i) {
             if (!(node->xfixed[i]) && fabs(0.5 - node->fracsol[i]) < minValue) {
                 ic = i;
                 minValue = fabs(0.5 - node->fracsol[ic]);
@@ -422,7 +248,7 @@ int countFixedVariables(BabNode *node) {
     
     int numFixedVariables = 0;
 
-    for (int i = 0; i < BabPbSize; ++i) {
+    for (int i = 0; i < main_problem_size; ++i) {
         if (node->xfixed[i]) {
             ++numFixedVariables;
         }

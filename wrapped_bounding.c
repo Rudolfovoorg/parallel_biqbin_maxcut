@@ -3,13 +3,13 @@
 extern BiqBinParameters params;
 
 /****** SDP bound variables needed for reuse *****/
-
-int count;    // number of iterations (adding and purging of cutting planes)
+/****** Considering using a struct for them *****/
+int count; // number of iterations (adding and purging of cutting planes)
 
 int inc;
 int inc_e;
 double e; // for vector of all ones
-int mk; // (PP->NIneq + PP->NPentIneq + PP->NHeptaIneq) * PP->bundle
+int mk;   // (PP->NIneq + PP->NPentIneq + PP->NHeptaIneq) * PP->bundle
 
 // triangle inequalities
 int Tri_NumAdded;
@@ -25,7 +25,7 @@ int Hepta_NumSubtracted;
 
 /// helper variables
 double fixedvalue; // fixed value contributes to the objective value
-double oldf; // SDP loop uses oldf
+double oldf;       // SDP loop uses oldf
 int bdl_iter;
 double t;
 
@@ -40,16 +40,16 @@ int done;
 
 // builds the temp solution x to be used in heuristics
 
-/// @brief 
-/// @param node 
-/// @param x 
-/// @param globals_in 
+/// @brief
+/// @param node
+/// @param x
+/// @param globals_in
 void init_sdp(BabNode *node, int *x, GlobalVariables *globals_in)
 {
     int problem_size = globals_in->SP->n - 1;
 
-    count = 0;   // number of iterations (adding and purging of cutting planes)
-    
+    count = 0; // number of iterations (adding and purging of cutting planes)
+
     inc = 1;
     inc_e = 0;
     e = 1.0; // for vector of all ones
@@ -107,7 +107,7 @@ void init_sdp(BabNode *node, int *x, GlobalVariables *globals_in)
 }
 
 int init_main_sdp_loop(GlobalVariables *globals_in, int is_root)
-{    // upper bound
+{ // upper bound
     // fixed value contributes to the objective value
     bound = globals_in->f + fixedvalue;
     // Check if done
@@ -199,12 +199,12 @@ int main_sdp_loop_start(GlobalVariables *globals_in)
     return prune;
 }
 
-
-/// @brief 
+/// @brief
 /// @param node reads node->xfixed; sets node->fracsol
-/// @param globals_in 
-/// @return 
-int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in) {
+/// @param globals_in
+/// @return
+int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in)
+{
     int problem_size = globals_in->SP->n - 1;
     int prune = (bound < get_lower_bound() + 1.0) ? 1 : 0;
     // compute
@@ -235,7 +235,7 @@ int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in) {
 
         int triag = globals_in->PP->NIneq;     // save number of triangle and pentagonal inequalities before purging
         int penta = globals_in->PP->NPentIneq; // --> to know with which index in dual vector dual_gamma, pentagonal
-                               // and heptagonal inequalities start!
+                                               // and heptagonal inequalities start!
 
         double viol3 = updateTriangleInequalities(globals_in->PP, globals_in->dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted, globals_in);
 
@@ -371,15 +371,6 @@ void set_globals_diff(GlobalVariables *globals_in)
     globals_in->diff = basic_bound - bound;
 }
 
-/// @brief Updates x with the current best solution, returns the lower bound
-/// @param node current node
-/// @param x solution nodes for the current node and subproblem PP
-/// @param globals_in -> SP, PP, X, Z are needed, only Z is changed
-/// @return lower bound for the given node and subproblem globals->PP
-double heuristics_wrapped(BabNode *node, int *x, GlobalVariables *globals_in)
-{
-    return runHeuristic(globals_in->SP, globals_in->PP, node, x, globals_in->X, globals_in->Z);
-}
 
 /// @brief Updates lower bound and solution nodes based on the temp solution x
 /// @param node saves the x solution in the node->sol.X if it is better
@@ -395,4 +386,123 @@ void update_solution_wrapped(BabNode *node, const int *x, const Problem *SP)
             node->sol.X[i] = x[i];
         }
     }
+}
+
+/**********************************************************************/
+/*******************  Copied from evaluate.c  ************************/
+/********************************************************************/
+
+/// @brief Writes subproblem to PP. Computes the subproblem removing the rows and the columns of the fixed variables upper left corner of SP->L
+/// @param node is the current node
+/// @param SP is the original problem
+/// @param PP is the subproblem (some variables are fixed)
+/// @note Function prepares objective matrix L for model in -1,1 variables: max x'LX, s.t. x in {-1,1}^(PP->n)
+void create_subproblem(BabNode *node, Problem *SP, Problem *PP)
+{
+
+    // Subproblem size is the number of non-fixed variables in the node
+    PP->n = SP->n - countFixedVariables(node);
+
+    /* build objective:
+     * Laplacian;
+     * z'*L*z = sum_{i != fixed, j != fixed} L_ij*xi*xj (smaller matrix L_bar for subproblem)
+              + sum_{i = fixed, j = fixed} L_ij*x_i*xj (getFixedValue)
+              + sum_{rows of fixed vertices without fixed entries}  (linear part, that is twice added to diagonal of L_bar)
+     */
+
+    /* Laplacian is created by deleting appropriate rows and cols
+     * of upper left corner of SP->L
+     */
+    int index = 0;
+    int N = SP->n;
+    double row_sum = 0.0;
+
+    // rows which are deleted due to fixed variable
+    // later add to diagonal
+    double fixedRow[PP->n - 1];
+    for (int i = 0; i < PP->n - 1; ++i)
+        fixedRow[i] = 0.0;
+
+    // counter for fixedRow
+    int fixed = 0;
+
+    // last element (lower right corner) is sum
+    double sum = 0.0;
+
+    int problem_size = SP->n - 1;
+    for (int i = 0; i < problem_size; ++i)
+    {
+        for (int j = 0; j < problem_size; ++j)
+        {
+            if (!node->xfixed[i] && !node->xfixed[j])
+            { // delete rows and cols of SP->L
+                PP->L[index] = SP->L[j + i * N];
+                row_sum += PP->L[index];
+                ++index;
+            }
+            else if ((node->xfixed[i] && node->sol.X[i] == 1) && !node->xfixed[j])
+            { // save fixed rows to add to diagonal
+                fixedRow[fixed] += SP->L[j + i * N];
+                ++fixed;
+            }
+        }
+
+        if (!node->xfixed[i])
+        {
+            PP->L[index] = row_sum; // vector part of PP->L (last column)
+            ++index;
+        }
+
+        // row scaned, set to 0
+        row_sum = 0.0;
+        fixed = 0;
+    }
+
+    // add last row (copy from last column)
+    for (int i = 0; i < PP->n - 1; ++i)
+        PP->L[i + (PP->n - 1) * PP->n] = PP->L[PP->n - 1 + i * PP->n];
+
+    /* LINEAR PART OF PP->L:   add 2x vector fixedRow to diagonal, last col and last row */
+    for (int i = 0; i < PP->n - 1; ++i)
+    {
+        PP->L[i + i * PP->n] += 2 * fixedRow[i];
+        PP->L[PP->n - 1 + i * PP->n] += 2 * fixedRow[i];
+        PP->L[i + (PP->n - 1) * PP->n] += 2 * fixedRow[i];
+
+        sum += PP->L[i + (PP->n - 1) * PP->n];
+    }
+
+    /* CONSTANT PART OF PP->L:  element (PP->n - 1, PP->n - 1) */
+    PP->L[PP->n - 1 + (PP->n - 1) * PP->n] = sum;
+
+    /* multiple by 1/4 the whole matrix L */
+    double alpha = 0.25;
+    int inc = 1;
+    int nn = (PP->n) * (PP->n);
+    dscal_(&nn, &alpha, PP->L, &inc);
+}
+
+/// @brief The fixed value is contribution of the fixed variables to the objective value.
+/// @param node
+/// @param SP  is the original problem
+/// @return the fixed value of the node.
+double getFixedValue(BabNode *node, Problem *SP)
+{
+
+    int N = SP->n;
+    int problem_size = SP->n - 1;
+    double fixedvalue = 0.0;
+
+    for (int i = 0; i < problem_size; ++i)
+    {
+        for (int j = 0; j < problem_size; ++j)
+        {
+            if (node->xfixed[i] && node->xfixed[j])
+            {
+                fixedvalue += SP->L[j + i * N] * node->sol.X[i] * node->sol.X[j];
+            }
+        }
+    }
+
+    return fixedvalue;
 }

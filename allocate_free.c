@@ -2,7 +2,7 @@
 
 #include "biqbin.h"
 
-extern BabSolution *BabSol;     // global solution of B&B algorithm defined in heap.c
+extern BabSolution *solution;     // global solution of B&B algorithm defined in heap.c
 extern BiqBinParameters params;
 
 void allocMemory(GlobalVariables *globals_in) {
@@ -74,7 +74,7 @@ void freeMemory(GlobalVariables *globals_in) {
     free(globals_in->G);
     free(globals_in->g);
 
-    if (BabSol) {
-        free(BabSol);
+    if (solution) {
+        free(solution);
     }
 }

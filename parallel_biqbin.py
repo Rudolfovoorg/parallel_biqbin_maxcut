@@ -1,9 +1,8 @@
 from typing import List
-import os
 import ctypes
 import numpy as np
 from numpy.typing import NDArray
-from biqbin_data_objects import BiqbinParameters, _BabNode
+from biqbin_data_objects import BiqbinParameters, _BabNode, _HeurState
 from biqbin_base import _BiqbinBase
 
 
@@ -76,14 +75,14 @@ class ParallelBiqbin(_BiqbinBase):
         Returns:
             _BabNode(ctype.Structure): defined in biqbin_data_objects.py
         """
-        return self._biqbin.Bab_PQPop().contents
+        return self._biqbin.pq_pop().contents
 
-    def is_pq_empty(self) -> bool:
+    def pq_is_empty(self) -> bool:
         """Nodes get evaluated in while priority queue is not empty
         Returns:
             bool: True if PQ in heap.c is not empty
         """
-        return self._biqbin.isPQEmpty() != 0
+        return self._biqbin.pq_is_empty() != 0
 
     # worker main loop in C, waits for either the over signal or babnode to process, branches and sends more nodes to other workers
     def __worker_main_loop(self) -> bool:
@@ -95,7 +94,7 @@ class ParallelBiqbin(_BiqbinBase):
         self._biqbin.worker_receive_problem()
 
         # loops until worker becomes idle
-        while not self.is_pq_empty():
+        while not self.pq_is_empty():
             # check time limit
             if self.params.time_limit == 1 and self.time_limit_reached():
                 return True
@@ -142,7 +141,7 @@ class ParallelBiqbin(_BiqbinBase):
         ) != 0
         self._globals_p = self._biqbin.get_globals_pointer()
 
-        self._biqbin.Bab_incEvalNodes()
+        self._biqbin.increase_num_eval_nodes()
         root_node = self._biqbin.new_node(None)
         self.__evaluate_node(root_node.contents)
         over = self._biqbin.master_init_end(root_node)
@@ -176,7 +175,6 @@ class ParallelBiqbin(_BiqbinBase):
     ##############################################################
     ##################### evaluate seperatered ###################
     ##############################################################
-
     def __evaluate_node(self, babnode: _BabNode):
         # changes globals->PP using globals->SP and current BabNode
         self.__create_subproblem(babnode)
@@ -235,10 +233,117 @@ class ParallelBiqbin(_BiqbinBase):
             subproblem_PP
         )
 
-    # should only need subproblem Laplacean and subproblem size
+    ##############################################################
+    #################### heuristics separated ####################
+    ##############################################################
     def run_heuristics(self, babnode: _BabNode, sol_x: ctypes.Array[ctypes.c_int]) -> float:
-        # returns lower bound for the given node and subproblem
-        return self._biqbin.heuristics_wrapped(ctypes.pointer(babnode), sol_x, self._globals_p)
+        """runs the entire heuristics, original runHeuristic in heuristic.c
+
+        Args:
+            babnode (_BabNode): current node
+            sol_x (ctypes.Array[ctypes.c_int]): best solution for this node and subproblem (globals->PP)
+
+        Returns:
+            float: lower bound for the given solution
+        """
+        # heur_state stores the variables that are used in separate heuristic functions
+        heur_state = self.initialize_heuristics(babnode)
+        done = 0
+        while done < 2:
+            done += 1
+            self.cholesky_factorization(heur_state)
+            heur_value = self.run_GW_heuristics(babnode, sol_x)
+            if (self.postprocess_heuristics(heur_state, babnode, sol_x, heur_value)):
+                done = 0
+        return self.finalize_heuristics(heur_state)
+
+    def run_GW_heuristics(self, babnode: _BabNode, sol_x: ctypes.Array[ctypes.c_int]) -> float:
+        """Goemans-Williamson random hyperplane heuristic located in heuristic.c
+
+        Args:
+            babnode (_BabNode): current node
+            sol_x (ctypes.Array[ctypes.c_int]): current best solution, gets updated here if a better one is found
+
+        Returns:
+            float: best lower bound found
+        """
+        globals = self._globals_p.contents
+        return self._biqbin.GW_heuristic(
+            globals.SP,
+            globals.PP,
+            ctypes.pointer(babnode),
+            sol_x,
+            self.num_vertices,  # num variable ??
+            globals.Z
+        )
+
+    def initialize_heuristics(self, babnode: _BabNode) -> _HeurState:
+        """Creates _HeurState struct in C solver and returns it,
+
+        Args:
+            babnode (_Babnode): current node
+
+        Returns:
+            _HeurState: stores the persistant variables that need to be passed to heuristics functions
+        """
+        globals = self._globals_p.contents
+        heur_state = self._biqbin.heuristic_init(
+            globals.SP,
+            globals.PP,
+            ctypes.pointer(babnode),
+            globals.X,
+            globals.Z
+        )
+        return heur_state.contents
+
+    def cholesky_factorization(self, state: _HeurState) -> int:
+        """Mathematics
+
+        Args:
+            state (_HeurState): persistant variables structures for heuristics functions
+
+        Returns:
+            bool: returns True if Cholesky factorization did not fail
+        """
+        info = self._biqbin.cholesky_factorization(
+            ctypes.pointer(state),
+            self._globals_p.contents.Z
+        )
+        return info == 0
+
+    def postprocess_heuristics(self, state: _HeurState, babnode: _BabNode, sol_x: ctypes.Array[ctypes.c_int], heur_value: float) -> bool:
+        """Runs after GW_heuristic, process the solution found there
+
+        Args:
+            state (_HeurState): persistant variables shared between heuristic functions
+            babnode (_BabNode): current node
+            sol_x (ctypes.Array[ctypes.c_int]): best solution found for the given node and subproblem (globals->PP)
+            heur_value (float): best lower bound found for the current node and subproblem (globals->PP)
+
+        Returns:
+            bool: True if GW_heuristic solution is better than before
+        """
+        globals = self._globals_p.contents
+        success = self._biqbin.heuristic_postprocess(
+            ctypes.pointer(state),
+            ctypes.pointer(babnode),
+            sol_x,
+            globals.X,
+            globals.Z,
+            heur_value
+        )
+        return success == 1
+
+    def finalize_heuristics(self, state: _HeurState) -> float:
+        """Frees _HeurState memory in C, 
+
+        Args:
+            state (_HeurState): _description_
+
+        Returns:
+            float: _description_
+        """
+        return self._biqbin.heuristic_finalize(ctypes.pointer(state))
 
     def __update_solution_wrapped(self, babnode: _BabNode, sol_x: ctypes.Array[ctypes.c_int]):
         # if the heuristic solution (lower bound) in *x is better than the old one, it will update it in C
@@ -347,7 +452,6 @@ class ParallelBiqbin(_BiqbinBase):
         self._biqbin.free_globals(globals)
 
     def evaluate(self, node: _BabNode, globals, rank: int):
-        # return self.__biqbin.Evaluate(node, globals, rank)
         self._globals_p = globals
         self.rank = rank
         return self.__evaluate_node(node)

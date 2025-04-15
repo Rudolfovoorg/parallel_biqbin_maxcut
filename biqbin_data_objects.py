@@ -335,3 +335,17 @@ class _GlobalVariables(ctypes.Structure):
         ("Hepta_Cuts", ctypes.POINTER(_Heptagonal_Inequality)),
         ("Hepta_List", ctypes.POINTER(_Heptagonal_Inequality)),
     ]
+
+
+class _HeurState(ctypes.Structure):
+    _fields_ = [
+        ("n", ctypes.c_int),
+        ("N", ctypes.c_int),
+        ("nn", ctypes.c_int),
+        ("inc", ctypes.c_int),
+        ("UPLO", ctypes.c_char),
+
+        ("xh", ctypes.POINTER(ctypes.c_double)),
+        ("fh", ctypes.c_double),
+        ("temp_x", ctypes.POINTER(ctypes.c_int)),
+    ]

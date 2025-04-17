@@ -149,14 +149,8 @@ Class to set or read parameters that can be changed in the original biqbin C imp
 
 - **`__init__(..., params_filepath=None)`**  
   Reads the graph file at `params_filepath` location if passed in and sets the values to that. 
-  Values can also be changed during instantiation or later
-
-  - `Adj`: adjacency matrix of the graph as a numpy array.
-  - `num_vertices`: number of vertices in the graph.
-  - `num_edges`: number of edges in the graph.
-  - `name`: filename encoded into a byte string
-
-  Can be overriden to return the same values for parsing different types of input data
+  For all values that can also be changed during instantiation of the class or later please see the
+  **Explanation of Parameters** below.
 
 - **`get_c_struct()`**  
   creates a `ctypes.Structure` needed by `set_parameters` function in C

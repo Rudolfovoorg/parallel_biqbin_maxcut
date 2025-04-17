@@ -33,7 +33,7 @@ void print_symmetric_matrix(double *Mat, int N) {
     }
 }
 
-int openOutputFile(char* filename) {
+int open_output_file(char* filename) {
     // Create the output file
     char output_path[200];
     sprintf(output_path, "%s.output", filename);
@@ -54,16 +54,16 @@ int openOutputFile(char* filename) {
     return 0;
 }
 
-void closeOutputFile() {
+void close_output_file() {
     fclose(output);
 }
 
 
-void setParams(BiqBinParameters params_in) {
+void set_parameters(BiqBinParameters params_in) {
     params = params_in;
 }
 
-void printParameters(BiqBinParameters params_in) {
+void print_parameters(BiqBinParameters params_in) {
     printf("BiqBin parameters:\n");
     #define P(type, name, format, def_value) \
         printf("%20s = " format "\n", #name, params_in.name);
@@ -79,12 +79,4 @@ void printParameters(BiqBinParameters params_in) {
         PARAM_FIELDS
         #undef P
     }
-}
-
-double getDiff() {
-    return globals.diff;
-}
-
-void setDiff(double diff) {
-    globals.diff = diff;
 }

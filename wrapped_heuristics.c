@@ -5,7 +5,13 @@
 
 #include "biqbin.h"
 
-
+/// @brief Creates HeurState *struct, generate first random cut vector {-1,1}^n and compute its objective value (store in temp_x and transform to {0,1})
+/// @param P0 original problem globals->*SP
+/// @param P subproblem globals->*PP
+/// @param node current node
+/// @param X globals->X
+/// @param Z globals->Z
+/// @return HeurState *state to be used in further functions in heuristics
 HeurState* heuristic_init(const Problem *P0, const Problem *P, const BabNode *node, const double *X, double *Z)
 {
     HeurState* state = (HeurState*)malloc(sizeof(HeurState));
@@ -35,12 +41,16 @@ HeurState* heuristic_init(const Problem *P0, const Problem *P, const BabNode *no
             ++index;
         }
     }    
-    state->fh = evaluateSolution(state->temp_x, P0);
+    state->fh = evaluate_solution(state->temp_x, P0);
     // Z = X
     dcopy_(&state->nn, X, &state->inc, Z, &state->inc);
     return state;
 }
 
+/// @brief Does the cholesky factorization
+/// @param state heuristic variables needed in various functions
+/// @param Z globals->Z
+/// @return 1 if factorization failed, 0 if successful
 int cholesky_factorization(HeurState *state, double *Z)
 {
     int info;
@@ -60,6 +70,14 @@ int cholesky_factorization(HeurState *state, double *Z)
     return info;
 }
 
+/// @brief After GW heuristics has ran, checks if new solution found in it is better.
+/// @param state variables used in other functions in heuristics
+/// @param node current node
+/// @param x best solution nodes found so far by heuristics
+/// @param X globals->X
+/// @param Z globals->Z
+/// @param heur_val best lower bound found by heuristic
+/// @return 
 int heuristic_postprocess(HeurState *state, const BabNode *node, const int *x, const double *X, double *Z, double heur_val)
 {
     int success = 0;
@@ -92,6 +110,9 @@ int heuristic_postprocess(HeurState *state, const BabNode *node, const int *x, c
     return success;
 }
 
+/// @brief Free HeurState, return state->fh
+/// @param state 
+/// @return 
 double heuristic_finalize(HeurState *state)
 {
     double result = state->fh;

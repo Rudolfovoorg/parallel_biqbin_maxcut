@@ -55,7 +55,7 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 make
 ```
 
-### 🔧 Docker
+### Docker
 
 Dockerfile available for running the solver in a docker container, image can be created using Makefile command
 
@@ -67,15 +67,13 @@ make docker
 
 ## Usage
 
-### Original Biqbin Maxcut Parallel solver - C only
-
 Can be run with
 
 ```bash
-mpiexec -n num_processess ./biqbin instance_file params
+mpiexec [-n num_processes] python3 run_example.py instance_file params
 ```
 
-- `num_processes`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
+- `-n num_processes`(Optional): Number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
 - `instance_file`: A file containing the graph (in edge list format).
 - `params`: The parameter file used to configure the solver.
 
@@ -85,37 +83,7 @@ To run the g05_60.0 instance use this make command
 make run
 ```
 
-Or the following for to run all g05\_\* instances
-
-```bash
-make run-all
-```
-
----
-
-### Python Wrapper for Biqbin Maxcut Parallel solver
-
-Can be run with
-
-```bash
-mpiexec -n num_processes python3 run_example.py instance_file params
-```
-
-- `num_processes`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
-- `instance_file`: A file containing the graph (in edge list format).
-- `params`: The parameter file used to configure the solver.
-
-To run the g05_60.0 instance use this make command
-
-```bash
-make run-python
-```
-
-Or the following for to run all g05_X instances
-
-```bash
-make run-python-all
-```
+For more commands see `Makefile`.
 
 ---
 
@@ -126,84 +94,62 @@ make run-python-all
 
 ## Explanation of the Python Wrapper
 
-For easiest overview into how the wrapper is setup and run in code, please see **`run_example.py`** file.
+Example on how the wrapper is setup and run in python, please see **`run_example.py`** file.
 
 ### **Class: `ParallelBiqbin`**
 
-The `ParallelBiqbin` Python class serves as a Python wrapper for interacting with the C-based `biqbin` library.
+The `ParallelBiqbin` Python class serves as the main Python wrapper for interacting with the C-based `biqbin` library. 
+
+It inherits from `BiqbinBase` class which contains all the calls to C functions.
+All Python functions that call C functions start with a single underscore (i.e. `_pq_pop`)
 
 ---
 
-#### **Mutual Methods**
+#### **Key Methods**
+- **`__init__(params: BiqBinParameters = BiqBinParameters())`**
+  Constructor optionally takes a `BiqBinParameters` class instance or creates a default one for use
 
-- **`__init__()`**  
-  Initializes the class by loading the shared C library (`biqbin.so`). Sets up function pointers to C functions.
-
-- **`biqbin.init_MPI(graph_path, params_path)`**  
-  Initializes MPI in the C-solver. Returns `rank`. **⚠️Must be run first!⚠️**
-
----
-
-#### **Master Process Methods**
-- **`compute(filepath: str) -> bool`**
+- **`compute(graph_path:str)`**
   Runs the solver for the graph instance in the filepath location.
 
+- **`run_heuristics( babnode: _BabNode, sol_x)`**  
+  By default runs the same heurstic as the original `runHeuristic` function in  `heuristic.c`.
 
-- **`master_init(filename, L, num_verts, num_edge, parameters) -> bool`**  
-  Initializes the master process (rank 0), sets parameters, the initial problem (SP), and communicates it to other workers in the C-solver.  
-  Input arguments:
+  `sol_x` is of type `ctypes.Array[ctypes.c_int]` as the solver needs and int[number of vertices] array
+  to store the solution in. This could get changed in the future (numpy array or a custom Python class).
 
-  - `filename`: Byte string (e.g., `b"filename"` or `filename.encode("utf-8")`) used to open the output file. The content is not read.
-  - `L`: Laplacian matrix in a `numpy.ndarray` with `numpy.float64` dtype.
-  - `num_verts`: int — number of vertices in the graph.
-  - `num_edge`: int — number of edges in the graph.
-  - `parameters`: Instance of `BiqBinParameters`.
+- **`self._GW_heuristics(babnode: _BabNode, sol_x, globals: _GlobalVariables) -> float`**  
+  Runs  GW_heurisitc in C by default, could be overriden to use a different heuristic. 
+  
+  Stores the optimal solution in sol_x and returns its heuristic value (lower bound) to be evaluated later.
 
-  **Returns:** `bool` — `over`, indicating if the solver is done.
+- **`read_maxcut_input(self, graph_path: str) -> tuple[np.ndarray, int, int, str]`**
+  Reads graph at graph_path and returns a tuple with the following 4 elements:
+    - `np.ndarray`: The adjacency matrix.
+    - `int`: Number of vertices.
+    - `int`: Number of edges.
+    - `str`: output file path.
 
-- **`master_main_loop() -> bool`**  
-  Continuously checks for solver progress **while `over` is False**, and coordinates communication and computation with worker nodes.
+  Function can be overriden to read different kinds of data as long as it returns the adjacency matrix as
+  `np.ndarray`, `int` number of vertices, `int` number of edges (this one is only for writing the number of edges in the output)
+  and a `str` for the output file path.
 
-- **`master_end()`**  
-  Notifies workers that solving is `over` Performs cleanup and then terminates the process.
 
-#### **Worker Process Methods**
-
-- **`worker_init(parameters) -> bool`**  
-  Initializes the worker process, sets parameters, receives the initial problem (SP) from **master process** in the C-solver.  
-  Input arguments:
-
-  - `parameters`: Instance of `BiqBinParameters`.
-
-  **Returns:** `bool` — `over`, indicating if the solver is done.
-
-- **`worker_main_loop(rank: int) -> bool`**  
-  Runs **while `over` is False**, execution happens in multiple steps:
-
-  - **`over = self.biqbin.worker_check_over()`**: Waits for **over** signal, returns `True` if it is.
-  - **`worker_receive_problem()`**: Receives problem from another worker or master process, places it into its priority queue.
-  - **`while self.biqbin.isPQEmpty() == 0`**: Loops while the priority queue in C-solver is not empty
-    - **`if self.biqbin.time_limit_reached()`**: Checks if time limit is reached, if it is returns `True`.
-    - **`babnode = self.biqbin.Bab_PQPop()`**: Pops a **BabNode** that needs evaluating from the C-solvers priority queue.
-    - **`old_lb = self.biqbin.Bab_LBGet()`**: Saves current best lower bound, because the evaluation updates it.
-    - **`self.biqbin.evaluate_node_wrapped(babnode, rank)`**: Evaluate the popped node, updates best solution.
-    - **`self.biqbin.after_evaluation(babnode, old_lb)`**: Compares previous best solution with the new one, communicates with master if it needs updating, frees node from memory.
-  - **`self.biqbin.worker_send_idle()`**: Send IDLE signal master process, letting it know the work is finished for this process
-  - **`return False`** to continue another run of `worker_main_loop`.
-
-- **`worker_end()`**  
-  Performs cleanup and then terminates the process.
+- **`get_Laplacian_matrix(Adj: np.ndarray)`**  
+  Receives an adjacency matrix as np.ndarray of np.float64, 
+  constructs and returns the L matrix that the C-solver expects for the original problem `Problem *SP->L`
 
 ---
 
-### **Class: HelperFunctions**
+### **Class: BiqBinParameters**
 
-The `HelperFunctions` class helps parse the graph input and params files located in the repository (either in `test/Instances` or `Instances` folders) to be passed into `ParallelBiqbin` class methods.
+Class to set or read parameters that can be changed in the original biqbin C implementation.
 
 #### **Key Methods:**
 
-- **`read_maxcut_input(file_path: str)`**  
-  Reads the graph file at `file_path` location and returns a touple of:
+- **`__init__(..., params_filepath=None)`**  
+  Reads the graph file at `params_filepath` location if passed in and sets the values to that. 
+  Values can also be changed during instantiation or later
 
   - `Adj`: adjacency matrix of the graph as a numpy array.
   - `num_vertices`: number of vertices in the graph.
@@ -212,15 +158,15 @@ The `HelperFunctions` class helps parse the graph input and params files located
 
   Can be overriden to return the same values for parsing different types of input data
 
-- **`get_SP_L_matrix(Adj)`**  
-  Receives an adjacency matrix, constructs and returns the L matrix that the C-solver expects in `master_init` method in `ParallelBiqbin` class.
+- **`get_c_struct()`**  
+  creates a `ctypes.Structure` needed by `set_parameters` function in C
 
 - **`read_parameters_file(file_path: str)`**  
-  Reads the parameters file and returns a `BiqBinParameters` object that can be passed into `master_init` and `worker_init`.
+  Reads the parameters file and sets them in this object instance.
 
 ---
 
-## 🛠️ Explanation of Parameters
+## Explanation of Parameters
 
 _(Default values can be found in `biqbin.h`)_
 
@@ -246,6 +192,5 @@ _(Default values can be found in `biqbin.h`)_
 | `use_diff`          | If `1`, **only add cutting planes** when necessary to speed up B&B             |
 | `time_limit`        | Maximum runtime in **seconds**. If `0`, runs until optimal solution is found   |
 | `branchingStrategy` | Branching strategy:<br>`0 = LEAST_FRACTIONAL`<br>`1 = MOST_FRACTIONAL`         |
-| `detailed_output`   | If `1`, enables **verbose output** for each B&B node                           |
-
+| `detailed_output`   | Atm only decides if `BiqBinParamters` get printed to output
 ---

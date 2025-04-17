@@ -13,3 +13,8 @@
 - added unit tests using pytest
 - added python wrapper in parallel_biqbin.py wrapper_functions.c to call from python and an example on how to run it in run_example.py
 - seperated bounding.c in wrapped_bounding.c so run_heuristics() function can be overriden in ParallelBiqbin class
+- seperated run_heuristics wrapped_heuristics.c
+
+- split python wrapper into abstract base class (which contains calls to C and python methods to them) and ParallelBiqbin class which constains the necessary variables and methods to run the solver
+- deleted unnused files and functions
+- removed main.c and made the solver a shared object instead

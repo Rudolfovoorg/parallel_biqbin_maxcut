@@ -27,10 +27,10 @@ void initializeBabSolution() {
     init_solution_lb(0, &bs);
 }
 
-/* NOTE: int *sol in functions evaluateSolution and updateSolution have length main_problem_size
+/* NOTE: int *sol in functions evaluate_solution and update_solution have length main_problem_size
  * -> to get objecive multiple with Laplacian that is stored in upper left corner of SP->L
  */
-double evaluateSolution(const int *sol, const Problem *SP) {
+double evaluate_solution(const int *sol, const Problem *SP) {
 
     double val = 0.0;
     int problem_size = SP->n - 1;
@@ -48,7 +48,7 @@ double evaluateSolution(const int *sol, const Problem *SP) {
  * Only this function can update best solution and value.
  * Returns 1 if success.
  */
-int updateSolution(const int *x, const Problem *SP) {
+int update_solution(const int *x, const Problem *SP) {
     
     int solutionAdded = 0;
     double sol_value;
@@ -59,7 +59,7 @@ int updateSolution(const int *x, const Problem *SP) {
       solx.X[i] = x[i];
     }
 
-    sol_value = evaluateSolution(x, SP); // computes objective value of solx
+    sol_value = evaluate_solution(x, SP); // computes objective value of solx
 
     /* If new solution is better than the global solution,
      * then update and print the new solution. */
@@ -72,12 +72,12 @@ int updateSolution(const int *x, const Problem *SP) {
 
 
 /* MASTER process main routine */
-void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWorkers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype) {
+void master_bab_main(Message message, int source, int *busyWorkers, int numbWorkers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype) {
 
     // If the algorithm stops before finding the optimal solution
     if (!globals.stopped && (params.time_limit > 0 && (MPI_Wtime() - globals.TIME) > params.time_limit) ) {
         
-        // signal to printFinalOutput that algorihtm stopped early
+        // signal to print_final_output that algorihtm stopped early
         globals.stopped = 1;
     }
 
@@ -157,7 +157,7 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
 }
 
 /* print solution 0-1 vector */
-void printSolution(FILE *file) {
+void print_solution(FILE *file) {
 
     fprintf(file, "Solution = ( ");
     for (int i = 0; i < main_problem_size; ++i) {
@@ -170,7 +170,7 @@ void printSolution(FILE *file) {
 
 
 /* print final output */
-void printFinalOutput(FILE *file, int num_nodes) {
+void print_final_output(FILE *file, int num_nodes) {
 
     // Best solution found
     double best_sol = get_lower_bound();
@@ -188,25 +188,17 @@ void printFinalOutput(FILE *file, int num_nodes) {
         fprintf(file, "Best value = %.0lf\n", best_sol);
     }
 
-    printSolution(file);
+    print_solution(file);
     fprintf(file, "Time = %.2f s\n\n", MPI_Wtime() - globals.TIME);
 }
 
-
-/* Bab function called at the end of the execution.
- * This function frees the memory allocated by the program. */
-void Bab_End(void) {
-    freeMemory(&globals);   
-}
-
-
 /*
- * getBranchingVariable function used in the Bab_GenChild routine to determine
+ * get_branching_variable function used in the Bab_GenChild routine to determine
  * which variable x[ic] to branch on.
  *
  * node: the current node of the branch-and-bound search tree
  */
-int getBranchingVariable(BabNode *node) {
+int get_branching_variable(BabNode *node) {
 
     int ic = -1;  // x[ic] is the variable to branch on
     double maxValue, minValue;
@@ -244,7 +236,7 @@ int getBranchingVariable(BabNode *node) {
 
 
 /* Count the number of fixed variables */
-int countFixedVariables(BabNode *node) {
+int count_fixed_variable(BabNode *node) {
     
     int numFixedVariables = 0;
 

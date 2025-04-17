@@ -1,12 +1,12 @@
 import heapq
 from typing import Optional
 import numpy as np
-from biqbin_data_objects import BiqbinParameters, _BabSolution, _BabNode
+from biqbin_data_objects import BiqBinParameters, _BabSolution, _BabNode
 # Branch and bound helper functions
 
 
 class BabFunctions:
-    def __init__(self, L_mat, num_vert: int, params: BiqbinParameters):
+    def __init__(self, L_mat, num_vert: int, params: BiqBinParameters):
         self.L_mat = L_mat
         self.problem_size = num_vert - 1
         self.root_bound = None

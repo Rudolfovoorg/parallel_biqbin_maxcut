@@ -264,17 +264,13 @@ void freeMemory(GlobalVariables *globals_in);
 
 /* bab_functions.c */
 void initializeBabSolution(void);
-int Init_PQ(void);
-int Bab_Init(int argc, char **argv, int rank);
-double evaluateSolution(const int *sol, const Problem *SP);
-int updateSolution(const int *x, const Problem *SP);
-void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWorkers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype);
-void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank);
-void printSolution(FILE *file);
-void printFinalOutput(FILE *file, int num_nodes);
-void Bab_End(void);
-int getBranchingVariable(BabNode *node);
-int countFixedVariables(BabNode *node);
+double evaluate_solution(const int *sol, const Problem *SP);
+int update_solution(const int *x, const Problem *SP);
+void master_bab_main(Message message, int source, int *busyWorkers, int numbWorkers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype);
+void print_solution(FILE *file);
+void print_final_output(FILE *file, int num_nodes);
+int get_branching_variable(BabNode *node);
+int count_fixed_variable(BabNode *node);
 
 /* bundle.c */
 double fct_eval(const Problem *PP, double *gamma, double *X, double *g, GlobalVariables *globals);
@@ -305,10 +301,7 @@ Heap *init_heap(int size);                           // allocates space for heap
 void set_lower_bound(double new_LB);
 
 /* heuristic.c */
-// double runHeuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, const double *X, double *Z);
 double GW_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x, int num, const double *Z);
-double mc_1opt(int *x, const Problem *P0);
-int update_best(int *xbest, const int *xnew, double *best, const Problem *P0);
 
 /* ipm_mc_pk.c */
 void ipm_mc_pk(double *L, int n, double *X, double *phi, int print);
@@ -321,17 +314,16 @@ void op_Bt(const Problem *P, double *X, const double *tt, GlobalVariables *globa
 
 /* process_input.c */
 void print_symmetric_matrix(double *Mat, int N);
-int openOutputFile(char *filename);
-void closeOutputFile();
-void setParams(BiqBinParameters params_in);
-void printParameters(BiqBinParameters params_in);
-double getDiff();
-void setDiff(double diff);
+int open_output_file(char *filename);
+void close_output_file();
+void set_parameters(BiqBinParameters params_in);
+void print_parameters(BiqBinParameters params_in);
 
 /* qap_simuted_annealing.c */
 double qap_simulated_annealing(int *H, int k, double *X, int n, int *pent);
 
 /* wrapped_bounding.c */
+
 void init_sdp(BabNode *node, int *x, GlobalVariables *globals_in);
 int init_main_sdp_loop(GlobalVariables *globals_in, int is_root);
 int main_sdp_loop_start(GlobalVariables *globals_in);
@@ -339,10 +331,9 @@ int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in);
 double get_upper_bound(BabNode *node, const GlobalVariables *globals_in);
 void set_globals_diff(GlobalVariables *globals_in);
 double heuristics_wrapped(BabNode *node, int *x, GlobalVariables *globals_in);
-double getFixedValue(BabNode *node, Problem *SP);
 
 /* wrapper_functions.c */
-int initMPI(int argc, char **argv);
+int init_mpi_wrapped(int argc, char **argv);
 void master_init(char *filename, double *L, int num_vertices, int num_edges, BiqBinParameters params_in);
 int master_init_end(BabNode *root_node);
 int master_main_loop();
@@ -355,8 +346,8 @@ int time_limit_reached();
 void after_evaluation(BabNode *node, double old_lowerbound);
 void worker_send_idle();
 GlobalVariables* init_globals(double *L, int num_vertices);
-void free_globals(GlobalVariables *globals_in);
 GlobalVariables* get_globals_pointer();
+void free_globals(GlobalVariables *globals_in);
 
 /* wrapped_heuristics.c */
 HeurState* heuristic_init(const Problem *P0, const Problem *P, const BabNode *node, const double *X, double *Z);

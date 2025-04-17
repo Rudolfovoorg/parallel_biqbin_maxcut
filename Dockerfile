@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir scipy mpi4py pytest
+RUN pip install --no-cache-dir scipy pytest
 
 # Set environment variables to avoid multithreaded math lib conflicts
 ENV OPENBLAS_NUM_THREADS=1

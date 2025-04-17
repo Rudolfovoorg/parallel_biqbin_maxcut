@@ -4,7 +4,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from parallel_biqbin import ParallelBiqbin
 from bab_functions import BabFunctions
-from biqbin_data_objects import BiqbinParameters
+from biqbin_data_objects import BiqBinParameters
 
 # Load the JSON with expected results
 with open("test/evaluate_results.json", "r") as f:
@@ -31,7 +31,7 @@ def test_root_node_bound(graph_path, expected_bound):
     print(f"Graph: {graph_path}: ")
     for i in range(1, num_test_nodes + 1):
         biqbin.set_random_seed(2020)
-        globals = biqbin.get_globals(L_matrix, num_verts)
+        globals = biqbin.init_globals(L_matrix, num_verts)
 
         node_pointer = babfun.generate_node()
         biqbin.evaluate(node_pointer, globals, 0)
@@ -68,7 +68,7 @@ def test_seed_results(graph_data):
     print(f"Graph {graph_path}")
     for test in tests:
         biqbin.set_random_seed(test["seed"])
-        globals = biqbin.get_globals(L_matrix, num_verts)
+        globals = biqbin.init_globals(L_matrix, num_verts)
 
         node = babfun.generate_node()
         result = biqbin.evaluate(node, globals, 0)

@@ -38,12 +38,14 @@ int giveup;
 int prune;
 int done;
 
-// builds the temp solution x to be used in heuristics
+// This one can be a static function, definition is at the end of the file
+static double getFixedValue(const BabNode *node,const Problem *SP);
 
-/// @brief
-/// @param node
-/// @param x
-/// @param globals_in
+
+/// @brief Initialize SDP bound. Builds the temp solution x to be used in heuristics
+/// @param node current node
+/// @param x stores best solution for the current subproblem globals->PP and node throughout evaluation
+/// @param globals_in global variables
 void init_sdp(BabNode *node, int *x, GlobalVariables *globals_in)
 {
     int problem_size = globals_in->SP->n - 1;
@@ -106,6 +108,10 @@ void init_sdp(BabNode *node, int *x, GlobalVariables *globals_in)
     }
 }
 
+/// @brief Preproces before the main sdp loop starts
+/// @param globals_in pointer to global variables
+/// @param is_root root node is treated differently
+/// @return 1 if over, 0 if continue with the main sdp loop
 int init_main_sdp_loop(GlobalVariables *globals_in, int is_root)
 { // upper bound
     // fixed value contributes to the objective value
@@ -183,6 +189,9 @@ int init_main_sdp_loop(GlobalVariables *globals_in, int is_root)
     return done;
 }
 
+/// @brief Use bundle_method, calculate upper bound
+/// @param globals_in
+/// @return 1 if prune node, 0 if not
 int main_sdp_loop_start(GlobalVariables *globals_in)
 {
     // Update iteration counter
@@ -199,10 +208,10 @@ int main_sdp_loop_start(GlobalVariables *globals_in)
     return prune;
 }
 
-/// @brief
+/// @brief Ran after heuristics in SDP_bound main loop
 /// @param node reads node->xfixed; sets node->fracsol
 /// @param globals_in
-/// @return
+/// @return 1 if calculating upper bound is done
 int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in)
 {
     int problem_size = globals_in->SP->n - 1;
@@ -265,7 +274,6 @@ int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in)
         giveup;  // upper bound to far away from lower bound
 
     // Store the fractional solution in the node
-    // NOTE: This part could be done in python
     int index = 0;
     for (int i = 0; i < problem_size; ++i)
     {
@@ -378,7 +386,7 @@ void set_globals_diff(GlobalVariables *globals_in)
 /// @param SP main problem SP
 void update_solution_wrapped(BabNode *node, const int *x, const Problem *SP)
 {
-    if (updateSolution(x, SP)) // updates lower bound if the current x solution is best
+    if (update_solution(x, SP)) // updates lower bound if the current x solution is best
     {
         int problem_size = SP->n - 1;
         for (int i = 0; i < problem_size; ++i)
@@ -391,6 +399,30 @@ void update_solution_wrapped(BabNode *node, const int *x, const Problem *SP)
 /**********************************************************************/
 /*******************  Copied from evaluate.c  ************************/
 /********************************************************************/
+/// @brief The fixed value is contribution of the fixed variables to the objective value.
+/// @param node
+/// @param SP  is the original problem
+/// @return the fixed value of tohe node.
+static double getFixedValue(const BabNode *node,const Problem *SP)
+{
+
+    int N = SP->n;
+    int problem_size = SP->n - 1;
+    double fixedvalue = 0.0;
+
+    for (int i = 0; i < problem_size; ++i)
+    {
+        for (int j = 0; j < problem_size; ++j)
+        {
+            if (node->xfixed[i] && node->xfixed[j])
+            {
+                fixedvalue += SP->L[j + i * N] * node->sol.X[i] * node->sol.X[j];
+            }
+        }
+    }
+
+    return fixedvalue;
+}
 
 /// @brief Writes subproblem to PP. Computes the subproblem removing the rows and the columns of the fixed variables upper left corner of SP->L
 /// @param node is the current node
@@ -401,7 +433,7 @@ void create_subproblem(BabNode *node, Problem *SP, Problem *PP)
 {
 
     // Subproblem size is the number of non-fixed variables in the node
-    PP->n = SP->n - countFixedVariables(node);
+    PP->n = SP->n - count_fixed_variable(node);
 
     /* build objective:
      * Laplacian;
@@ -480,29 +512,4 @@ void create_subproblem(BabNode *node, Problem *SP, Problem *PP)
     int inc = 1;
     int nn = (PP->n) * (PP->n);
     dscal_(&nn, &alpha, PP->L, &inc);
-}
-
-/// @brief The fixed value is contribution of the fixed variables to the objective value.
-/// @param node
-/// @param SP  is the original problem
-/// @return the fixed value of the node.
-double getFixedValue(BabNode *node, Problem *SP)
-{
-
-    int N = SP->n;
-    int problem_size = SP->n - 1;
-    double fixedvalue = 0.0;
-
-    for (int i = 0; i < problem_size; ++i)
-    {
-        for (int j = 0; j < problem_size; ++j)
-        {
-            if (node->xfixed[i] && node->xfixed[j])
-            {
-                fixedvalue += SP->L[j + i * N] * node->sol.X[i] * node->sol.X[j];
-            }
-        }
-    }
-
-    return fixedvalue;
 }

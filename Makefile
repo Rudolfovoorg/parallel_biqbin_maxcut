@@ -13,7 +13,7 @@ OBJ = Obj
 CC = mpicc
 
 LINALG 	 = -lopenblas -lm 
-OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common
+OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common -shared
 
 # binary
 BINS =  biqbin
@@ -66,7 +66,7 @@ TEST_ALL_100 = 	for i in $(shell seq 0 9); do \
 BBOBJS = $(OBJ)/bundle.o $(OBJ)/allocate_free.o \
 		 $(OBJ)/cutting_planes.o $(OBJ)/bab_functions.o \
          $(OBJ)/heap.o $(OBJ)/ipm_mc_pk.o $(OBJ)/heuristic.o \
-         $(OBJ)/wrapped_heuristics.o $(OBJ)/main.o $(OBJ)/operators.o \
+         $(OBJ)/wrapped_heuristics.o $(OBJ)/operators.o \
          $(OBJ)/process_input.o $(OBJ)/qap_simulated_annealing.o \
 		 $(OBJ)/wrapper_functions.o $(OBJ)/wrapped_bounding.o \
 

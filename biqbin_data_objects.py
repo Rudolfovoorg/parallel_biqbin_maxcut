@@ -4,7 +4,7 @@ import ctypes
 import numpy as np
 
 
-class BiqbinParameters:
+class BiqBinParameters:
     def __init__(self,
                  init_bundle_iter: int = 5,
                  max_bundle_iter: int = 15,
@@ -155,45 +155,6 @@ class _BabNode(ctypes.Structure):
 
     def __lt__(self, other):
         return self.upper_bound < other.upper_bound
-
-
-class BabNodeWrapper:
-    def __init__(self, problem_size: int, babnode_c_struct: _BabNode, babnode_pointer=None, parent_node=None):
-        self.problem_size = problem_size
-
-        self.parent_node: BabNodeWrapper = parent_node
-
-        self.__c_struct: _BabNode = babnode_c_struct
-        self.__pointer: ctypes.POINTER = babnode_pointer
-
-        if babnode_c_struct is None and babnode_pointer is not None:
-            self.__c_struct = self.__pointer.contents
-
-        elif babnode_c_struct is not None and babnode_pointer is None:
-            self.__pointer = ctypes.pointer(self.__c_struct)
-
-    def get_c_struct(self) -> _BabNode:
-        return self.__c_struct
-
-    def get_pointer(self) -> ctypes.POINTER:
-        return self.__pointer
-
-    def generate_babnode(self):
-        c_node = _BabNode()
-        parent_node = self.parent_node.get_c_struct()
-
-        for i in range(self.problem_size):  # Loop over all possible indices
-            if self.parent_node is None:
-                c_node.xfixed[i] = 0
-                c_node.sol.X[i] = 0
-            else:
-                c_node.xfixed[i] = parent_node.xfixed[i]
-                c_node.sol.X[i] = parent_node.sol.X[i] if c_node.xfixed[i] else 0
-
-        # Set level: root node starts at 0, children are +1 from parent
-        c_node.level = 0 if parent_node is None else parent_node.level + 1
-
-        return c_node
 
 
 class _Problem(ctypes.Structure):

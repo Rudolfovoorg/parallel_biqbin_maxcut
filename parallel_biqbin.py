@@ -66,7 +66,7 @@ class ParallelBiqbin(_BiqbinBase):
         return self._GW_heuristic(node, solution_out, globals)
 
         #################### heuristics  ####################
-    def run_heuristics(self, babnode: _BabNode, sol_x: np.ndarray) -> float:
+    def __run_heuristics(self, babnode: _BabNode, sol_x: np.ndarray) -> float:
         """runs the entire heuristics, original runHeuristic in heuristic.c
 
         Args:
@@ -189,7 +189,7 @@ class ParallelBiqbin(_BiqbinBase):
         # update solution_vector_x for the given subproblem and node
         self._init_sdp(babnode, sol_x, globals)
         # Run heuristics and update solution first time
-        self.run_heuristics(babnode, sol_x)
+        self.__run_heuristics(babnode, sol_x)
         self._update_solution_wrapped(babnode, sol_x, globals)
 
         over = self._init_main_sdp_loop(
@@ -200,7 +200,7 @@ class ParallelBiqbin(_BiqbinBase):
             prune = self._main_sdp_loop_start(globals)
             if not prune:
                 self.__update_partial_solution(babnode, sol_x)
-                self.run_heuristics(babnode, sol_x)
+                self.__run_heuristics(babnode, sol_x)
                 self._update_solution_wrapped(babnode, sol_x, globals)
 
             over = self._main_sdp_loop_end(babnode, globals)

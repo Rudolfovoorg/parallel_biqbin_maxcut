@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 import ctypes
@@ -310,3 +311,38 @@ class _HeurState(ctypes.Structure):
         ("fh", ctypes.c_double),
         ("temp_x", ctypes.POINTER(ctypes.c_int)),
     ]
+
+
+def heuristicmethod(func):
+    @functools.wraps(func)
+    def wrapper(self, node: _BabNode, solution_out: np.ndarray, global_vars: _GlobalVariables) -> float:
+        """
+        Checks that input parameters are correct before running the heuristic function
+        Args:
+            node (_BabNode): node being evaluated
+            solution (np.ndarray[shape=(num_vertices - 1, dtype=np.int32)]): stores the solution nodes of the heuristic function
+            globals (_GlobalVariables): global variables in C
+
+        Returns:
+            float: lower bound value of the found solution
+        """
+        if not isinstance(node, _BabNode):
+            raise TypeError("node must be of type _BabNode")
+        if not isinstance(global_vars, _GlobalVariables):
+            raise TypeError("global_vars must be of type _GlobalVariables")
+
+        if solution_out.dtype != np.int32:
+            raise TypeError("Array must be of dtype int32")
+        if solution_out.ndim != 1:
+            raise ValueError("Array must be 1-dimensional")
+        if solution_out.shape[0] != self.num_vertices - 1:
+            raise ValueError(
+                f"Array must have length of 1 less than the number of vertices: {self.num_vertices - 1}, but got {solution_out.shape[0]}")
+
+        result = func(self, node, solution_out, global_vars)
+        if not isinstance(result, float):
+            raise TypeError("heuristic function must return a float")
+        # Add functionality after the original function call
+        return result
+    wrapper._is_heuristic_wrapped = True  # Add a marker
+    return wrapper

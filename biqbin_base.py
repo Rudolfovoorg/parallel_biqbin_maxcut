@@ -2,7 +2,7 @@ import os
 from abc import ABC, abstractmethod
 import ctypes
 import numpy as np
-from biqbin_data_objects import _BabNode, BiqBinParameters, _BiqBinParameters, _GlobalVariables, _Problem, _HeurState
+from biqbin_data_objects import _BabNode, BiqBinParameters, _BiqBinParameters, _GlobalVariables, _Problem, _HeurState, heuristicmethod
 
 
 class _BiqbinBase(ABC):
@@ -230,6 +230,26 @@ class _BiqbinBase(ABC):
         self.__biqbin.increase_num_eval_nodes.argtypes = []
         self.__biqbin.increase_num_eval_nodes.restype = None
 
+    def __init_subclass__(cls, **kwargs):
+        """Force heuristic method to be decorated with @heuristicmethod
+
+        Raises:
+            TypeError: heuristic method not implemented
+            TypeError: heuristic method must use @heuristicmethod decorator from biqbin_data_objects.py
+        """
+        super().__init_subclass__(**kwargs)
+        # Get the method from __dict__ to avoid inheritance/binding
+        method = cls.__dict__.get("heuristic")
+        if method is None:
+            raise TypeError("Subclass must define a heuristic method")
+
+        # Make sure the method is actually decorated
+        # Handles classmethod/staticmethod
+        func = getattr(method, "__func__", method)
+        if not getattr(func, "_is_heuristic_wrapped", False):
+            raise TypeError(
+                "heuristic() must be decorated with @heuristicmethod")
+
     @abstractmethod
     def compute(self, *args, **kwargs):
         pass
@@ -242,9 +262,15 @@ class _BiqbinBase(ABC):
     def compute_upper_bound(self, _Babnode):
         pass
 
+    @abstractmethod
+    @heuristicmethod
+    def heuristic(self, node: _BabNode, solution_out: np.ndarray, globals: _GlobalVariables):
+        pass
+
     ###########################################################
     ################### COMMON FUNCTIONS ######################
     ###########################################################
+
     def _init_mpi(self, argc: int, argv: list[str]) -> int:
         """Initialize MPI in C solver
 
@@ -441,17 +467,17 @@ class _BiqbinBase(ABC):
             globals.PP
         )
 
-    def _init_sdp(self, node: _BabNode, sol_x, globals: _GlobalVariables):
+    def _init_sdp(self, node: _BabNode, sol_x: np.ndarray, globals: _GlobalVariables):
         """Initialize SDP bound. Builds the temp solution x to be used in further evaluations
 
         Args:
             node (_BabNode): current node
-            sol_x (_type_): stored solution for evaluation
+            sol_x (np.ndarray): stored solution for evaluation
             globals (_GlobalVariables): global variables
         """
         self.__biqbin.init_sdp(
             ctypes.pointer(node),
-            sol_x,
+            sol_x.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             ctypes.pointer(globals)
         )
 
@@ -498,7 +524,7 @@ class _BiqbinBase(ABC):
             ctypes.pointer(globals)
         ) != 0
 
-    def _set_globals_diff(self, globals):
+    def _set_globals_diff(self, globals: _GlobalVariables):
         """If evaluating root node, globals->diff needs to be set
 
         Args:
@@ -521,29 +547,29 @@ class _BiqbinBase(ABC):
             ctypes.pointer(globals)
         )
 
-    def _update_solution_wrapped(self, node: _BabNode, sol_x, globals: _GlobalVariables):
+    def _update_solution_wrapped(self, node: _BabNode, sol_x: np.ndarray, globals: _GlobalVariables):
         """Updates lower bound and solution nodes based on the temp solution x, stores in node->sol.X if it is better
 
         Args:
             babnode (_BabNode): current node
-            sol_x (_type_): solution found
+            sol_x (np.ndarray): solution found
             globals (_GlobalVariables): globals variables
         """
         self.__biqbin.update_solution_wrapped(
             ctypes.pointer(node),
-            sol_x,
+            sol_x.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             globals.SP
         )
     ###########################################################
     ################# heuristic.c FUNCTIONS  ##################
     ###########################################################
 
-    def _GW_heuristics(self, node: _BabNode, sol_x, globals: _GlobalVariables) -> float:
+    def _GW_heuristic(self, node: _BabNode, sol_x: np.ndarray, globals: _GlobalVariables) -> float:
         """Goemans-Williamson random hyperplane heuristic located in heuristic.c
 
         Args:
             babnode (_BabNode): current node
-            sol_x (ctypes.Array[ctypes.c_int]): current best solution, gets updated here if a better one is found
+            sol_x (np.ndarray): current best solution, gets updated here if a better one is found
 
         Returns:
             float: best lower bound found
@@ -552,7 +578,7 @@ class _BiqbinBase(ABC):
             globals.SP,
             globals.PP,
             ctypes.pointer(node),
-            sol_x,
+            sol_x.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             self.num_vertices,  # num variable ??
             globals.Z
         )
@@ -596,7 +622,7 @@ class _BiqbinBase(ABC):
     def _postprocess_heuristics(self,
                                 state: _HeurState,
                                 babnode: _BabNode,
-                                sol_x,
+                                sol_x: np.ndarray,
                                 globals: _GlobalVariables,
                                 heur_value: float
                                 ) -> bool:
@@ -605,7 +631,7 @@ class _BiqbinBase(ABC):
         Args:
             state (_HeurState): persistant variables shared between heuristic functions
             babnode (_BabNode): current node
-            sol_x (ctypes.Array[ctypes.c_int]): best solution found for the given node and subproblem (globals->PP)
+            sol_x (np.ndarray): best solution found for the given node and subproblem (globals->PP)
             heur_value (float): best lower bound found for the current node and subproblem (globals->PP)
 
         Returns:
@@ -614,7 +640,7 @@ class _BiqbinBase(ABC):
         success = self.__biqbin.heuristic_postprocess(
             ctypes.pointer(state),
             ctypes.pointer(babnode),
-            sol_x,
+            sol_x.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             globals.X,
             globals.Z,
             heur_value

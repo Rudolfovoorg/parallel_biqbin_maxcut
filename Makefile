@@ -86,6 +86,8 @@ all: $(BINS) biqbin.so
 test: all
 	$(TEST)
 
+test-memory:
+	mpirun valgrind -s --show-leak-kinds=all --leak-check=full --log-file=valgrind.%p.log python3 run_example.py $(TEST_INSTANCE) test/params
 
 test-all:
 	$(TEST_ALL_60)

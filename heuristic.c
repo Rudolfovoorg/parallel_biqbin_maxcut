@@ -185,14 +185,10 @@ double GW_heuristic(const Problem *P0, const Problem *P, const BabNode *node, in
                     sca += v[j] * Z[j * N + index];
 
                 if (sca < 0) {
-
                     temp_x[i] = -1;
-                    
                 }
                 else {
-
                     temp_x[i] = 1;
-                    
                 }
 
                 ++index;            

@@ -1,7 +1,7 @@
 from typing import List, Optional
 import ctypes
 import numpy as np
-from biqbin_data_objects import BiqBinParameters, _BabNode
+from biqbin_data_objects import BiqBinParameters, _BabNode, _GlobalVariables, heuristicmethod
 from biqbin_base import _BiqbinBase
 
 
@@ -12,6 +12,7 @@ class ParallelBiqbin(_BiqbinBase):
         self.rank: int = None  # MPI rank
 
         self.num_vertices: int = 0
+        self.L: np.ndarray = None
         self.globals_p: ctypes._Pointer = None
 
     def compute(self, graph_path: str):
@@ -25,17 +26,17 @@ class ParallelBiqbin(_BiqbinBase):
                 graph_path,
                 ]
         self.rank = self._init_mpi(len(args), args)
-
         if self.rank == 0:
             # Only rank 0 needs input data about the graph, name to open output file, L matrix and num verts for the problem
             adj, num_verts, num_edge, name = self.read_maxcut_input(
                 graph_path)
             self.num_vertices = num_verts
-            L_matrix = self.get_Laplacian_matrix(adj)
+            self.L = self.get_Laplacian_matrix(adj)
+
             # initialize master, if over == True don't go into main loop
             over = self.__master_init(
                 name,
-                L_matrix,
+                self.L,
                 num_verts,
                 num_edge
             )
@@ -52,7 +53,7 @@ class ParallelBiqbin(_BiqbinBase):
             # Free memory and finalize MPI
             self._worker_end()
 
-    def compute_lower_bound(self, node: _BabNode, sol_x):
+    def compute_lower_bound(self, node: _BabNode, sol_x: np.ndarray):
         # TODO run_heuristic finds a solution and it can be evaulated, need to figure out how it is connected to the rest of the evaluation
         pass
 
@@ -60,8 +61,12 @@ class ParallelBiqbin(_BiqbinBase):
         # TODO run_heuristic is ran many times inside the upper bound evaluation
         pass
 
+    @heuristicmethod
+    def heuristic(self, node, solution_out, globals):
+        return self._GW_heuristic(node, solution_out, globals)
+
         #################### heuristics  ####################
-    def run_heuristics(self, babnode: _BabNode, sol_x) -> float:
+    def run_heuristics(self, babnode: _BabNode, sol_x: np.ndarray) -> float:
         """runs the entire heuristics, original runHeuristic in heuristic.c
 
         Args:
@@ -71,8 +76,8 @@ class ParallelBiqbin(_BiqbinBase):
         Returns:
             float: lower bound for the given solution
         """
-        # heur_state stores the variables that are used in separate heuristic functions
         globals = self.globals_p.contents
+        # heur_state stores the variables that are used in separate heuristic functions
         # initialized and get persistant variables accross heuristics functions
         heur_state = self._initialize_heuristics(babnode, globals)
         done = 0
@@ -81,8 +86,8 @@ class ParallelBiqbin(_BiqbinBase):
             done += 1
             self._cholesky_factorization(heur_state, globals)
             # GW heuristic is unchanged
-            heur_value = self._GW_heuristics(babnode, sol_x, globals)
-            # reset if GW found a better solution than the one before
+            heur_value = self.heuristic(babnode, sol_x, globals)
+            # reset if heuristic found a better solution than the one before
             if (self._postprocess_heuristics(heur_state, babnode, sol_x, globals, heur_value)):
                 done = 0
         return self._finalize_heuristics(heur_state)
@@ -90,6 +95,7 @@ class ParallelBiqbin(_BiqbinBase):
     ###########################################################
     ################### WORKER MAIN LOOP  #####################
     ###########################################################
+
     def __worker_main_loop(self) -> bool:
         """worker main loop in C, waits for the over signal, if not over receive babnode to process, branches and sends more nodes to other workers
 
@@ -163,6 +169,11 @@ class ParallelBiqbin(_BiqbinBase):
         over = self._worker_init(self.params)
         self.globals_p = self._get_globals_pointer()
         self.num_vertices = self.globals_p.contents.SP.contents.n
+        total_size = self.num_vertices * self.num_vertices
+        flat_array = np.ctypeslib.as_array(
+            self.globals_p.contents.SP.contents.L,  shape=(total_size,)
+        )
+        self.L = flat_array.reshape((self.num_vertices, self.num_vertices))
         return over
 
     ##############################################################
@@ -174,7 +185,7 @@ class ParallelBiqbin(_BiqbinBase):
         # changes globals->PP using globals->SP and current BabNode
         self._create_subproblem(babnode, globals)
         # Stores the best solution for node, updates it in BabNode x[BabPbSize] local variable
-        sol_x = (ctypes.c_int * (self.num_vertices - 1))()
+        sol_x = np.zeros(shape=(self.num_vertices - 1,), dtype=np.int32)
         # update solution_vector_x for the given subproblem and node
         self._init_sdp(babnode, sol_x, globals)
         # Run heuristics and update solution first time
@@ -289,7 +300,6 @@ class ParallelBiqbin(_BiqbinBase):
         L[:-1, -1] = sum_row
         L[-1, :-1] = sum_row
         L[-1, -1] = sum_total
-
         return L
 
     ##############################################################
@@ -300,3 +310,9 @@ class ParallelBiqbin(_BiqbinBase):
         self.globals_p = globals
         self.rank = rank
         return self.__evaluate_node(node)
+
+    def evaluate_solution(self, sol: np.ndarray) -> float:
+        # Extract the top-left (n-1)x(n-1) part of the Laplacian
+        L_sub = self.L[:-1, :-1]
+        sol_sub = sol[:]
+        return float(sol_sub.T @ L_sub @ sol_sub)

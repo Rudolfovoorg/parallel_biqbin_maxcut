@@ -94,7 +94,8 @@ For more commands see `Makefile`.
 
 ## Explanation of the Python Wrapper
 
-Example on how the wrapper is setup and run in python, please see **`run_example.py`** file.
+- Example on how the wrapper is setup and run in python, please see **`run_example.py`** file.
+- Example on how to change the heuristic function please see **`new_heuristics_example.py`**.
 
 ### **Class: `ParallelBiqbin`**
 
@@ -112,17 +113,12 @@ All Python functions that call C functions start with a single underscore (i.e. 
 - **`compute(graph_path:str)`**
   Runs the solver for the graph instance in the filepath location.
 
-- **`run_heuristics( babnode: _BabNode, sol_x)`**  
-  By default runs the same heurstic as the original `runHeuristic` function in  `heuristic.c`.
+- **`heuristic( babnode: _BabNode, solution_out: np.ndarray, globals: _GlobalVariables)`**  
+  By default runs the original `GW_heuristic` function in  `heuristic.c`.
+  Can be overriden, but it must use the `@heuristicmethod` decorator.
 
-  `sol_x` is of type `ctypes.Array[ctypes.c_int]` as the solver needs and int[number of vertices] array
-  to store the solution in. This could get changed in the future (numpy array or a custom Python class).
-
-- **`self._GW_heuristics(babnode: _BabNode, sol_x, globals: _GlobalVariables) -> float`**  
-  Runs  GW_heurisitc in C by default, could be overriden to use a different heuristic. 
+  `solution_out` is of type `np.ndarray` is a [0, 1] 1D array containing the solution, it will get evaluated after the heuristic is run and used by the solver.
   
-  Stores the optimal solution in sol_x and returns its heuristic value (lower bound) to be evaluated later.
-
 - **`read_maxcut_input(self, graph_path: str) -> tuple[np.ndarray, int, int, str]`**
   Reads graph at graph_path and returns a tuple with the following 4 elements:
     - `np.ndarray`: The adjacency matrix.

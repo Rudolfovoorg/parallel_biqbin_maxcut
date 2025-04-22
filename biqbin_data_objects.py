@@ -339,10 +339,10 @@ def heuristicmethod(func):
             raise ValueError(
                 f"Array must have length of 1 less than the number of vertices: {self.num_vertices - 1}, but got {solution_out.shape[0]}")
 
-        result = func(self, node, solution_out, global_vars)
-        if not isinstance(result, float):
-            raise TypeError("heuristic function must return a float")
-        # Add functionality after the original function call
-        return result
+        func(self, node, solution_out, global_vars)
+
+        # Evaluate solution found in the heuristics
+        heur_value = self.evaluate_solution(solution_out)
+        return heur_value
     wrapper._is_heuristic_wrapped = True  # Add a marker
     return wrapper

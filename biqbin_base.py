@@ -2,7 +2,7 @@ import os
 from abc import ABC, abstractmethod
 import ctypes
 import numpy as np
-from biqbin_data_objects import _BabNode, BiqBinParameters, _BiqBinParameters, _GlobalVariables, _Problem, _HeurState, heuristicmethod
+from biqbin_data_objects import _BabNode, BiqBinParameters, _BiqBinParameters, _GlobalVariables, _Problem, _HeurState, heuristicmethod, _BabSolution
 
 
 class _BiqbinBase(ABC):
@@ -70,6 +70,13 @@ class _BiqbinBase(ABC):
 
         self.__biqbin.set_lower_bound.argtypes = [ctypes.c_double]
         self.__biqbin.set_lower_bound.restype = None
+
+        # set lower bound and solution
+        self.__biqbin.update_lower_bound.argtypes = [
+            ctypes.c_double,
+            ctypes.POINTER(_BabSolution)
+        ]
+        self.__biqbin.update_lower_bound.restype = ctypes.c_int
 
         # after eval
         self.__biqbin.after_evaluation.argtypes = [
@@ -657,6 +664,24 @@ class _BiqbinBase(ABC):
             float: state.fh (lower bound)
         """
         return self.__biqbin.heuristic_finalize(ctypes.pointer(state))
+
+    def _update_solution(self, new_value: float, sol_x: np.ndarray) -> bool:
+        """ Updates solution and lower bound if the new one is better
+
+        Args:
+            new_value (float): new lower bound
+            sol_x (np.ndarray): new solution
+
+        Returns:
+            bool: True if the new lower bound is better, solution was updated
+        """
+        # set lower bound and solution
+        solution = _BabSolution()
+        solution.X[:len(sol_x)] = sol_x
+        return self.__biqbin.update_lower_bound(
+            new_value,
+            ctypes.pointer(solution)
+        ) == 1
 
     ##############################################################
     ##################### Unit test functions ####################

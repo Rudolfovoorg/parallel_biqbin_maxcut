@@ -20,7 +20,7 @@ BINS =  biqbin
 
 # test command
 PARAMS = test/params
-TEST_INSTANCE = test/Instances/rudy/g05_60.4
+TEST_INSTANCE = test/Instances/rudy/g05_60.0
 TEST_EXPECTED = $(TEST_INSTANCE)-expected_output
 
 TEST = ./test.sh \

@@ -1,7 +1,7 @@
 #include "biqbin.h"
 
 extern BiqBinParameters params;
-
+extern int heptafail;
 /****** SDP bound variables needed for reuse *****/
 /****** Considering using a struct for them *****/
 int count; // number of iterations (adding and purging of cutting planes)
@@ -39,8 +39,7 @@ int prune;
 int done;
 
 // This one can be a static function, definition is at the end of the file
-static double getFixedValue(const BabNode *node,const Problem *SP);
-
+static double getFixedValue(const BabNode *node, const Problem *SP);
 
 /// @brief Initialize SDP bound. Builds the temp solution x to be used in heuristics
 /// @param node current node
@@ -253,10 +252,15 @@ int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in)
 
         /* include pentagonal and heptagonal inequalities */
         if (params.include_Pent && (count > params.triag_iter || viol3 < 0.2))
+        {
             viol5 = updatePentagonalInequalities(globals_in->PP, globals_in->dual_gamma, &Pent_NumAdded, &Pent_NumSubtracted, triag, globals_in);
-
+        }
         if (params.include_Hepta && ((count > params.triag_iter + params.pent_iter) || (viol3 < 0.2 && (1 - viol5 < 0.4))))
-            viol7 = updateHeptagonalInequalities(globals_in->PP, globals_in->dual_gamma, &Hepta_NumAdded, &Hepta_NumSubtracted, triag + penta, globals_in);
+        {
+            if (!heptafail) {
+                viol7 = updateHeptagonalInequalities(globals_in->PP, globals_in->dual_gamma, &Hepta_NumAdded, &Hepta_NumSubtracted, triag + penta, globals_in);
+            }
+        }
     }
     else
     {
@@ -266,6 +270,7 @@ int main_sdp_loop_end(BabNode *node, GlobalVariables *globals_in)
         Pent_NumSubtracted = 0;
         Hepta_NumAdded = 0;
         Hepta_NumSubtracted = 0;
+        heptafail = 0;
     }
 
     // Test stopping conditions
@@ -379,7 +384,6 @@ void set_globals_diff(GlobalVariables *globals_in)
     globals_in->diff = basic_bound - bound;
 }
 
-
 /// @brief Updates lower bound and solution nodes based on the temp solution x
 /// @param node saves the x solution in the node->sol.X if it is better
 /// @param x solution which is being evaluated
@@ -403,7 +407,7 @@ void update_solution_wrapped(BabNode *node, const int *x, const Problem *SP)
 /// @param node
 /// @param SP  is the original problem
 /// @return the fixed value of tohe node.
-static double getFixedValue(const BabNode *node,const Problem *SP)
+static double getFixedValue(const BabNode *node, const Problem *SP)
 {
 
     int N = SP->n;

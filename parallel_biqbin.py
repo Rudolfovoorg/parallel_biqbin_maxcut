@@ -62,8 +62,8 @@ class ParallelBiqbin(_BiqbinBase):
         pass
 
     @heuristicmethod
-    def heuristic(self, node, solution_out, globals):
-        return self._GW_heuristic(node, solution_out, globals)
+    def heuristic(self, node: _BabNode, solution_out: np.ndarray, globals: _GlobalVariables):
+        self._GW_heuristic(node, solution_out, globals)
 
         #################### heuristics  ####################
     def __run_heuristics(self, babnode: _BabNode, sol_x: np.ndarray) -> float:
@@ -90,7 +90,8 @@ class ParallelBiqbin(_BiqbinBase):
             # reset if heuristic found a better solution than the one before
             if (self._postprocess_heuristics(heur_state, babnode, sol_x, globals, heur_value)):
                 done = 0
-        return self._finalize_heuristics(heur_state)
+        lb = self._finalize_heuristics(heur_state)
+        return lb
 
     ###########################################################
     ################### WORKER MAIN LOOP  #####################
@@ -189,8 +190,10 @@ class ParallelBiqbin(_BiqbinBase):
         # update solution_vector_x for the given subproblem and node
         self._init_sdp(babnode, sol_x, globals)
         # Run heuristics and update solution first time
-        self.__run_heuristics(babnode, sol_x)
-        self._update_solution_wrapped(babnode, sol_x, globals)
+        heur_val = self.__run_heuristics(babnode, sol_x)
+        if self._update_solution(heur_val, sol_x):
+            babnode.sol.X[:len(sol_x)] = sol_x
+        # self._update_solution_wrapped(babnode, sol_x, globals)
 
         over = self._init_main_sdp_loop(
             self.globals_p.contents,
@@ -200,8 +203,10 @@ class ParallelBiqbin(_BiqbinBase):
             prune = self._main_sdp_loop_start(globals)
             if not prune:
                 self.__update_partial_solution(babnode, sol_x)
-                self.__run_heuristics(babnode, sol_x)
-                self._update_solution_wrapped(babnode, sol_x, globals)
+                heur_val = self.__run_heuristics(babnode, sol_x)
+                if self._update_solution(heur_val, sol_x):
+                    babnode.sol.X[:len(sol_x)] = sol_x
+                # self._update_solution_wrapped(babnode, sol_x, globals)
 
             over = self._main_sdp_loop_end(babnode, globals)
 
@@ -309,6 +314,12 @@ class ParallelBiqbin(_BiqbinBase):
     def evaluate(self, node: _BabNode, globals, rank: int):
         self.globals_p = globals
         self.rank = rank
+        self.num_vertices = self.globals_p.contents.SP.contents.n
+        total_size = self.num_vertices * self.num_vertices
+        flat_array = np.ctypeslib.as_array(
+            self.globals_p.contents.SP.contents.L,  shape=(total_size,)
+        )
+        self.L = flat_array.reshape((self.num_vertices, self.num_vertices))
         return self.__evaluate_node(node)
 
     def evaluate_solution(self, sol: np.ndarray) -> float:

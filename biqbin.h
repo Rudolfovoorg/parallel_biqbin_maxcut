@@ -174,7 +174,7 @@ typedef struct GlobalVariables
     Heptagonal_Inequality *Hepta_List; // vector (params.HeptaIneq) of new violated heptagonal inequalities
 } GlobalVariables;
 
-typedef struct
+typedef struct HeurState
 {
     int n;
     int N;

@@ -152,9 +152,11 @@ int master_init_end(BabNode *root_node)
     printf("Initial lower bound: %.0lf\n", get_lower_bound());
 
     // broadcast diff
-    printf("diff = %f", globals.diff);
     if (params.use_diff)
+    {
+        printf("diff = %f\n", globals.diff);
         MPI_Bcast(&globals.diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
 
     // broadcast lower bound to others or -1 to exit
     MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -253,7 +255,7 @@ void master_end()
     fclose(output);
 
     /* free memory */
-    freeMemory(&globals);   
+    freeMemory(&globals);
 
     free(busyWorkers);
     free(heap->data);

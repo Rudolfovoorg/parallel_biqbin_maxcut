@@ -1,7 +1,7 @@
 #include "biqbin.h"
 #define ABS(i) ((i)>0 ? (i) : -(i))
 
-
+extern int heptafail;
 /******************** Bundle method *********************/
 /* Bundle method for solving Max-Cut SDP relaxation
  * strengthened with cutting planes.
@@ -22,8 +22,16 @@ void bundle_method(Problem *PP, double *t, int bdl_iter, GlobalVariables *global
     // extern double *eta;             // dual variable to dual_gamma >= 0 constraint 
 
     // number of cutting planes
-    int m = PP->NIneq + PP->NPentIneq + PP->NHeptaIneq; 
-         
+    int m = PP->NIneq + PP->NPentIneq + PP->NHeptaIneq;
+    
+    if (m == 0)
+    {
+        heptafail = 1;
+        return;
+        // fprintf(stderr, "%s: No cutting planes, m is 0 (line %d).\n", __func__, __LINE__);
+        // MPI_Abort(MPI_COMM_WORLD, 11);
+    }
+
     int k;                                  // bundle size
     int nn = PP->n * PP->n;     
     double alpha, beta;                     // variables in blas/lapack routines
@@ -53,7 +61,6 @@ void bundle_method(Problem *PP, double *t, int bdl_iter, GlobalVariables *global
         k = PP->bundle;
 
         /*** compute lambda, eta and dgamma ***/
-
         // zeta = -F - G'*dual_gamma
         dcopy_(&k, globals->F, &inc, zeta, &inc); // copy F into zeta
 
@@ -333,6 +340,7 @@ void lambda_eta(const Problem *PP, double *zeta, double *G, double *dual_gamma, 
         TRANS = 'T';
         alpha = -(*t);
         beta = 1.0;
+
         dgemv_(&TRANS, &m, &k, &alpha, G, &m, eta, &inc, &beta, c, &inc);
 
         /* solve QP */
@@ -342,6 +350,7 @@ void lambda_eta(const Problem *PP, double *zeta, double *G, double *dual_gamma, 
         TRANS = 'N';
         alpha = 1.0;
         beta = 0.0;
+        
         dgemv_(&TRANS, &m, &k, &alpha, G, &m, lambda, &inc, &beta, tmp, &inc);
 
         /* eta = max(0, -dual_gamma/t + tmp) */

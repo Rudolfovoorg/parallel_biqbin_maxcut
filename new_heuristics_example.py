@@ -16,7 +16,7 @@ class ExampleHeuristic(ParallelBiqbin):
     # wrape the heuristic() with @heuristicmethod located in biqbin_data_objects.py
     @heuristicmethod
     def heuristic(self, node, solution_out, globals):
-        """_summary_
+        """Overriden heuristic function with a mock example.
 
         Args:
             node (_BabNode): Current node ctypes.Structure class, contains information about the node

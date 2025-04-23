@@ -315,7 +315,7 @@ class _HeurState(ctypes.Structure):
 
 def heuristicmethod(func):
     @functools.wraps(func)
-    def wrapper(self, node: _BabNode, solution_out: np.ndarray, global_vars: _GlobalVariables) -> float:
+    def heur_wrapper(self, node: _BabNode, solution_out: np.ndarray, global_vars: _GlobalVariables) -> float:
         """
         Checks that input parameters are correct before running the heuristic function
         Args:
@@ -326,10 +326,24 @@ def heuristicmethod(func):
         Returns:
             float: lower bound value of the found solution
         """
+        original_node_id = ctypes.addressof(node)
+        original_globals_id = ctypes.addressof(global_vars)
+
+        # run heuristics
+        func(self, node, solution_out, global_vars)
+
+        # Check that essential data has not changed
         if not isinstance(node, _BabNode):
             raise TypeError("node must be of type _BabNode")
         if not isinstance(global_vars, _GlobalVariables):
             raise TypeError("global_vars must be of type _GlobalVariables")
+
+        if ctypes.addressof(node) != original_node_id:
+            raise RuntimeError(
+                "node address has changed during heuristic execution")
+        if ctypes.addressof(global_vars) != original_globals_id:
+            raise RuntimeError(
+                "global_vars address has changed during heuristic execution")
 
         if solution_out.dtype != np.int32:
             raise TypeError("Array must be of dtype int32")
@@ -339,10 +353,8 @@ def heuristicmethod(func):
             raise ValueError(
                 f"Array must have length of 1 less than the number of vertices: {self.num_vertices - 1}, but got {solution_out.shape[0]}")
 
-        func(self, node, solution_out, global_vars)
-
         # Evaluate solution found in the heuristics
         heur_value = self.evaluate_solution(solution_out)
         return heur_value
-    wrapper._is_heuristic_wrapped = True  # Add a marker
-    return wrapper
+    heur_wrapper._is_heuristic_wrapped = True  # Add a marker
+    return heur_wrapper

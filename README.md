@@ -63,6 +63,17 @@ Dockerfile available for running the solver in a docker container, image can be 
 make docker
 ```
 
+To access the docker container
+
+```bash
+make docker-run
+```
+
+To clean up the docker container and image
+
+```bash
+make docker-clean
+```
 ---
 
 ## Usage

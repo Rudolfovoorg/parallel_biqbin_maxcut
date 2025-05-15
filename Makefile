@@ -147,7 +147,8 @@ docker-run:
 	  /bin/bash
 
 docker-clean: 
-	docker rmi -f $(IMAGE):$(TAG) 
+	docker rm parallel-biqbin-container
+	docker rmi -f $(IMAGE):$(TAG)
 
 
 # Rules for binaries #

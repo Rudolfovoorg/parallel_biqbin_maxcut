@@ -37,7 +37,7 @@ TEST_HUGE = ./test.sh \
 
 TEST_ALL_60 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
-			"mpiexec python3 run_example.py" \
+			"mpiexec -n 8 python3 run_example.py" \
 			test/Instances/rudy/g05_60.$$i \
 			test/Instances/rudy/g05_60.$$i-expected_output \
 			params ;\
@@ -45,7 +45,7 @@ TEST_ALL_60 = 	for i in $(shell seq 0 9); do \
 
 TEST_ALL_80 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
-			"mpiexec python3 run_example.py" \
+			"mpiexec -n 8 python3 run_example.py" \
 			test/Instances/rudy/g05_80.$$i \
 			test/Instances/rudy/g05_80.$$i-expected_output \
 			params ;\
@@ -53,7 +53,7 @@ TEST_ALL_80 = 	for i in $(shell seq 0 9); do \
 
 TEST_ALL_100 = 	for i in $(shell seq 0 9); do \
 			./test.sh \
-			"mpiexec python3 run_example.py" \
+			"mpiexec -n 8 python3 run_example.py" \
 			test/Instances/rudy/g05_100.$$i \
 			test/Instances/rudy/g05_100.$$i-expected_output \
 			params ;\
@@ -113,14 +113,14 @@ run:
 
 run-all-60:
 	for i in $(shell seq 0 9); do \
-		mpiexec python3 run_example.py \
+		mpiexec -n 8 python3 run_example.py \
 		test/Instances/rudy/g05_60.$$i \
 		$(PARAMS); \
 	done
 
 run-all-80:
 	for i in $(shell seq 0 9); do \
-		mpiexec python3 run_example.py \
+		mpiexec -n 8 python3 run_example.py \
 		test/Instances/rudy/g05_80.$$i \
 		$(PARAMS); \
 	done
@@ -128,7 +128,7 @@ run-all-80:
 
 run-all-100:
 	for i in $(shell seq 0 9); do \
-		mpiexec python3 run_example.py \
+		mpiexec -n 8 python3 run_example.py \
 		test/Instances/rudy/g05_100.$$i \
 		$(PARAMS); \
 	done

@@ -256,7 +256,8 @@ void master_end()
 
     /* free memory */
     freeMemory(&globals);
-
+    MPI_Type_free(&BabSolutiontype);
+    MPI_Type_free(&BabNodetype);
     free(busyWorkers);
     free(heap->data);
     free(heap);
@@ -337,6 +338,8 @@ int worker_init(BiqBinParameters params_in)
 /// @brief Frees globals struct and heap
 void worker_end()
 {
+    MPI_Type_free(&BabSolutiontype);
+    MPI_Type_free(&BabNodetype);
     freeMemory(&globals);
     free(heap->data);
     free(heap);
@@ -557,6 +560,8 @@ GlobalVariables *init_globals(double *L, int num_vertices)
 
 void free_globals(GlobalVariables *globals_in)
 {
+    MPI_Type_free(&BabSolutiontype);
+    MPI_Type_free(&BabNodetype);
     freeMemory(globals_in);
     free(globals_in);
 }

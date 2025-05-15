@@ -133,12 +133,19 @@ run-all-100:
 		$(PARAMS); \
 	done
 
-docker: 
+docker:
 	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
 
-docker-test:
-	docker run --rm $(IMAGE):$(TAG) $(TEST)
-	
+# docker-run:
+# 	docker run -it -v ./ parallel-biqbin-maxcut:1.0.0 $(IMAGE):$(TAG)
+
+docker-run:
+	docker run -it \
+	  -v "$(shell pwd):/solver" \
+	  --name parallel-biqbin-container \
+	  parallel-biqbin-maxcut:1.0.0 \
+	  /bin/bash
+
 docker-clean: 
 	docker rmi -f $(IMAGE):$(TAG) 
 

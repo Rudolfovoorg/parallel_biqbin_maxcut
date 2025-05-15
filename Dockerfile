@@ -18,10 +18,9 @@ ENV GOTO_NUM_THREADS=1
 ENV OMP_NUM_THREADS=1
 
 WORKDIR /solver
+VOLUME /solver
 
 RUN chmod -R 777 .
 
 COPY . .
 
-RUN make clean
-RUN make

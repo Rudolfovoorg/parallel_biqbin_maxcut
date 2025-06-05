@@ -3,18 +3,27 @@
 #include <math.h>
 
 #include "biqbin.h"
+#include "wrapper.h"
 
 extern double *X;
 extern double *Z;       // stores Cholesky decomposition: X = ZZ^T
 
-double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
+double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x){
+    #ifdef PURE_C
+        return runHeuristic_unpacked(P0->L, P0->n, P->L, P->n, node->xfixed, node->sol.X, x);
+    #else
+        return wrapped_heuristic(P0, P, node, x);
+    #endif
+}
+
+double runHeuristic_unpacked(double *P0_L, int P0_N , double *P_L, int P_N, int *node_xfixed, int *node_sol_X, int *x) {
 
     // Problem *P0 ... the original problem
     // Problem *P  ... the current subproblem
     // int *x      ... current best feasible solution 
 
-    int n = P->n;
-    int N = P0->n - 1; // BabPbSize
+    int n = P_N;
+    int N = P0_N - 1; // BabPbSize
     int nn = n * n;
     int inc = 1;
     char UPLO = 'L';
@@ -33,8 +42,8 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
     index = 0;
     for (int i = 0; i < N; ++i) {
 
-        if (node->xfixed[i]) 
-            temp_x[i] = node->sol.X[i];
+        if (node_xfixed[i]) 
+            temp_x[i] = node_sol_X[i];
 
         else {
             temp_x[i] = (xh[index] + 1) / 2.0;
@@ -70,8 +79,8 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
                 Z[j + i*n] = 0.0;
 
         // Goemans-Williamson heuristic
-        heur_val = GW_heuristic(P0, P, node, x, P0->n);
-
+        // RK heur_val = wrapped_heuristic(P0, P, node, x, P0->n);
+        heur_val = GW_heuristic(P0_L, P0_N , P_L, P_N, node_xfixed, node_sol_X, x, P0_N);  // RK
         if (heur_val > fh) {
 
             done = 0;
@@ -82,7 +91,7 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
             index = 0;
             for (int i = 0; i < N; ++i) {
 
-                if (!node->xfixed[i]) {
+                if (!node_xfixed[i]) {
                     xh[index] = 2 * x[i] - 1;
                     ++index;
                 }
@@ -107,20 +116,20 @@ double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x) {
 
 
 /* Goemans-Williamson random hyperplane heuristic */
-double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num) {
+double GW_heuristic(double *P0_L, int P0_N , double *P_L, int P_N, int *node_xfixed, int *node_sol_X, int *x, int num) {
 
     // Problem *P0 ... the original problem
     // Problem *P  ... the current subproblem
     //         num ... number of random hyperplanes
 
     int index;
-    int N = P->n;
+    int N = P_N;
 
     // (local) temporary vector of size X
     int temp_x[N];                    
 
     // (global) temporary vector of size BabPbSize to store heuristic solutions
-    int sol[P0->n - 1];                 
+    int sol[P0_N - 1];                 
 
     double sca;                         // dot product of random vector v and col of Z
     double best = -BIG_NUMBER;          // best lower bound found
@@ -156,20 +165,20 @@ double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num) {
         }
 
         // improve feasible solution through 1-opt
-        mc_1opt(temp_x, P);
+        mc_1opt(temp_x, P_L, P_N);
 
         // store local cut temp_x into global cut sol
         index = 0;
-        for (int i = 0; i < P0->n-1; ++i) {
-            if (node->xfixed[i]) 
-                sol[i] = node->sol.X[i];
+        for (int i = 0; i < P0_N-1; ++i) {
+            if (node_xfixed[i]) 
+                sol[i] = node_sol_X[i];
             else {
                 sol[i] = (temp_x[index]+1)/2;
                 ++index;
             }
         }
 
-        update_best(x, sol, &best, P0);
+        update_best(x, sol, &best, P0_N);
       
     }
 
@@ -183,9 +192,9 @@ double GW_heuristic(Problem *P0, Problem *P, BabNode *node, int *x, int num) {
  * The objective value of x is returned.
  */
 // NOTE: this function is working in {-1,1} model!
-double mc_1opt(int *x, Problem *P) {
+double mc_1opt(int *x, double *P_L, int P_N) {
 
-    int N = P->n;
+    int N = P_N;
 
     double *Lx, *d, *delta;
     int *I;
@@ -198,7 +207,7 @@ double mc_1opt(int *x, Problem *P) {
     // Lx = L*x
     for (int i = 0; i < N; ++i)
         for (int j = 0; j < N; ++j)
-            Lx[i] += P->L[j + i*N] * x[j];
+            Lx[i] += P_L[j + i*N] * x[j];
 
     // d = diag(L);
     // cost = x'*Lx
@@ -206,7 +215,7 @@ double mc_1opt(int *x, Problem *P) {
     double cost = 0.0;
     
     for (int i = 0; i < N; ++i) {
-        d[i] = P->L[i + i * N];
+        d[i] = P_L[i + i * N];
         cost += x[i] * Lx[i];
         delta[i] = d[i] - x[i] * Lx[i];
     }
@@ -234,7 +243,7 @@ double mc_1opt(int *x, Problem *P) {
         num_I = 0;
         for (int j = 0; j < N; ++j) {
             
-            if ( fabs(P->L[index + N * j]) > 0.001 ) { // add to I
+            if ( fabs(P_L[index + N * j]) > 0.001 ) { // add to I
                 I[num_I] = j;
                 ++num_I;
             }
@@ -243,12 +252,12 @@ double mc_1opt(int *x, Problem *P) {
 
         if (x[index] > 0) { // Lx(I) = Lx(I)  - 2 *L(I,index);
             for (int i = 0; i < num_I; ++i) {
-                Lx[I[i]] -= 2 * P->L[index + I[i] * N];
+                Lx[I[i]] -= 2 * P_L[index + I[i] * N];
             }
         }
         else { // Lx(I) = Lx(I)  + 2 *L(I,index);
             for (int i = 0; i < num_I; ++i) {
-                Lx[I[i]] += 2 * P->L[index + I[i] * N];
+                Lx[I[i]] += 2 * P_L[index + I[i] * N];
             }
         }
 
@@ -292,10 +301,10 @@ double mc_1opt(int *x, Problem *P) {
  * the objective value of xnew, then replaces xbest with xnew if
  * xnew is better. Also updates the best objective value, best.
  */
-int update_best(int *xbest, int *xnew, double *best, Problem *P0) {
+int update_best(int *xbest, int *xnew, double *best, int P0_N) {
 
     int success = 0;
-    int N = P0->n - 1; // N = BabPbSize
+    int N = P0_N - 1; // N = BabPbSize
 
     double heur_val = evaluateSolution(xnew);
 
@@ -307,4 +316,3 @@ int update_best(int *xbest, int *xnew, double *best, Problem *P0) {
 
     return success;
 }
-

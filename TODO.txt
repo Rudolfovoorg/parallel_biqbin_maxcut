@@ -1,0 +1,4 @@
+- Test overridding heuristic
+- Fix MPI Finalize conflicts with Python objects
+- Allow to set time solver running time limit
+- Create an installable python package

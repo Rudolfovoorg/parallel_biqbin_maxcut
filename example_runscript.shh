@@ -1,1 +1,0 @@
-mpirun -n 96 biqbin instance_file params

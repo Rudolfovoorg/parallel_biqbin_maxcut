@@ -5,6 +5,7 @@
 #include <mpi.h>
 
 #include "biqbin.h"
+#include "wrapper.h"
 
 extern FILE *output;
 extern BiqBinParameters params;
@@ -17,7 +18,7 @@ extern int BabPbSize;
         if ((cond)) {\
             fprintf(stderr, "\nError: "#message"\n");\
             fclose(file);\
-            return 1;\
+            return NULL;\
         }
 
 
@@ -70,7 +71,17 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
         }
 
         // Read the input file instance
-        read_error = readData(argv[1]);
+        #ifdef PURE_C
+            double *adj;
+            int adj_N;
+            adj = readData(argv[1], &adj_N);
+            read_error = process_adj_matrix(adj, adj_N);
+            free(adj);
+        #else
+            wrapped_read_data();
+//            read_error = process_adj_matrix(adj, adj_N);
+//            free(adj);
+        #endif
 
         // bcast first read_error then whole graph
         MPI_Bcast(&read_error, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -124,12 +135,12 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
 
 
     if (rank == 0) {
-        // print parameters to output file
-        fprintf(output, "BiqBin parameters:\n");
-#define P(type, name, format, def_value)\
-            fprintf(output, "%20s = "format"\n", #name, params.name);
-        PARAM_FIELDS
-#undef P
+            // print parameters to output file
+            fprintf(output, "BiqBin parameters:\n");
+    #define P(type, name, format, def_value)\
+    fprintf(output, "%20s = " format "\n", #name, params.name);
+            PARAM_FIELDS
+    #undef P
     }
 
     return read_error;
@@ -164,9 +175,11 @@ int readParameters(const char *path, int rank) {
             sscanf(s, "%[^=^ ]", param_name);
 
             // read parameter value
-#define P(type, name, format, def_value)\
-            if(strcmp(#name, param_name) == 0)\
-            sscanf(s, "%*[^=]="format"\n", &(params.name));
+            #define P(type, name, format, def_value)             \
+            if (strcmp(#name, param_name) == 0)              \
+            {                                                \
+                sscanf(s, "%*[^=]= " format, &params.name);   \
+            }
             PARAM_FIELDS
 #undef P
 
@@ -179,14 +192,14 @@ int readParameters(const char *path, int rank) {
 
 
 /*** read graph file ***/
-int readData(const char *instance) {
+double* readData(const char *instance, int *adj_N) {
 
     // open input file
     FILE *f = fopen(instance, "r");
     if (f == NULL) {
         fflush(stdout);
         fprintf(stderr, "Error: problem opening input file %s\n", instance);
-        return 1;
+        return NULL;
     }
     printf("Input file: %s\n", instance);	
     fprintf(output,"Input file: %s\n", instance);
@@ -211,6 +224,7 @@ int readData(const char *instance) {
     // Adjacency matrix Adj: allocate and set to 0 
     double *Adj;
     alloc_matrix(Adj, num_vertices, double);
+    *adj_N = num_vertices; // RK
 
     for (int edge = 0; edge < num_edges; ++edge) {
         
@@ -225,13 +239,25 @@ int readData(const char *instance) {
     }   
 
     fclose(f);
+    // RK BabPbSize = num_vertices - 1; // num_vertices - 1;
+    return Adj;
+}
 
+/// @brief Builds the main Problem L matrix allocates Problem SP and PP global variables
+/// @param Adj Adjacency matrix of the instance
+/// @param num_vertices number of vertices in the graph
+/// @return 0 if success 1 if fail
+int process_adj_matrix(double* Adj, int num_vertices) {
+    //RK int num_vertices = BabPbSize + 1;
     // allocate memory for original problem SP and subproblem PP
+
+    BabPbSize = num_vertices - 1; // RK // num_vertices - 1;
+
     alloc(SP, Problem);
     alloc(PP, Problem);
 
     // size of matrix L
-    SP->n = num_vertices;                 
+    SP->n = num_vertices; // num vertices
 
     // allocate memory for objective matrices for SP and PP
     alloc_matrix(SP->L, SP->n, double);
@@ -240,7 +266,6 @@ int readData(const char *instance) {
 
     // IMPORTANT: last node is fixed to 0
     // --> BabPbSize is one less than the size of problem SP
-    BabPbSize = SP->n - 1; // num_vertices - 1;
     PP->n = SP->n;
     
 
@@ -304,7 +329,7 @@ int readData(const char *instance) {
     dcopy_(&N2, SP->L, &incx, PP->L, &incy);
 
 
-    free(Adj);
+ // RK   free(Adj);
     free(Adje);
     free(tmp);  
 

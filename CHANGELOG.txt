@@ -1,0 +1,14 @@
+- renamed main function to wrapped_main to be able to call it wrapper.cpp (main.c) 
+- fixed memory leak for MPI allocated structures in wrapped_main (MPI_Type_free for BabSolutiontype and BabNodetype) (main.c)
+- Changed Makefile to provide additional compilation targets for python, added commands for docker and tests
+- Added compilation macro PURE_C to compile the original code using only C-lang
+- Split original header biqbin.h into biqbin.h, biqbin_cpp_api.h and blas_laplack.h 
+- Added wrapper.cpp file where Python.Boost exposed modules are implemented (wrapper.cpp)
+- wrapped original runHeuristic and readData to be able to call them with either Python, cpp or original C (heuristic.c, process_input.c)
+- added runHeuristic_unpacked which is the original runHeuristc but only using the paramaters it needs (unpacked the Structures)
+- Split readData function into two functions: readData and process_adj_matrix (process_input.c)
+- Dockerfile added to compile and run biqbin in a container
+- added biqbin_base.py biqbin_maxcut.py and biqbin_qubo.py for 2 different wrapped versions of the solver (maxcut and qubo) 
+- added test instances and bash scripts to run tests for all versions
+- updated README file and added .md file extension
+- Added and tested biqbin_heuristic.py for overridding of original heuristic function

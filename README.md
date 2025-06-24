@@ -102,6 +102,10 @@ make docker
 
 ## Usage
 
+> **NOTE:** Biqbin can only solve problem instances with  **integer edge weight**!  
+> This applies both to the Maxcut and Qubo solvers.
+
+
 > **Min Processes:** Biqbin requires needs at least **3 mpi processes to run**!
 
 > **Over Concurrency:** Depending on your system you must set `OpenBlas` environment variables, to prevent over threading which can **significantly** slow down your system:  
@@ -175,6 +179,46 @@ Please check the following Python files to find how to setup biqbin solver throu
 A collection of challenging QUBOs is located in `evil_qubos/` folder
 
 ---
+## Input files
+
+> **NOTE:** Biqbin can only solve problem instances with  **integer edge weight**!  
+> This applies both to the Maxcut and Qubo solvers.
+
+Below are example of instance problem files for Maxcut (C and python versions) and Qubos (python version).
+
+### Maxcut
+Expects an edge weight list format, with the first line containing the number of vertices and edges:
+
+```
+3 2
+1 2 3
+1 3 -4
+```
+An example of a problem instance with 3 vertices and 2 edges, edge (1, 2) with weight of 3 and edge (1, 3) with weight of -4.
+
+### Qubo
+Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` as value:
+
+```json
+{"qubo": {"shape": [2, 2], "nnz": 4, "row": [0, 0, 1, 1], "col": [0, 1, 0, 1], "data": [-1, 3, 3, -1]}}
+```
+Other key, value pairs can be added per users discretion.
+
+Python function that takes in a `numpy.array` and turns it into the proper format:
+
+```py
+def to_sparse(qubo):
+    qubo_sparse_coo = sp.sparse.coo_matrix(qubo)
+    return {
+        'shape': qubo_sparse_coo.shape, 
+        'nnz': qubo_sparse_coo.nnz, 
+        'row': qubo_sparse_coo.row.tolist(), 
+        'col': qubo_sparse_coo.col.tolist(), 
+        'data': qubo_sparse_coo.data.tolist()
+    }
+```
+
+Another example is available in `qubo_setup_example.py`.
 
 ## Explanation of Parameters
 

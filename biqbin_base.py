@@ -178,6 +178,11 @@ class QUBOSolver(MaxCutSolver):
             np.ndarray: adjacency matrix for max cut problem
         """
         q_sym = 1/2*(qubo.T + qubo)
+        
+        q_int = np.array(q_sym, dtype=np.int64)                
+        if not np.all(np.isclose(q_sym, q_int)):
+            raise ValueError("All QUBO values need to be integers!")
+            
         Qe_plus_c = -np.array([(np.sum(q_sym, 1))])
         np.fill_diagonal(q_sym, 0)
 

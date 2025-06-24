@@ -8,7 +8,7 @@
 #endif
 
 EXTERN_C double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x);
-EXTERN_C void wrapped_read_data();
+EXTERN_C int wrapped_read_data();
 EXTERN_C int process_adj_matrix(double* Adj, int Adj_N);
 EXTERN_C void clean_python_references(void);
 EXTERN_C void copy_solution(void);

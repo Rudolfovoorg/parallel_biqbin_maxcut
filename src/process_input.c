@@ -75,17 +75,21 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
             double *adj;
             int adj_N;
             adj = readData(argv[1], &adj_N);
-            read_error = process_adj_matrix(adj, adj_N);
-            free(adj);
+            if (!adj) {
+                read_error = 1;
+            }
+            else {
+                read_error = process_adj_matrix(adj, adj_N);
+                free(adj);
+            }
         #else
-            wrapped_read_data();
+            read_error = wrapped_read_data();
 //            read_error = process_adj_matrix(adj, adj_N);
 //            free(adj);
         #endif
 
         // bcast first read_error then whole graph
         MPI_Bcast(&read_error, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
         if (read_error)
             return read_error;
         else {
@@ -233,6 +237,9 @@ double* readData(const char *instance, int *adj_N) {
 
         READING_ERROR(f, ((i < 1 || i > num_vertices) || (j < 1 || j > num_vertices)),
                       "Problem with edge. Vertex not in range");  
+        
+        int int_test = (int) weight;
+        READING_ERROR(f, (double) int_test != weight, "Edge weight value error! All edge weights need to be integers!" );
         
         Adj[ num_vertices * (j - 1) + (i - 1) ] = weight;
         Adj[ num_vertices * (i - 1) + (j - 1) ] = weight;      

@@ -132,7 +132,7 @@ np::ndarray get_selected_nodes_np_array()
     return result;
 }
 
-/// @brief 
+/// @brief
 /// @param py_args argv in a Python string list ["biqbin", "graph_instance_path", "parameters_path"]
 /// @return dictionary of "max_val" value of maximum cut and "solution" vertices
 
@@ -218,13 +218,18 @@ double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x)
 }
 
 /// @brief Read the instance problem file return the adjacency matrix
-/// @param instance path to instance fiel
+/// @param instance path to instance file
 /// @return adjacency matrix
 np::ndarray read_data_python(const char *instance)
 {
     double *adj;
     int adj_N;
     adj = readData(instance, &adj_N);
+    if (!adj)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Incorrect adjacency matrix!");
+        p::throw_error_already_set();
+    }
     return np::from_data(adj,
                          np::dtype::get_builtin<double>(),
                          p::make_tuple(adj_N, adj_N),
@@ -233,14 +238,14 @@ np::ndarray read_data_python(const char *instance)
 }
 
 /// @brief Get an adjacency matrix from Python and set Problem *SP->L and *PP global variables
-void wrapped_read_data()
+int wrapped_read_data()
 {
     np::ndarray np_adj = p::extract<np::ndarray>(py_read_data_override());
 
     check_np_array_validity<double>(np_adj, 2, "adj");
 
-    process_adj_matrix(reinterpret_cast<double *>(np_adj.get_data()),
-                       np_adj.shape(0));
+    return process_adj_matrix(reinterpret_cast<double *>(np_adj.get_data()),
+                              np_adj.shape(0));
 }
 
 // Python module exposure

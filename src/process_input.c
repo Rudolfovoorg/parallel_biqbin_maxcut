@@ -84,8 +84,6 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
             }
         #else
             read_error = wrapped_read_data();
-//            read_error = process_adj_matrix(adj, adj_N);
-//            free(adj);
         #endif
 
         // bcast first read_error then whole graph

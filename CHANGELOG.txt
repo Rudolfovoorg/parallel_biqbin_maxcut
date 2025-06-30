@@ -15,3 +15,4 @@
 - Added integer checks to qubo and maxcut input data
 - changed tests/qubos instances to be integers
 - added helper converter in utils.py
+- changed Python Maxcut class to also use a DataGetter class (DataGetterEdgeWeight)

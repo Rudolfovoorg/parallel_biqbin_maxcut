@@ -7,24 +7,107 @@ import json
 
 from biqbin import (run, set_heuristic,
                     default_heuristic,
-                    get_rank, set_read_data,
-                    default_read_data)
+                    get_rank, set_read_data)
 
+class DataGetter(ABC):
+    """Abstract class to parse qubo data
+    """
+    @abstractmethod
+    def problem_instance_name(self) -> str:
+        ...
+
+    @abstractmethod
+    def problem_instance(self):
+        ...
+    
+    @abstractmethod
+    def read_file(self) -> np.ndarray:
+        ...
+        
+class DataGetterEdgeWeight(DataGetter):
+    """
+    Default DataGetter for the Maxcut class, reads and parses maxcut instance file in edge weight list format and parses
+    into the adjacency matrix.
+    """
+    def __init__(self, filename: str):
+        self.filename = filename
+        self.adj_matrix = None
+    
+    def problem_instance_name(self) -> str:
+        """Get the instance file path
+
+        Returns:
+            str: path to instance file
+        """
+        return self.filename
+
+    def problem_instance(self) -> np.ndarray:
+        """Gets the adjacency matrix from the instance file
+        """
+        return self.adj_matrix
+    
+    def read_file(self) -> np.ndarray:
+        """Read the instance file and contruct the adjacency matrix
+
+        Returns:
+            np.ndarray: adjacency matrix
+        """
+        with open(self.filename, 'r') as f:
+            # Read number of vertices and edges
+            num_vertices, num_edges = map(int, f.readline().split())
+
+            adj_matrix = np.zeros((num_vertices, num_vertices), dtype=np.float64)
+            # Read edges
+            edge_weights = f.readlines()
+            if len(edge_weights) != num_edges:
+                raise ValueError(
+                    f"Number of edges at the top of the file ({num_edges}) does not match the actual number of lines ({len(edge_weights)})")
+
+            for line_num, edge_weight in enumerate(edge_weights, start=2):
+                parts = edge_weight.strip().split()
+                if len(parts) != 3:
+                    raise ValueError(
+                        f"Invalid edge format on line {line_num}: expected 3 values, got {len(parts)}. "
+                        "Edge weights must be in 'vertex_1 vertex_2 weight' format with all values being integers."
+                    )
+
+                i, j = int(parts[0]), int(parts[1])
+                weight = float(parts[2])
+                
+                if not weight.is_integer():
+                    raise ValueError(
+                        f"Edge weight must be an integer, but got {weight} on line {line_num}")
+                
+                if i < 1 or i > num_vertices or j < 1 or j > num_vertices:
+                    raise ValueError(
+                        f"Vertex index out of range on line {line_num}: {i} {j} {weight}, with number of vertices in the top line set to {num_vertices}.")
+
+                i -= 1
+                j -= 1
+                adj_matrix[i, j] = weight
+                adj_matrix[j, i] = weight
+
+            print(f"Input file: {self.filename}")
+            print(f"\nGraph has {num_vertices} vertices and {num_edges} edges.")
+            self.adj_matrix = adj_matrix
+            return adj_matrix
+
+        
 
 class MaxCutSolver:
     """Default MaxCut Biqbin Wrapper, runs Biqbin MaxCut using its original functions
     """
     solver_name = f'PyBiqBin-MaxCut {__version__}'
 
-    def __init__(self, problem_instance_name: str, params: str):
+    def __init__(self, data_getter: DataGetter, params: str):
         """Initialize the solver
 
         Args:
             problem_instance_name (str): path to problem instance in edge weight list format
             params (str): path to parameters file
         """
-        self.problem_instance_name = problem_instance_name
         self.params = params
+        self.data_getter: DataGetter = data_getter
         set_read_data(self.read_data)
         set_heuristic(self.heuristic)
         # For testing purposes
@@ -36,8 +119,7 @@ class MaxCutSolver:
         Returns:
             np.ndarray: adjacency matrix
         """
-        result = default_read_data(self.problem_instance_name)
-        return result
+        return self.data_getter.read_file()
 
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.array, sol_X: np.array, x: np.array) -> float:
         """Default heuristic (heuristic_unpacked in heuristic.c)
@@ -61,7 +143,7 @@ class MaxCutSolver:
         Returns:
             dict: result dict with keys: "max_val" - max cut solution value, "solution" - nodes in this solution, "time" - spent solving 
         """
-        result = run(self.solver_name, self.problem_instance_name, self.params)
+        result = run(self.solver_name, self.data_getter.problem_instance_name(), self.params)
 
         if (self.get_rank() == 0):
             result['maxcut']['solution'] = result['maxcut']['solution'].tolist()
@@ -89,8 +171,8 @@ class MaxCutSolver:
             json.dump(result, f, default=self._convert_numpy)
 
     def _process_output_path(self, output_path: str) -> str:
-        if output_path is None or output_path == self.problem_instance_name:
-            return self.problem_instance_name + ".output.json"
+        if output_path is None or output_path == self.data_getter.problem_instance_name():
+            return self.data_getter.problem_instance_name() + ".output.json"
         if not output_path.endswith(".json"):
             output_path += ".json"
         return output_path
@@ -103,33 +185,15 @@ class MaxCutSolver:
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
-class DataGetter(ABC):
-    """Abstract class to parse qubo data
-    """
-    @abstractmethod
-    def problem_instance_name(self) -> str:
-        ...
-
-    @abstractmethod
-    def problem_instance(self):
-        ...
-
-
 class DataGetterJson(DataGetter):
-    """Reads qubo instance file, should be a json dictionary with "qubo" key
+    """Default QUBO DataGetter. Reads qubo instance file, should be a json dictionary with "qubo" key
     and a COO sparse matrix with data, row and col. Indices starts from zero.
     """
 
     def __init__(self, filename: str):
-        """Load data from json file and save the data and qubo
-
-        Args:
-            filename (str): path to file
-        """
         self.filename = filename
-        with open(filename, "r") as f:
-            self.qubo_data = json.load(f)
-            self.qubo = self.from_sparse(self.qubo_data["qubo"])
+        self.qubo_data = None
+        self.qubo = None
 
     def problem_instance_name(self) -> str:
         """Get the instance file path
@@ -145,6 +209,17 @@ class DataGetterJson(DataGetter):
         Returns:
             nd.ndarray: qubo in a numpy array
         """
+        return self.qubo
+    
+    def read_file(self):
+        """Reads from the input file and return a qubo
+
+        Returns:
+            np.ndarray: qubo in regular form
+        """
+        with open(self.filename, "r") as f:
+            self.qubo_data = json.load(f)
+        self.qubo = self.from_sparse(self.qubo_data["qubo"])
         return self.qubo
 
     def from_sparse(self, qubo_sparse):
@@ -164,10 +239,6 @@ class DataGetterJson(DataGetter):
 
 class QUBOSolver(MaxCutSolver):
     solver_name = f'PyBiqBin-QUBO {__version__}'
-
-    def __init__(self, data_getter: DataGetter, params: str):
-        self.data_getter = data_getter
-        super().__init__(data_getter.problem_instance_name(), params)
 
     def _qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
         """Convert qubo to adjacency matrix that biqbin can read
@@ -220,7 +291,7 @@ class QUBOSolver(MaxCutSolver):
         Returns:
             np.ndarray: adjacency matrix
         """
-        return self._qubo2maxcut(self.data_getter.problem_instance())
+        return self._qubo2maxcut(self.data_getter.read_file())
 
     def run(self) -> dict:
         """Runs the original biqbin then adds the qubo solution nodes to the result dict

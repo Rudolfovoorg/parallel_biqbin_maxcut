@@ -202,9 +202,12 @@ Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` 
 ```json
 {"qubo": {"shape": [2, 2], "nnz": 4, "row": [0, 0, 1, 1], "col": [0, 1, 0, 1], "data": [-1, 3, 3, -1]}}
 ```
+
 Other key, value pairs can be added per users discretion.
 
-Python function that takes in a `numpy.array` and turns it into the proper format:
+#### Converter
+
+A converter `utils.py` which takes in a dense QUBO 2D list or numpy array and returns a json serializable dictionary in the proper form:
 
 ```py
 def to_sparse(qubo):
@@ -216,7 +219,25 @@ def to_sparse(qubo):
         'col': qubo_sparse_coo.col.tolist(), 
         'data': qubo_sparse_coo.data.tolist()
     }
+
+def qubo_to_biqbin_representation(qubo) -> dict:
+    """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable 
+    dict with 'qubo' key and a sparse qubo represantation as value.
+
+    Args:
+        qubo: 2D list or numpy array
+
+    Returns:
+        dict: json serializable dictionary that Biqbin can parse. Save to file and pass the path to DataGetterJson.
+    """
+    if not np.all(np.asarray(qubo) % 1 == 0):
+        raise ValueError("All QUBO values need to be integers!")
+
+    return {
+        'qubo': to_sparse(qubo)
+    }
 ```
+
 
 Another example is available in `qubo_setup_example.py`.
 

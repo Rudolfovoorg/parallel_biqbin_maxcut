@@ -151,7 +151,7 @@ class DataGetterJson(DataGetter):
         """Converts qubo from sparse to regular form
 
         Args:
-            qubo_sparse (dict): scipy sparse matrix of the qubo
+            qubo_sparse (dict): scipy sparse coo matrix represantation of the qubo
 
         Returns:
             np.ndarray: qubo in regular form
@@ -180,7 +180,7 @@ class QUBOSolver(MaxCutSolver):
         q_sym = 1/2*(qubo.T + qubo)
         
         q_int = np.array(q_sym, dtype=np.int64)                
-        if not np.all(np.isclose(q_sym, q_int)):
+        if not np.all(q_sym == q_int):
             raise ValueError("All QUBO values need to be integers!")
             
         Qe_plus_c = -np.array([(np.sum(q_sym, 1))])

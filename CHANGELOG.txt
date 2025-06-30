@@ -14,3 +14,4 @@
 - Added and tested biqbin_heuristic.py for overridding of original heuristic function
 - Added integer checks to qubo and maxcut input data
 - changed tests/qubos instances to be integers
+- added helper converter in utils.py

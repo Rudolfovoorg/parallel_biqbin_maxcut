@@ -1,4 +1,4 @@
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 
 from abc import ABC, abstractmethod
 import numpy as np
@@ -7,7 +7,9 @@ import json
 
 from biqbin import (run, set_heuristic,
                     default_heuristic,
-                    get_rank, set_read_data)
+                    get_rank, set_read_data,
+                    default_read_data)
+
 
 class DataGetter(ABC):
     """Abstract class to parse qubo data
@@ -19,14 +21,29 @@ class DataGetter(ABC):
     @abstractmethod
     def problem_instance(self):
         ...
-    
+        
     @abstractmethod
-    def read_file(self) -> np.ndarray:
+    def read_file(self):
         ...
         
-class DataGetterEdgeWeight(DataGetter):
+    def from_sparse(self, sparse_matrix):
+        """Converts from sparse coo matrix to regular form
+
+        Args:
+            sparse_matrix (dict): scipy sparse coo matrix
+
+        Returns:
+            np.ndarray: regular form matrix
+        """
+        return sp.sparse.coo_matrix(
+            (sparse_matrix['data'], (sparse_matrix['row'], sparse_matrix['col'])),
+            shape=sparse_matrix['shape'], dtype='float'
+        ).todense().getA()
+
+
+class DataGetterMaxCutDefault(DataGetter):
     """
-    Default DataGetter for the Maxcut class, reads and parses maxcut instance file in edge weight list format and parses
+    Uses the default C implementation or MaxCut, reads and parses maxcut instance file in edge weight list format and parses
     into the adjacency matrix.
     """
     def __init__(self, filename: str):
@@ -41,58 +58,31 @@ class DataGetterEdgeWeight(DataGetter):
         """
         return self.filename
 
-    def problem_instance(self) -> np.ndarray:
+    def problem_instance(self):
         """Gets the adjacency matrix from the instance file
         """
         return self.adj_matrix
     
-    def read_file(self) -> np.ndarray:
-        """Read the instance file and contruct the adjacency matrix
+    def read_file(self):
+        self.adj_matrix = default_read_data(self.filename)
+        return self.adj_matrix
+    
 
-        Returns:
-            np.ndarray: adjacency matrix
-        """
-        with open(self.filename, 'r') as f:
-            # Read number of vertices and edges
-            num_vertices, num_edges = map(int, f.readline().split())
+class DataGetterAdjacencyJson(DataGetterMaxCutDefault):
+    """
+    DataGetter for the Maxcut class, reads and parses json serialized dict with adj key and sparse coo matrix as value.
+    """
+    def read_file(self):
+        with open(self.filename, "r") as f:
+            mc_data = json.load(f)
 
-            adj_matrix = np.zeros((num_vertices, num_vertices), dtype=np.float64)
-            # Read edges
-            edge_weights = f.readlines()
-            if len(edge_weights) != num_edges:
-                raise ValueError(
-                    f"Number of edges at the top of the file ({num_edges}) does not match the actual number of lines ({len(edge_weights)})")
-
-            for line_num, edge_weight in enumerate(edge_weights, start=2):
-                parts = edge_weight.strip().split()
-                if len(parts) != 3:
-                    raise ValueError(
-                        f"Invalid edge format on line {line_num}: expected 3 values, got {len(parts)}. "
-                        "Edge weights must be in 'vertex_1 vertex_2 weight' format with all values being integers."
-                    )
-
-                i, j = int(parts[0]), int(parts[1])
-                weight = float(parts[2])
-                
-                if not weight.is_integer():
-                    raise ValueError(
-                        f"Edge weight must be an integer, but got {weight} on line {line_num}")
-                
-                if i < 1 or i > num_vertices or j < 1 or j > num_vertices:
-                    raise ValueError(
-                        f"Vertex index out of range on line {line_num}: {i} {j} {weight}, with number of vertices in the top line set to {num_vertices}.")
-
-                i -= 1
-                j -= 1
-                adj_matrix[i, j] = weight
-                adj_matrix[j, i] = weight
-
-            print(f"Input file: {self.filename}")
-            print(f"\nGraph has {num_vertices} vertices and {num_edges} edges.")
-            self.adj_matrix = adj_matrix
-            return adj_matrix
-
+        self.adj_matrix = self.from_sparse(mc_data["adjacency"])
         
+        adj_int = np.array(self.adj_matrix, dtype=np.int64)                
+        if not np.all(self.adj_matrix == adj_int):
+            raise ValueError("All values in the adjacency matrix need to be integers!")
+        
+        return self.adj_matrix
 
 class MaxCutSolver:
     """Default MaxCut Biqbin Wrapper, runs Biqbin MaxCut using its original functions
@@ -106,8 +96,8 @@ class MaxCutSolver:
             problem_instance_name (str): path to problem instance in edge weight list format
             params (str): path to parameters file
         """
-        self.params = params
         self.data_getter: DataGetter = data_getter
+        self.params = params
         set_read_data(self.read_data)
         set_heuristic(self.heuristic)
         # For testing purposes
@@ -139,7 +129,7 @@ class MaxCutSolver:
 
     def run(self):
         """Runs Biqbin Maxcut solver
-
+        
         Returns:
             dict: result dict with keys: "max_val" - max cut solution value, "solution" - nodes in this solution, "time" - spent solving 
         """
@@ -186,14 +176,17 @@ class MaxCutSolver:
 
 
 class DataGetterJson(DataGetter):
-    """Default QUBO DataGetter. Reads qubo instance file, should be a json dictionary with "qubo" key
+    """Reads qubo instance file, should be a json dictionary with "qubo" key
     and a COO sparse matrix with data, row and col. Indices starts from zero.
     """
 
     def __init__(self, filename: str):
+        """Load data from json file and save the data and qubo
+
+        Args:
+            filename (str): path to file
+        """
         self.filename = filename
-        self.qubo_data = None
-        self.qubo = None
 
     def problem_instance_name(self) -> str:
         """Get the instance file path
@@ -212,29 +205,10 @@ class DataGetterJson(DataGetter):
         return self.qubo
     
     def read_file(self):
-        """Reads from the input file and return a qubo
-
-        Returns:
-            np.ndarray: qubo in regular form
-        """
         with open(self.filename, "r") as f:
             self.qubo_data = json.load(f)
         self.qubo = self.from_sparse(self.qubo_data["qubo"])
         return self.qubo
-
-    def from_sparse(self, qubo_sparse):
-        """Converts qubo from sparse to regular form
-
-        Args:
-            qubo_sparse (dict): scipy sparse coo matrix represantation of the qubo
-
-        Returns:
-            np.ndarray: qubo in regular form
-        """
-        return sp.sparse.coo_matrix(
-            (qubo_sparse['data'], (qubo_sparse['row'], qubo_sparse['col'])),
-            shape=qubo_sparse['shape'], dtype='float'
-        ).todense().getA()
 
 
 class QUBOSolver(MaxCutSolver):

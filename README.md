@@ -175,10 +175,6 @@ Please check the following Python files to find how to setup biqbin solver throu
 
 ---
 
-## Evil QUBOs
-A collection of challenging QUBOs is located in `evil_qubos/` folder
-
----
 ## Input files
 
 > **NOTE:** Biqbin can only solve problem instances with  **integer edge weight**!  
@@ -186,8 +182,15 @@ A collection of challenging QUBOs is located in `evil_qubos/` folder
 
 Below are example of instance problem files for Maxcut (C and python versions) and Qubos (python version).
 
-### Maxcut
-Expects an edge weight list format, with the first line containing the number of vertices and edges:
+### `DataGetter class`
+Python versions of the solver use a DataGetter class, split into seperate subclasses for different types of input instances/problems:
+
+- `DataGetterMaxCutDefault` uses the default C implementation of parsing the file, thus requires the same edge weight format.
+- `DataGetterAdjacencyJson` parses a `json` serializable dictionary with "adjacency" key and a `scipy.coo_matrix` of an adjacency matrix as value.
+- `DataGetterJson` is the default `DataGetter` for QUBO instances, parses a `scipy.coo_matrix` of a QUBO into a MaxCut adjacency matrix.
+
+#### MaxCut default input example
+C-version expects an edge weight list format, with the first line containing the number of vertices and edges:
 
 ```
 3 2
@@ -196,7 +199,15 @@ Expects an edge weight list format, with the first line containing the number of
 ```
 An example of a problem instance with 3 vertices and 2 edges, edge (1, 2) with weight of 3 and edge (1, 3) with weight of -4.
 
-### Qubo
+#### MaxCut adjacency json input example
+Json serializable dictionary with "adjacency" key and a `scipy.coo_matrix` of an adjacency matrix as value:
+
+```json
+{"adjacency": {"shape": [2, 2], "nnz": 4, "row": [0, 0, 1, 1], "col": [0, 1, 0, 1], "data": [-1, 3, 3, -1]}}
+```
+
+#### Qubo input example
+
 Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` as value:
 
 ```json
@@ -204,8 +215,13 @@ Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` 
 ```
 
 Other key, value pairs can be added per users discretion.
+---
 
-#### Converter
+> **NOTE (AGAIN):** Biqbin can only solve problem instances with  **integer edge weight**!  
+> This applies all versions of the solver.
+
+
+#### Utils
 
 A converter `utils.py` which takes in a dense QUBO 2D list or numpy array and returns a json serializable dictionary in the proper form:
 

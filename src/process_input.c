@@ -18,7 +18,7 @@ extern int BabPbSize;
         if ((cond)) {\
             fprintf(stderr, "\nError: "#message"\n");\
             fclose(file);\
-            return NULL;\
+            exit(1);\
         }
 
 

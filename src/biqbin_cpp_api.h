@@ -70,5 +70,5 @@ EXTERN_C double Bab_LBGet(void);                              // returns global 
 EXTERN_C int update_best(int *xbest, int *xnew, double *best, int P0_N);
 EXTERN_C double evaluateSolution(int *sol);
 EXTERN_C void abort_alloc_fail(int abort_code);
-
+EXTERN_C int process_adj_matrix(double* Adj, int Adj_N);
 #endif

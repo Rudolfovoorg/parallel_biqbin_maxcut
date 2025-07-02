@@ -12,3 +12,10 @@
 - added test instances and bash scripts to run tests for all versions
 - updated README file and added .md file extension
 - Added and tested biqbin_heuristic.py for overridding of original heuristic function
+- Added integer checks to qubo and maxcut input data
+- changed tests/qubos instances to be integers
+- added tests/rudy/*.json instances in adjacency matrix json serializable format
+- added helper converter in utils.py
+- changed Python Maxcut class to also use a DataGetter class
+- added a DataGetterMaxCutDefault DataGetter that uses the original C code
+- added a DataGetterAdjacencyJson DataGetter that can parse a json serializable scipy.sparse.coo adjacency matrix

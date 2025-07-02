@@ -1,5 +1,5 @@
 import sys
-from biqbin_base import MaxCutSolver
+from biqbin_base import MaxCutSolver, DataGetterMaxCutDefault, DataGetterAdjacencyJson
 
 """
     Default MaxCut Biqbin wrapper example
@@ -10,7 +10,8 @@ if __name__ == '__main__':
     _, problem_instance_file_name, params = sys.argv
 
     # Create an instance of the MaxCutSolver passing in the above arguments
-    solver = MaxCutSolver(problem_instance_file_name, params)
+    default_data_getter = DataGetterAdjacencyJson(problem_instance_file_name)
+    solver = MaxCutSolver(default_data_getter, params)
     result = solver.run()  # run the solver
 
     rank = solver.get_rank()

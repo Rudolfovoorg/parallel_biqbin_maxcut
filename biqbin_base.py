@@ -1,4 +1,4 @@
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 
 from abc import ABC, abstractmethod
 import numpy as np
@@ -11,19 +11,92 @@ from biqbin import (run, set_heuristic,
                     default_read_data)
 
 
+class DataGetter(ABC):
+    """Abstract class to parse qubo data
+    """
+    @abstractmethod
+    def problem_instance_name(self) -> str:
+        ...
+
+    @abstractmethod
+    def problem_instance(self):
+        ...
+        
+    @abstractmethod
+    def read_file(self):
+        ...
+        
+    def from_sparse(self, sparse_matrix):
+        """Converts from sparse coo matrix to regular form
+
+        Args:
+            sparse_matrix (dict): scipy sparse coo matrix
+
+        Returns:
+            np.ndarray: regular form matrix
+        """
+        return sp.sparse.coo_matrix(
+            (sparse_matrix['data'], (sparse_matrix['row'], sparse_matrix['col'])),
+            shape=sparse_matrix['shape'], dtype='float'
+        ).todense().getA()
+
+
+class DataGetterMaxCutDefault(DataGetter):
+    """
+    Uses the default C implementation or MaxCut, reads and parses maxcut instance file in edge weight list format and parses
+    into the adjacency matrix.
+    """
+    def __init__(self, filename: str):
+        self.filename = filename
+        self.adj_matrix = None
+    
+    def problem_instance_name(self) -> str:
+        """Get the instance file path
+
+        Returns:
+            str: path to instance file
+        """
+        return self.filename
+
+    def problem_instance(self):
+        """Gets the adjacency matrix from the instance file
+        """
+        return self.adj_matrix
+    
+    def read_file(self):
+        self.adj_matrix = default_read_data(self.filename)
+        return self.adj_matrix
+    
+
+class DataGetterAdjacencyJson(DataGetterMaxCutDefault):
+    """
+    DataGetter for the Maxcut class, reads and parses json serialized dict with adj key and sparse coo matrix as value.
+    """
+    def read_file(self):
+        with open(self.filename, "r") as f:
+            mc_data = json.load(f)
+
+        self.adj_matrix = self.from_sparse(mc_data["adjacency"])
+        
+        adj_int = np.array(self.adj_matrix, dtype=np.int64)                
+        if not np.all(self.adj_matrix == adj_int):
+            raise ValueError("All values in the adjacency matrix need to be integers!")
+        
+        return self.adj_matrix
+
 class MaxCutSolver:
     """Default MaxCut Biqbin Wrapper, runs Biqbin MaxCut using its original functions
     """
     solver_name = f'PyBiqBin-MaxCut {__version__}'
 
-    def __init__(self, problem_instance_name: str, params: str):
+    def __init__(self, data_getter: DataGetter, params: str):
         """Initialize the solver
 
         Args:
             problem_instance_name (str): path to problem instance in edge weight list format
             params (str): path to parameters file
         """
-        self.problem_instance_name = problem_instance_name
+        self.data_getter: DataGetter = data_getter
         self.params = params
         set_read_data(self.read_data)
         set_heuristic(self.heuristic)
@@ -36,8 +109,7 @@ class MaxCutSolver:
         Returns:
             np.ndarray: adjacency matrix
         """
-        result = default_read_data(self.problem_instance_name)
-        return result
+        return self.data_getter.read_file()
 
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.array, sol_X: np.array, x: np.array) -> float:
         """Default heuristic (heuristic_unpacked in heuristic.c)
@@ -57,11 +129,11 @@ class MaxCutSolver:
 
     def run(self):
         """Runs Biqbin Maxcut solver
-
+        
         Returns:
             dict: result dict with keys: "max_val" - max cut solution value, "solution" - nodes in this solution, "time" - spent solving 
         """
-        result = run(self.solver_name, self.problem_instance_name, self.params)
+        result = run(self.solver_name, self.data_getter.problem_instance_name(), self.params)
 
         if (self.get_rank() == 0):
             result['maxcut']['solution'] = result['maxcut']['solution'].tolist()
@@ -89,8 +161,8 @@ class MaxCutSolver:
             json.dump(result, f, default=self._convert_numpy)
 
     def _process_output_path(self, output_path: str) -> str:
-        if output_path is None or output_path == self.problem_instance_name:
-            return self.problem_instance_name + ".output.json"
+        if output_path is None or output_path == self.data_getter.problem_instance_name():
+            return self.data_getter.problem_instance_name() + ".output.json"
         if not output_path.endswith(".json"):
             output_path += ".json"
         return output_path
@@ -101,18 +173,6 @@ class MaxCutSolver:
         if isinstance(obj, np.generic):
             return obj.item()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-
-class DataGetter(ABC):
-    """Abstract class to parse qubo data
-    """
-    @abstractmethod
-    def problem_instance_name(self) -> str:
-        ...
-
-    @abstractmethod
-    def problem_instance(self):
-        ...
 
 
 class DataGetterJson(DataGetter):
@@ -127,9 +187,6 @@ class DataGetterJson(DataGetter):
             filename (str): path to file
         """
         self.filename = filename
-        with open(filename, "r") as f:
-            self.qubo_data = json.load(f)
-            self.qubo = self.from_sparse(self.qubo_data["qubo"])
 
     def problem_instance_name(self) -> str:
         """Get the instance file path
@@ -146,28 +203,16 @@ class DataGetterJson(DataGetter):
             nd.ndarray: qubo in a numpy array
         """
         return self.qubo
-
-    def from_sparse(self, qubo_sparse):
-        """Converts qubo from sparse to regular form
-
-        Args:
-            qubo_sparse (dict): scipy sparse matrix of the qubo
-
-        Returns:
-            np.ndarray: qubo in regular form
-        """
-        return sp.sparse.coo_matrix(
-            (qubo_sparse['data'], (qubo_sparse['row'], qubo_sparse['col'])),
-            shape=qubo_sparse['shape'], dtype='float'
-        ).todense().getA()
+    
+    def read_file(self):
+        with open(self.filename, "r") as f:
+            self.qubo_data = json.load(f)
+        self.qubo = self.from_sparse(self.qubo_data["qubo"])
+        return self.qubo
 
 
 class QUBOSolver(MaxCutSolver):
     solver_name = f'PyBiqBin-QUBO {__version__}'
-
-    def __init__(self, data_getter: DataGetter, params: str):
-        self.data_getter = data_getter
-        super().__init__(data_getter.problem_instance_name(), params)
 
     def _qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
         """Convert qubo to adjacency matrix that biqbin can read
@@ -178,6 +223,11 @@ class QUBOSolver(MaxCutSolver):
             np.ndarray: adjacency matrix for max cut problem
         """
         q_sym = 1/2*(qubo.T + qubo)
+        
+        q_int = np.array(q_sym, dtype=np.int64)                
+        if not np.all(q_sym == q_int):
+            raise ValueError("All QUBO values need to be integers!")
+            
         Qe_plus_c = -np.array([(np.sum(q_sym, 1))])
         np.fill_diagonal(q_sym, 0)
 
@@ -215,7 +265,7 @@ class QUBOSolver(MaxCutSolver):
         Returns:
             np.ndarray: adjacency matrix
         """
-        return self._qubo2maxcut(self.data_getter.problem_instance())
+        return self._qubo2maxcut(self.data_getter.read_file())
 
     def run(self) -> dict:
         """Runs the original biqbin then adds the qubo solution nodes to the result dict

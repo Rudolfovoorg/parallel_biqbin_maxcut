@@ -108,9 +108,9 @@ test-maxcut: clean-output
 	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output params
 
 test-maxcut-python: clean-output
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_60.0 tests/rudy/g05_60.0-expected_output params
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_80.0 tests/rudy/g05_80.0-expected_output params
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output params
+	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_60.0.json tests/rudy/g05_60.0-expected_output params
+	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_80.0.json tests/rudy/g05_80.0-expected_output params
+	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_100.4.json tests/rudy/g05_100.4-expected_output params
 
 test-qubo-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json params

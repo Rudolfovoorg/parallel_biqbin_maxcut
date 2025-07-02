@@ -2,3 +2,4 @@
 - Fix MPI Finalize conflicts with Python objects
 - Allow to set time solver running time limit
 - Create an installable python package
+- Add additional converters and other utilities to utils.py

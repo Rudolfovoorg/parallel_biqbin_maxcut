@@ -1,5 +1,11 @@
 # BiqBin: A Solver for Max-Cut and Unconstrained Binary Quadratic Problem
 
+## **Quantum solver for hard BInary Quadratic problems (QBIQ)**
+
+### **Aris Project (L1-60136),  1.1.2025 - 31.12.2027**
+[Aris project link](https://cris.cobiss.net/ecris/si/en/project/22627)
+
+---
 **Copyright © 2021 — The BiqBin Project**  
 Funded by **FWF (I 3199-N31)** and **ARRS (P2-0162)**
 
@@ -31,8 +37,13 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 ---
 
 
-##  Setup (Conda-based Build)
+##  Setup
 
+>**Note:** Biqbin requires **Linux operating system**. 
+
+Below are description on two seperate setup instruction, either [**Anaconda**](#conda-based-build) or [**Docker**](#docker) based builds.
+
+### Conda based build
 This project is fully buildable inside a Conda environment.
 
 ### Setup Instructions (Conda Environment)
@@ -91,7 +102,7 @@ make
 make test
 ```
 
-###  Docker
+##  Docker
 
 **`Dockerfile`** available for running the solver in a docker container, image can be created using Makefile command
 
@@ -99,6 +110,11 @@ make test
 make docker
 ```
 
+To access the docker container use:
+```bash
+make docker-shell 
+```
+for other specific commands please checkout the `Makefile`
 
 ## Usage
 
@@ -114,12 +130,14 @@ make docker
  export GOTO_NUM_THREADS=1
  export OMP_NUM_THREADS=1
  ```
-Setting them 1 is just an example.
 
 ### Original Biqbin Maxcut Parallel solver - C only
 
-Run with
-
+Example:
+```bash
+mpirun -n 3 ./biqbin tests/rudy/g05_60.0 params
+```
+General command:
 ```bash
 mpirun -n num_processess ./biqbin instance_file params
 ```
@@ -132,8 +150,11 @@ mpirun -n num_processess ./biqbin instance_file params
 
 ### Python Wrapper for Biqbin Maxcut Parallel solver
 
-Can be run with
-
+Example:
+```bash
+mpirun -n 3 python3 biqbin_maxcut.py tests/rudy/g05_60.0 params
+```
+General command:
 ```bash
 mpirun -n num_processes python3 biqbin_maxcut.py instance_file params
 ```
@@ -147,8 +168,11 @@ mpirun -n num_processes python3 biqbin_maxcut.py instance_file params
 
 ### Python Wrapper for QUBO-s.
 
-Can be run with
-
+Example:
+```bash
+mpirun -n 3 python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json params
+```
+General command:
 ```bash
 mpirun -n num_processes python3 biqbin_qubo.py instance_file params
 ```

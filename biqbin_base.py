@@ -1,9 +1,11 @@
 __version__ = '1.0.1'
 
 from abc import ABC, abstractmethod
+import argparse
 import numpy as np
 import scipy as sp
 import json
+from glob import glob
 
 from biqbin import (run, set_heuristic,
                     default_heuristic,
@@ -149,23 +151,27 @@ class MaxCutSolver:
         """
         return get_rank()
 
-    def save_result(self, result, output_path=None):
-        """_summary_
+    def save_result(self, result, output_path_in=None, overwrite=False):
+        """Save the result dictionary as JSON file.
 
         Args:
             result (dict): result dictionary returned by biqbin
             output_path (str, optional): custom path to an output file. Defaults to None.
         """
-        output_path = self._process_output_path(output_path)
+        if not output_path_in:
+            output_path = self.data_getter.problem_instance_name() + '.output'
+        else:
+            output_path = output_path_in
+        
+        # Always overwrite if filepath specific
+        if not overwrite and not output_path_in:
+            file_count = len(glob(f'{output_path}*.json'))
+            if file_count > 0:
+                output_path += f'_{file_count}'
+        if not output_path_in:
+            output_path += '.json'
         with open(output_path, "w") as f:
             json.dump(result, f, default=self._convert_numpy)
-
-    def _process_output_path(self, output_path: str) -> str:
-        if output_path is None or output_path == self.data_getter.problem_instance_name():
-            return self.data_getter.problem_instance_name() + ".output.json"
-        if not output_path.endswith(".json"):
-            output_path += ".json"
-        return output_path
 
     def _convert_numpy(self, obj):
         if isinstance(obj, np.ndarray):
@@ -286,3 +292,30 @@ class QUBOSolver(MaxCutSolver):
             return result
         else:
             return None
+        
+
+class BaseParser(argparse.ArgumentParser):
+    def __init__(self, prog: str, description: str):
+        super().__init__(prog=prog, description=description,
+        usage=f'mpirun [-n N] python3 {prog} problem_instance [-p PARAMS] [-w] [-o OUTPUT]',
+        epilog='For more information please visit https://github.com/Rudolfovoorg/parallel_biqbin_maxcut',
+    )
+        self.add_argument('problem_instance', help='Path to the problem instance file')
+        
+        # Optional arguments
+        self.add_argument('-p', '--params', default='params', help='custom parameters file path (default: "params")')
+        self.add_argument('-w', '--overwrite', 
+                        action='store_true',
+                        help='overwrite output.json instead of labeling with _NUMBER'
+                        )
+        self.add_argument('-o', '--output', help='set custom output file path')
+
+class ParserMaxCut(BaseParser):
+    def __init__(self):
+        super().__init__(prog=f'biqbin_maxcut.py', description='Biqbin Maxcut solver')
+        self.add_argument('-e', '--edge_weight', action='store_true', help='use edge weight input file')
+
+        
+class ParserQubo(BaseParser):
+    def __init__(self):
+        super().__init__(prog=f'biqbin_qubo.py', description='Biqbin QUBO solver')

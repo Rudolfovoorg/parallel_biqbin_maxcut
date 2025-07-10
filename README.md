@@ -139,11 +139,11 @@ mpirun -n 3 ./biqbin tests/rudy/g05_60.0 params
 ```
 General command:
 ```bash
-mpirun -n num_processess ./biqbin instance_file params
+mpirun -n N ./biqbin problem_instance params
 ```
 
 - `num_processes`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `instance_file`: A file containing the graph (in edge list format).
+- `problem_instance`: A file containing the graph (in edge list format).
 - `params`: The parameter file used to configure the solver.
 
 ---
@@ -152,18 +152,20 @@ mpirun -n num_processess ./biqbin instance_file params
 
 Example:
 ```bash
-mpirun -n 3 python3 biqbin_maxcut.py tests/rudy/g05_60.0 params
+mpirun -n 3 python3 biqbin_maxcut.py tests/rudy/g05_60.0.json
 ```
 General command:
 ```bash
-mpirun -n num_processes python3 biqbin_maxcut.py instance_file params
+mpirun -n N python3 biqbin_maxcut.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 ```
 
-- `num_processes`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `instance_file`: A file containing the graph (in edge list format).
-- `params`: The parameter file used to configure the solver.
-
-
+- `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
+- `problem_instance`: A `JSON` serializable sparse coo adjacency matrix.
+- `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
+- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
+- `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
+- `-e`, `--edge_weight`: Optional command to use edge weight `problem_instance` that C-only solver uses.
+- `-h`, `--help`: Show help message and exit.
 ---
 
 ### Python Wrapper for QUBO-s.
@@ -174,13 +176,15 @@ mpirun -n 3 python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json param
 ```
 General command:
 ```bash
-mpirun -n num_processes python3 biqbin_qubo.py instance_file params
+mpirun -n N python3 biqbin_qubo.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 ```
 
-- `num_processes`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
-- `instance_file.json`: dictionary containing "qubo" key and a sparse matrix for value (see tests/qubo/) folder for examples.
-- `params`: The parameter file used to configure the solver.
-
+- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
+- `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
+- `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
+- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
+- `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
+- `-h`, `--help`: Show help message and exit.
 ---
 
 ### Examples

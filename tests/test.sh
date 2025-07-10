@@ -3,13 +3,6 @@
 # A test script for comparing solver output with expected output for a given problem instance.
 # Usage: ./test.sh biqbin instance expected_output params
 
-if [ "$#" -ne 4 ]; then
-    echo "Illegal number of parameters"
-    echo "Usage:"
-    echo "./test.sh biqbin instance expected_output params"
-    exit 1
-fi
-
 # Extract only the important lines for strict comparison
 extract_comparison_lines() {
     grep -E '^(Maximum value =|Solution =)'

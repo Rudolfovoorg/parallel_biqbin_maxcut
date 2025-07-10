@@ -1,12 +1,9 @@
 __version__ = '1.0.1'
 
 from abc import ABC, abstractmethod
-from glob import glob
-import os
 import numpy as np
 import scipy as sp
 import json
-
 
 from biqbin import (run, set_heuristic,
                     default_heuristic,
@@ -152,27 +149,23 @@ class MaxCutSolver:
         """
         return get_rank()
 
-    def save_result(self, result, output_dir=None):
-        """
+    def save_result(self, result, output_path=None):
+        """_summary_
 
         Args:
             result (dict): result dictionary returned by biqbin
             output_path (str, optional): custom path to an output file. Defaults to None.
         """
-        output_path = ""
-        if output_dir:
-            output_path = f"{output_dir}/" + os.path.basename(self.data_getter.problem_instance_name())
-        else:
-            output_path = self.data_getter.problem_instance_name()
-
-        out_count = len(list(glob(f"{output_path}.output*.json")))
-        if out_count > 0:
-            output_path += f".output_{out_count}.json"
-        else:
-            output_path += ".output.json"
-
+        output_path = self._process_output_path(output_path)
         with open(output_path, "w") as f:
             json.dump(result, f, default=self._convert_numpy)
+
+    def _process_output_path(self, output_path: str) -> str:
+        if output_path is None or output_path == self.data_getter.problem_instance_name():
+            return self.data_getter.problem_instance_name() + ".output.json"
+        if not output_path.endswith(".json"):
+            output_path += ".json"
+        return output_path
 
     def _convert_numpy(self, obj):
         if isinstance(obj, np.ndarray):

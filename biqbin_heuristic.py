@@ -9,11 +9,11 @@ from copy import deepcopy
 logger = logging.getLogger(__name__)
 
 
-class QuboSimulatedAnnealing(QUBOSolver):
-    def __init__(self, data_gettr, params: str, num_reads: int = 10):
+class QuboDwaveSapler(QUBOSolver):
+    def __init__(self, data_gettr, params: str, sampler, **sampler_kwwargs):
         super().__init__(data_gettr, params)
-        self.sampler = SimulatedAnnealingSampler()
-        self.num_reads = num_reads
+        self.sampler = sampler
+        self.sampler_kwargs = sampler_kwwargs
 
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.array, sol_X: np.array, x: np.array):
         """Heuristc with D-Waves simulated annealing sampler
@@ -33,7 +33,7 @@ class QuboSimulatedAnnealing(QUBOSolver):
 
         _x = np.array(
             list(self.sampler.sample_qubo(-L[:-1, :-1],
-                 num_reads=self.num_reads).first.sample.values()),
+                 **self.sampler_kwargs).first.sample.values()),
             dtype=np.int32
         )
 
@@ -77,13 +77,15 @@ if __name__ == '__main__':
 
     # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
     logging.basicConfig()
-    logging.root.setLevel(logging.DEBUG)
+    logging.root.setLevel(logging.INFO)
+    # TODO: Use command line arguments to set verbosity level 
+    # logging.root.setLevel(logging.DEBUG)
 
     parser = ParserQubo()
     argv = parser.parse_args()
     data_getter = DataGetterJson(argv.problem_instance)
 
-    solver = QuboSimulatedAnnealing(data_getter, params=argv.params, num_reads=5)
+    solver = QuboDwaveSapler(data_getter, params=argv.params, sampler=SimulatedAnnealingSampler(), num_reads=10)
     result = solver.run()
 
     rank = solver.get_rank()

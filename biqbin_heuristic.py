@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 from neal import SimulatedAnnealingSampler
-from biqbin_base import QUBOSolver, DataGetterJson, default_heuristic, ParserQubo
+from biqbin_base import QUBOSolver, DataGetterJson, default_heuristic, ParserQubo, ParserDWaveHeuristic
 import logging
 from copy import deepcopy
 
@@ -9,11 +9,11 @@ from copy import deepcopy
 logger = logging.getLogger(__name__)
 
 
-class QuboDwaveSapler(QUBOSolver):
-    def __init__(self, data_gettr, params: str, sampler, **sampler_kwwargs):
+class QuboDwaveSampler(QUBOSolver):
+    def __init__(self, data_gettr, params: str, sampler, **sampler_kwargs):
         super().__init__(data_gettr, params)
         self.sampler = sampler
-        self.sampler_kwargs = sampler_kwwargs
+        self.sampler_kwargs = sampler_kwargs
 
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.array, sol_X: np.array, x: np.array):
         """Heuristc with D-Waves simulated annealing sampler
@@ -77,19 +77,25 @@ if __name__ == '__main__':
 
     # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
     logging.basicConfig()
-    logging.root.setLevel(logging.INFO)
-    # TODO: Use command line arguments to set verbosity level 
-    # logging.root.setLevel(logging.DEBUG)
 
-    parser = ParserQubo()
+    parser = ParserDWaveHeuristic()
     argv = parser.parse_args()
+    
+    logging_level = logging.WARNING
+    if argv.info:
+        logging_level = logging.INFO
+    if argv.debug:
+        logging_level = logging.DEBUG
+    logging.root.setLevel(logging_level)
+    
     data_getter = DataGetterJson(argv.problem_instance)
-
-    solver = QuboDwaveSapler(data_getter, params=argv.params, sampler=SimulatedAnnealingSampler(), num_reads=10)
+    solver = QuboDwaveSampler(data_getter, params=argv.params, sampler=SimulatedAnnealingSampler(), num_reads=10)
     result = solver.run()
 
     rank = solver.get_rank()
-    print(f"{rank=} heuristics ran {solver.heuristic_counter} times")
+    if logger.isEnabledFor(logging.INFO):
+        print(f"{rank=} heuristics ran {solver.heuristic_counter} times")
+        
     if rank == 0:
         # Master rank prints the results
         print(result)

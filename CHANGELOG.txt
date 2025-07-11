@@ -22,3 +22,5 @@
 - added argparser classes for Maxcut and Qubo Python versions
 - added optional overwriting of output json files
 - added optional setting of a custom output file
+- biqbin_heuristic.py QuboDwaveSampler accepts Sampler as argument
+- added argparser for biqbin_heuristic

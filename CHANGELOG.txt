@@ -19,3 +19,6 @@
 - changed Python Maxcut class to also use a DataGetter class
 - added a DataGetterMaxCutDefault DataGetter that uses the original C code
 - added a DataGetterAdjacencyJson DataGetter that can parse a json serializable scipy.sparse.coo adjacency matrix
+- added argparser classes for Maxcut and Qubo Python versions
+- added optional overwriting of output json files
+- added optional setting of a custom output file

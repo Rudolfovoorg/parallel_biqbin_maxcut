@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 from neal import SimulatedAnnealingSampler
-from biqbin_base import QUBOSolver, DataGetterJson, default_heuristic
+from biqbin_base import QUBOSolver, DataGetterJson, default_heuristic, ParserQubo
 import logging
 from copy import deepcopy
 
@@ -36,11 +36,6 @@ class QuboSimulatedAnnealing(QUBOSolver):
                  num_reads=self.num_reads).first.sample.values()),
             dtype=np.int32
         )
-
-        #  This can be likely simplified.
-        # _x = 2*_x-1                # normalize between -1, 1
-        # _x = np.hstack([_x, [-1]]) # append -1
-        # _x = 1/2*(_x+1)            # normalize back to 0, 1
 
         _x = np.hstack([_x, [0]]) # simplification for above
 
@@ -84,11 +79,11 @@ if __name__ == '__main__':
     logging.basicConfig()
     logging.root.setLevel(logging.DEBUG)
 
-    _, problem_instance_file_name, params = sys.argv
+    parser = ParserQubo()
+    argv = parser.parse_args()
+    data_getter = DataGetterJson(argv.problem_instance)
 
-    data_getter = DataGetterJson(problem_instance_file_name)
-
-    solver = QuboSimulatedAnnealing(data_getter, params=params, num_reads=5)
+    solver = QuboSimulatedAnnealing(data_getter, params=argv.params, num_reads=5)
     result = solver.run()
 
     rank = solver.get_rank()
@@ -96,4 +91,4 @@ if __name__ == '__main__':
     if rank == 0:
         # Master rank prints the results
         print(result)
-        solver.save_result(result)
+        solver.save_result(result, argv.output, argv.overwrite)

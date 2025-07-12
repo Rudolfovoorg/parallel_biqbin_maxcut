@@ -168,7 +168,7 @@ mpirun -n N python3 biqbin_maxcut.py problem_instance [-p PARAMS] [-w] [-o OUTPU
 - `-h`, `--help`: Show help message and exit.
 ---
 
-### Python Wrapper for QUBO-s.
+### Python Wrapper for QUBO-s
 
 Example:
 ```bash
@@ -185,7 +185,30 @@ mpirun -n N python3 biqbin_qubo.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-h`, `--help`: Show help message and exit.
+
 ---
+### QUBO DWaveSampler
+In `biqbin_heuristic.py` there is an example of a `QuboDwaveSampler` class which inhearits from `QUBOSolver` which overrides
+Biqbins default heuristic. It takes an extra `sampler` argument plus any arguments Dwaves sampler takes.
+In our example we use DWaves `neal.SimulatedAnnealingSampler`.
+
+Example:
+```bash
+mpirun -n 3 python3 biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json params
+```
+General command:
+```bash
+mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OUTPUT] [-i] [-d]
+```
+
+- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
+- `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
+- `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
+- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
+- `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
+- `-d`, `--debug`: Enables debug logs
+- `-i`, `--info`: Enable info logs
+- `-h`, `--help`: Show help message and exit.
 
 ### Examples
 

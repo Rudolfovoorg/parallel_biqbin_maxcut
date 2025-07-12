@@ -317,5 +317,11 @@ class ParserMaxCut(BaseParser):
 
         
 class ParserQubo(BaseParser):
+    def __init__(self, prog=f'biqbin_qubo.py', description='Biqbin QUBO solver'):
+        super().__init__(prog=prog, description=description)
+        
+class ParserDWaveHeuristic(ParserQubo):
     def __init__(self):
-        super().__init__(prog=f'biqbin_qubo.py', description='Biqbin QUBO solver')
+        super().__init__(prog='biqbin_heuristic.py', description='Biqbin QUBO solver with DWave heuristic')
+        self.add_argument('-d', '--debug', action='store_true', help='enable debug logs')
+        self.add_argument('-i', '--info', action='store_true', help='enable info logs')

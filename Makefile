@@ -20,13 +20,16 @@ OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common
 CPPOPTI  = -O3 -fexceptions -fPIC -fno-common -ffast-math
 
 PYTHON_VERSION := $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-PYTHON_INCLUDE = -I$(CONDA_PREFIX)/include/python$(PYTHON_VERSION)
-PYTHON_LIB = -L$(CONDA_PREFIX)/lib -lpython$(PYTHON_VERSION)
+PYTHON_INCLUDE := $(shell python3-config --includes)
+PYTHON_LDFLAGS := $(shell python3-config --ldflags)
+PYTHON_LIBS := $(shell python3-config --libs)
+
+# Add explicit python lib
+PYTHON_LIB := -lpython$(PYTHON_VERSION) $(PYTHON_LDFLAGS) $(PYTHON_LIBS)
 
 INCLUDES += $(PYBIND11_INCLUDES)
 INCLUDES += $(PYTHON_INCLUDE)
 LIB += $(PYTHON_LIB)
-LIB += $(shell python3-config --libs)
 
 # Python module (Boost)
 PYMODULE = biqbin.so

@@ -21,6 +21,7 @@ CPPOPTI  = -O3 -fexceptions -fPIC -fno-common -ffast-math
 
 PYTHON_VERSION := $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PYTHON_INCLUDE := $(shell python3-config --includes)
+PYBIND11_INCLUDES := $(shell python3 -m pybind11 --includes)
 PYTHON_LDFLAGS := $(shell python3-config --ldflags)
 PYTHON_LIBS := $(shell python3-config --libs)
 

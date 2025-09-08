@@ -157,7 +157,6 @@ void createSubproblem(BabNode *node, Problem *SP, Problem *PP);
 double getFixedValue(BabNode *node, Problem *SP);
 
 /* heap.c */
-int Bab_numEvalNodes(void);                          // returns number of evaluated nodes
 void Bab_incEvalNodes(void);                         // increment the number of evaluated nodes
 int isPQEmpty(void);                                 // checks if queue is empty
 int Bab_LBUpd(double new_lb, BabSolution *bs);       // checks and updates lower bound if better found, returns 1 if success

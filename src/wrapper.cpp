@@ -113,6 +113,7 @@ py::dict run_py(const std::string &prog_name, const std::string &problem_instanc
     py::dict result_dict;
     py::dict nested;
     result_dict["time"] = running_time;
+    result_dict["eval_bnb_nodes"] = Bab_numEvalNodes();
     nested["computed_val"] = Bab_LBGet();
     nested["solution"] = get_selected_nodes_np_array();
     result_dict["maxcut"] = nested;

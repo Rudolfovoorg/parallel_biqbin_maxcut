@@ -41,6 +41,19 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 
 >**Note:** Biqbin requires **Linux operating system**. 
 
+It also requires:
+- Python development headers (the `python3-dev` package).
+- MPI implementation (`OpenMPI` or `MPICH`)
+- `OpenBLAS` mathematics library
+
+The rest can be installed with `pip install -r requirements.txt`:
+```
+pybind11
+scipy
+numpy
+dwave-neal 
+```
+
 Below are description on two seperate setup instruction, either [**Anaconda**](#conda-based-build) or [**Docker**](#docker) based builds.
 
 ### Conda based build
@@ -79,10 +92,6 @@ conda activate biqbin-py312
 ```
 
 #### 3. Install dependencies
-Python.Boost
-```bash
-conda install conda-forge::libboost-python-devel
-```
 C and C++ compiler
 ```bash
 conda install -c conda-forge gxx
@@ -90,6 +99,10 @@ conda install -c conda-forge gxx
 MPI
 ```bash
 conda install conda-forge::openmpi
+```
+OpenBLAS
+```bash
+conda install -c conda-forge openblas
 ```
 Python packages
 ```bash
@@ -184,6 +197,7 @@ mpirun -n N python3 biqbin_qubo.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
+- `-O`, `--optimize`: Divide QUBO values by their GCD.
 - `-h`, `--help`: Show help message and exit.
 
 ---

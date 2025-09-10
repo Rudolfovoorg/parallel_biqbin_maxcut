@@ -12,8 +12,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # Instance of the default DataGetterJson class takes the path to qubo.json
     data_getter = DataGetterJson(args.problem_instance)
-    # Initialize QUBOSolver class which takes a DataGetter class instance and path to parameters file
-    solver = QUBOSolver(data_getter=data_getter, params=args.params)
+    # Initialize QUBOSolver class which takes a DataGetter class instance, path to parameters file and bool if optimizing
+    solver = QUBOSolver(data_getter=data_getter, params=args.params, optimize_input=args.optimize)
     # Run biqbin solver
     result = solver.run()
 

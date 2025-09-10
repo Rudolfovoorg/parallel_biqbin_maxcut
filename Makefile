@@ -1,7 +1,7 @@
 #### BiqBin makefile ####
 
 # container image name
-IMAGE ?= benozupanc/biqbin-pybind11
+IMAGE ?= parallel-biqbin
 # container image tag
 TAG ?= 1.0.0
 DOCKER_BUILD_PARAMS ?=

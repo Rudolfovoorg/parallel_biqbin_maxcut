@@ -1,7 +1,7 @@
 #### BiqBin makefile ####
 
 # container image name
-IMAGE ?= parallel-biqbin
+IMAGE ?= benozupanc/biqbin-pybind11
 # container image tag
 TAG ?= 1.0.0
 DOCKER_BUILD_PARAMS ?=
@@ -28,8 +28,7 @@ PYTHON_LIBS := $(shell python3-config --libs)
 # Add explicit python lib
 PYTHON_LIB := -lpython$(PYTHON_VERSION) $(PYTHON_LDFLAGS) $(PYTHON_LIBS)
 
-INCLUDES += $(PYBIND11_INCLUDES)
-INCLUDES += $(PYTHON_INCLUDE)
+INCLUDES += $(PYBIND11_INCLUDES) $(PYTHON_INCLUDE)
 LIB += $(PYTHON_LIB)
 
 # Python module (Boost)

@@ -15,7 +15,7 @@ if __name__ == '__main__':
     
     test_failed = False
     diffs = {
-        "time": expected_result["time"] - result["time"]
+        "time": expected_result["time"] - result["meta_data"]["time"]
     }
     for problem in ["maxcut", "qubo"]:
         com_val = result[problem]["computed_val"]

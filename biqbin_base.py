@@ -138,9 +138,9 @@ class MaxCutSolver:
             dict: result dict with keys: "max_val" - max cut solution value, "solution" - nodes in this solution, "time" - spent solving 
         """
         result = run(self.solver_name, self.data_getter.problem_instance_name(), self.params)
-
         if (self.get_rank() == 0):
             result['maxcut']['solution'] = result['maxcut']['solution'].tolist()
+            result['meta_data']['instance'] = self.data_getter.problem_instance_name()
             return result
         else:
             return None
@@ -299,13 +299,17 @@ class QUBOSolver(MaxCutSolver):
             qubo_solution, qubo_x, mc_x = self._maxcut_solution2qubo_solution(result["maxcut"]["solution"])
             computed_val = self.data_getter.problem_instance().dot(qubo_x).dot(qubo_x)
             cardinality = sum(qubo_x)
+            result['maxcut']['computed_val'] *= self.gcd
             result['maxcut']['x'] = mc_x
             result['qubo'] = {'computed_val': float(computed_val),
                              'solution': qubo_solution,
                              'x': qubo_x,
                              'cardinality': float(cardinality),
-                             'gcd': self.gcd
                              }
+            result['meta_data']['parameters'] = {
+                'optimize_input': self.optimize_input,
+                'gcd' : self.gcd
+            }
             return result
         else:
             return None

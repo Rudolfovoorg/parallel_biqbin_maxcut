@@ -19,12 +19,17 @@ LINALG 	 = -lopenblas -lm
 OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common
 CPPOPTI  = -O3 -fexceptions -fPIC -fno-common -ffast-math
 
-# Python module (Boost)
-PYBOOST_INCLUDES ?= -I$(CONDA_PREFIX)/include/python3.12 -I$(CONDA_PREFIX)/include
-PYBOOST_LIBS ?= -L$(CONDA_PREFIX)/lib -lboost_python312 -lboost_numpy312 -lpython3.12
+PYTHON_VERSION := $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+PYTHON_INCLUDE := $(shell python3-config --includes)
+PYBIND11_INCLUDES := $(shell python3 -m pybind11 --includes)
+PYTHON_LDFLAGS := $(shell python3-config --ldflags)
+PYTHON_LIBS := $(shell python3-config --libs)
 
-INCLUDES += $(PYBOOST_INCLUDES)
-LIB += $(PYBOOST_LIBS)
+# Add explicit python lib
+PYTHON_LIB := -lpython$(PYTHON_VERSION) $(PYTHON_LDFLAGS) $(PYTHON_LIBS)
+
+INCLUDES += $(PYBIND11_INCLUDES) $(PYTHON_INCLUDE)
+LIB += $(PYTHON_LIB)
 
 # Python module (Boost)
 PYMODULE = biqbin.so

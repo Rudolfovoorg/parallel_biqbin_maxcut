@@ -24,3 +24,7 @@
 - added optional setting of a custom output file
 - biqbin_heuristic.py QuboDwaveSampler accepts Sampler as argument
 - added argparser for biqbin_heuristic
+- replaced Boost with Pybind11
+- added number of evaluated branch and bound nodes to results json
+- added qubo optimization step to divide the qubo by gcd
+- updated readme

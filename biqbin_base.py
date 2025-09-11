@@ -1,7 +1,9 @@
-__version__ = '1.0.1'
+__version__ = '2.0.0'
 
 from abc import ABC, abstractmethod
 import argparse
+from functools import reduce
+from math import gcd
 import numpy as np
 import scipy as sp
 import json
@@ -136,9 +138,9 @@ class MaxCutSolver:
             dict: result dict with keys: "max_val" - max cut solution value, "solution" - nodes in this solution, "time" - spent solving 
         """
         result = run(self.solver_name, self.data_getter.problem_instance_name(), self.params)
-
         if (self.get_rank() == 0):
             result['maxcut']['solution'] = result['maxcut']['solution'].tolist()
+            result['meta_data']['instance'] = self.data_getter.problem_instance_name()
             return result
         else:
             return None
@@ -220,6 +222,11 @@ class DataGetterJson(DataGetter):
 class QUBOSolver(MaxCutSolver):
     solver_name = f'PyBiqBin-QUBO {__version__}'
 
+    def __init__(self, data_getter: DataGetter, params: str, optimize_input:bool=False):
+        super().__init__(data_getter, params)
+        self.optimize_input: bool = optimize_input
+        self.gcd: int = 1
+
     def _qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
         """Convert qubo to adjacency matrix that biqbin can read
 
@@ -228,12 +235,20 @@ class QUBOSolver(MaxCutSolver):
         Returns:
             np.ndarray: adjacency matrix for max cut problem
         """
-        q_sym = 1/2*(qubo.T + qubo)
         
+        q_sym = 1/2*(qubo.T + qubo)
+
         q_int = np.array(q_sym, dtype=np.int64)                
         if not np.all(q_sym == q_int):
             raise ValueError("All QUBO values need to be integers!")
-            
+        
+        if self.optimize_input:
+            unique_fields = set(q_sym.astype(int).flatten())
+            greatest_common_divisor = reduce(gcd, unique_fields)
+            if greatest_common_divisor > 1:
+                q_sym /= greatest_common_divisor
+                self.gcd = greatest_common_divisor
+        
         Qe_plus_c = -np.array([(np.sum(q_sym, 1))])
         np.fill_diagonal(q_sym, 0)
 
@@ -284,11 +299,17 @@ class QUBOSolver(MaxCutSolver):
             qubo_solution, qubo_x, mc_x = self._maxcut_solution2qubo_solution(result["maxcut"]["solution"])
             computed_val = self.data_getter.problem_instance().dot(qubo_x).dot(qubo_x)
             cardinality = sum(qubo_x)
+            result['maxcut']['computed_val'] *= self.gcd
             result['maxcut']['x'] = mc_x
             result['qubo'] = {'computed_val': float(computed_val),
                              'solution': qubo_solution,
                              'x': qubo_x,
-                             'cardinality': float(cardinality)}
+                             'cardinality': float(cardinality),
+                             }
+            result['meta_data']['parameters'] = {
+                'optimize_input': self.optimize_input,
+                'gcd' : self.gcd
+            }
             return result
         else:
             return None
@@ -319,6 +340,7 @@ class ParserMaxCut(BaseParser):
 class ParserQubo(BaseParser):
     def __init__(self, prog=f'biqbin_qubo.py', description='Biqbin QUBO solver'):
         super().__init__(prog=prog, description=description)
+        self.add_argument('-O', '--optimize', action='store_true', help='Divide QUBO values by their GCD')
         
 class ParserDWaveHeuristic(ParserQubo):
     def __init__(self):

@@ -121,12 +121,15 @@ py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_
     clean_python_references();
 
     py::dict result_dict;
-    py::dict nested;
-    result_dict["time"] = running_time;
-    result_dict["eval_bnb_nodes"] = Bab_numEvalNodes();
-    nested["computed_val"] = Bab_LBGet();
-    nested["solution"] = get_selected_nodes_np_array();
-    result_dict["maxcut"] = nested;
+    py::dict solution_info;
+    py::dict meta_data;
+
+    meta_data["time"] = running_time;
+    meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
+    solution_info["computed_val"] = Bab_LBGet();
+    solution_info["solution"] = get_selected_nodes_np_array();
+    result_dict["meta_data"] = meta_data;
+    result_dict["maxcut"] = solution_info;
     return result_dict;
 }
 
@@ -145,11 +148,11 @@ double run_heuristic_python(
     check_np_array_validity<int>(node_sol_X_array, 1, "node_sol_x");
     check_np_array_validity<int>(x_array, 1, "x");
 
-    auto P0_L = P0_L_array.mutable_data();
-    auto P_L = P_L_array.mutable_data();
-    auto xfixed = xfixed_array.mutable_data();
-    auto node_sol_X = node_sol_X_array.mutable_data();
-    auto x = x_array.mutable_data(); // only x is modified
+    const auto P0_L = P0_L_array.mutable_data();
+    const auto P_L = P_L_array.mutable_data();
+    const auto xfixed = xfixed_array.mutable_data();
+    const auto node_sol_X = node_sol_X_array.mutable_data();
+    const auto x = x_array.mutable_data(); // only x is modified
 
     return runHeuristic_unpacked(P0_L, P0_L_array.shape(0), P_L, P_L_array.shape(0), xfixed, node_sol_X, x);
 }

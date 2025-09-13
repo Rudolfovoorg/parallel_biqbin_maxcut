@@ -15,7 +15,7 @@ if __name__ == '__main__':
         data_getter = DataGetterMaxCutDefault(args.problem_instance)
     else:
         data_getter = DataGetterAdjacencyJson(args.problem_instance)
-    solver = MaxCutSolver(data_getter, args.params)
+    solver = MaxCutSolver(data_getter, args.params, args.time)
     result = solver.run()  # run the solver
 
     rank = solver.get_rank()

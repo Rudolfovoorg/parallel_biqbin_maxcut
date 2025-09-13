@@ -39,7 +39,9 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 
 ##  Setup
 
->**Note:** Biqbin requires **Linux operating system**. 
+>**Note:** This readme is for PC example, for HPC please refer to [HPC_EXAMPLE.md](HPC_EXAMPLE.md)
+
+#### Biqbin requires **Linux operating system**. 
 
 It also requires:
 - Python development headers (the `python3-dev` package).

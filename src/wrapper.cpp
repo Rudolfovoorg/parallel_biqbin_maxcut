@@ -21,6 +21,7 @@ extern int BabPbSize;
 /* final solution */
 std::vector<int> selected_nodes;
 double running_time;
+extern int num_workers_used;
 int rank;
 
 // Python override functions
@@ -126,6 +127,7 @@ py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_
 
     meta_data["time"] = running_time;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
+    meta_data["num_workers_used"] = num_workers_used;
     solution_info["computed_val"] = Bab_LBGet();
     solution_info["solution"] = get_selected_nodes_np_array();
     result_dict["meta_data"] = meta_data;
@@ -133,7 +135,13 @@ py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_
     return result_dict;
 }
 
-// This works I guess
+/// @brief Default GW heuristic
+/// @param P0_L_array       Main Problem L: SP->L
+/// @param P_L_array        Subproblem L: PP->L
+/// @param xfixed_array     Fixed variables in solution x
+/// @param node_sol_X_array Solution stored in current babnode
+/// @param x_array          Heuristic solution x
+/// @return                 Lower bound of heuristic solution
 double run_heuristic_python(
     py::array_t<double> P0_L_array,
     py::array_t<double> P_L_array,
@@ -176,7 +184,7 @@ py::array_t<T> wrapped_matrix(T *data, ssize_t rows, ssize_t cols)
         {rows, cols},                  // shape
         {sizeof(T) * cols, sizeof(T)}, // row-major strides
         data,
-        py::cast(nullptr));
+        py::cast(nullptr)); // noop deleter, Python won't free memory
 }
 
 /// @brief Called in runHeuristic in heuristic.c
@@ -197,12 +205,6 @@ double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x)
     py::array_t<int> x_array = wrapped_array(x, BabPbSize);
 
     // Call Python override
-    return python_heuristic_override(
-               P0_L_array, P_L_array,
-               xfixed_array, sol_X_array,
-               x_array)
-        .cast<double>();
-
     return python_heuristic_override(
                P0_L_array, P_L_array, xfixed_array, sol_X_array, x_array)
         .cast<double>();

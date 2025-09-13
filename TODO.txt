@@ -1,6 +1,5 @@
 - Test overridding heuristic
-- Fix MPI Finalize conflicts with Python objects
 - Create an installable python package
 - Add additional converters and other utilities to utils.py
-- Add setting the time-limit and graceful quitting
+- Fix MPI Finalize conflicts with Python objects
 - Change the way file parameters are read and set

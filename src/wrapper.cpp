@@ -132,7 +132,7 @@ py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_
     py::dict meta_data;
 
     meta_data["time"] = running_time;
-    meta_data["time_limit_reached"] = (time_limit_reached) ? "True" : "False";
+    meta_data["time_limit_reached"] = (time_limit_reached) ? true : false;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
     meta_data["num_workers_used"] = num_workers_used;
     solution_info["computed_val"] = Bab_LBGet();

@@ -3,3 +3,4 @@
 - Allow to set time solver running time limit
 - Create an installable python package
 - Add additional converters and other utilities to utils.py
+- Add setting the time-limit and graceful quitting

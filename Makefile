@@ -75,7 +75,6 @@ clean-output:
 	rm -f rudy/*.output*
 	rm -f tests/rudy/*.output*
 	rm -f tests/qubos/*/*.output*
-	rm -f evil_qubos/*.output*
 
 # Clean rule #
 clean: clean-output

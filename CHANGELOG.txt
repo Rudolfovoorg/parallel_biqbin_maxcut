@@ -28,3 +28,4 @@
 - added number of evaluated branch and bound nodes to results json
 - added qubo optimization step to divide the qubo by gcd
 - updated readme
+- added setting time limit to solver

@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class QuboDwaveSampler(QUBOSolver):
-    def __init__(self, data_gettr, params: str, sampler, **sampler_kwargs):
-        super().__init__(data_gettr, params)
+    def __init__(self, data_gettr, params: str, optimize_input:bool, time_limit: int, sampler, **sampler_kwargs):
+        super().__init__(data_gettr, params, optimize_input, time_limit)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
 
@@ -89,7 +89,13 @@ if __name__ == '__main__':
     logging.root.setLevel(logging_level)
     
     data_getter = DataGetterJson(argv.problem_instance)
-    solver = QuboDwaveSampler(data_getter, params=argv.params, sampler=SimulatedAnnealingSampler(), num_reads=10)
+    solver = QuboDwaveSampler(data_getter, 
+                              params=argv.params, 
+                              optimize_input=argv.optimize, 
+                              time_limit=argv.time, 
+                              sampler=SimulatedAnnealingSampler(), 
+                              num_reads=10
+                              )
     result = solver.run()
 
     rank = solver.get_rank()

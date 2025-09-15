@@ -20,8 +20,13 @@ extern int BabPbSize;
 
 /* final solution */
 std::vector<int> selected_nodes;
+
+/* meta_data */
+extern int num_workers_used;
+extern int time_limit_reached;
+extern int rank;
 double running_time;
-int rank;
+int time_limit;
 
 // Python override functions
 py::object python_heuristic_override;
@@ -35,8 +40,8 @@ void set_heuristic_override(py::object func) { python_heuristic_override = func;
 /// @param func
 void set_read_data_override(py::object func) { py_read_data_override = func; }
 
-void set_rank(int r) { rank = r; }
 int get_rank() { return rank; }
+int get_time_limit() { return time_limit; }
 
 /// @brief TODO: find a better fix for conflicts with MPI
 void clean_python_references(void)
@@ -114,26 +119,37 @@ py::array_t<int> get_selected_nodes_np_array()
 /// @param problem_instance_name argv[1] "problem_path_to_file"
 /// @param params_file_name argv[2] "path_to_params_file"
 /// @return biqbin maxcut result
-py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_name)
+py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_name, int time_limit_in)
 {
+    time_limit = time_limit_in;
     char *argv[3] = {prog_name, problem_instance_name, params_file_name};
     wrapped_main(3, argv);
     clean_python_references();
 
+    // Save results
     py::dict result_dict;
     py::dict solution_info;
     py::dict meta_data;
 
     meta_data["time"] = running_time;
+    meta_data["time_limit_reached"] = (time_limit_reached) ? true : false;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
+    meta_data["num_workers_used"] = num_workers_used;
     solution_info["computed_val"] = Bab_LBGet();
     solution_info["solution"] = get_selected_nodes_np_array();
     result_dict["meta_data"] = meta_data;
     result_dict["maxcut"] = solution_info;
+
     return result_dict;
 }
 
-// This works I guess
+/// @brief Default GW heuristic
+/// @param P0_L_array       Main Problem L: SP->L
+/// @param P_L_array        Subproblem L: PP->L
+/// @param xfixed_array     Fixed variables in solution x
+/// @param node_sol_X_array Solution stored in current babnode
+/// @param x_array          Heuristic solution x
+/// @return                 Lower bound of heuristic solution
 double run_heuristic_python(
     py::array_t<double> P0_L_array,
     py::array_t<double> P_L_array,
@@ -176,7 +192,7 @@ py::array_t<T> wrapped_matrix(T *data, ssize_t rows, ssize_t cols)
         {rows, cols},                  // shape
         {sizeof(T) * cols, sizeof(T)}, // row-major strides
         data,
-        py::cast(nullptr));
+        py::cast(nullptr)); // noop deleter, Python won't free memory
 }
 
 /// @brief Called in runHeuristic in heuristic.c
@@ -197,12 +213,6 @@ double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x)
     py::array_t<int> x_array = wrapped_array(x, BabPbSize);
 
     // Call Python override
-    return python_heuristic_override(
-               P0_L_array, P_L_array,
-               xfixed_array, sol_X_array,
-               x_array)
-        .cast<double>();
-
     return python_heuristic_override(
                P0_L_array, P_L_array, xfixed_array, sol_X_array, x_array)
         .cast<double>();

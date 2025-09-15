@@ -39,7 +39,9 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 
 ##  Setup
 
->**Note:** Biqbin requires **Linux operating system**. 
+>**Note:** This readme is for PC example, for HPC please refer to [HPC_EXAMPLE.md](HPC_EXAMPLE.md)
+
+#### Biqbin requires **Linux operating system**. 
 
 It also requires:
 - Python development headers (the `python3-dev` package).
@@ -178,6 +180,7 @@ mpirun -n N python3 biqbin_maxcut.py problem_instance [-p PARAMS] [-w] [-o OUTPU
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-e`, `--edge_weight`: Optional command to use edge weight `problem_instance` that C-only solver uses.
+- `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-h`, `--help`: Show help message and exit.
 ---
 
@@ -198,6 +201,7 @@ mpirun -n N python3 biqbin_qubo.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-O`, `--optimize`: Divide QUBO values by their GCD.
+- `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-h`, `--help`: Show help message and exit.
 
 ---
@@ -222,6 +226,7 @@ mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OU
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-d`, `--debug`: Enables debug logs
 - `-i`, `--info`: Enable info logs
+- `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-h`, `--help`: Show help message and exit.
 
 ### Examples

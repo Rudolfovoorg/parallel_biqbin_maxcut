@@ -135,6 +135,10 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
     if (params.adjust_TriIneq)
         params.TriIneq = SP->n * 10;
 
+    #ifndef PURE_C
+    // BZ: Putting handling of all parameters on the TODO list
+    params.time_limit = get_time_limit();
+    #endif
 
     if (rank == 0) {
             // print parameters to output file
@@ -333,8 +337,6 @@ int process_adj_matrix(double* Adj, int num_vertices) {
     int incy = 1;
     dcopy_(&N2, SP->L, &incx, PP->L, &incy);
 
-
- // RK   free(Adj);
     free(Adje);
     free(tmp);  
 

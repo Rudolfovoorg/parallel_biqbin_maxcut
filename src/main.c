@@ -13,29 +13,22 @@ extern BiqBinParameters params;
 extern double TIME;
 extern FILE *output;
 
+int rank;
+int numbWorkers;
 int num_workers_used = 0;
+int time_limit_reached = 0;
 
 int wrapped_main(int argc, char **argv) {
 
     /*******************************************************
     *********** BRANCH & BOUND: PARALLEL ALGORITHM ********
     ******************************************************/
-
-    // number of processes = master + workers
-    int numbWorkers;
-
-    // rank of each process: from 0 to numWorkers-1
-    int rank;
-
     // MPI Start: start parallel environment
     MPI_Init(&argc, &argv);
 
     // get number of proccesses and corresponding ranks
     MPI_Comm_size(MPI_COMM_WORLD, &numbWorkers);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    #ifndef PURE_C
-    set_rank(rank);
-    #endif
     MPI_Status status;
 
     if (rank == 0)
@@ -155,7 +148,7 @@ int wrapped_main(int argc, char **argv) {
             --numbFreeWorkers;
 
             MPI_Send(&over, 1, MPI_INT, worker, OVER, MPI_COMM_WORLD);
-	    MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, worker, LOWER_BOUND, MPI_COMM_WORLD);
+	        MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, worker, LOWER_BOUND, MPI_COMM_WORLD);
             MPI_Send(child_node, 1, BabNodetype, worker, PROBLEM, MPI_COMM_WORLD);
 
             free(child_node);
@@ -252,6 +245,8 @@ int wrapped_main(int argc, char **argv) {
         #ifndef PURE_C
         copy_solution();
         record_time(MPI_Wtime() - TIME);
+        // Time limit is checked only in workers during execution, this rechecks in master process
+        time_limit_reached = (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit);
         #endif
         printFinalOutput(stdout,Bab_numEvalNodes());
         printFinalOutput(output,Bab_numEvalNodes());

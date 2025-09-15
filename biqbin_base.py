@@ -93,7 +93,7 @@ class MaxCutSolver:
     """
     solver_name = f'PyBiqBin-MaxCut {__version__}'
 
-    def __init__(self, data_getter: DataGetter, params: str):
+    def __init__(self, data_getter: DataGetter, params: str, time_limit: int = 0):
         """Initialize the solver
 
         Args:
@@ -106,6 +106,7 @@ class MaxCutSolver:
         set_heuristic(self.heuristic)
         # For testing purposes
         self.heuristic_counter = 0
+        self.time_limit = time_limit
 
     def read_data(self) -> np.ndarray:
         """Transform edge weight list into an adjacancy matrix
@@ -137,10 +138,11 @@ class MaxCutSolver:
         Returns:
             dict: result dict with keys: "max_val" - max cut solution value, "solution" - nodes in this solution, "time" - spent solving 
         """
-        result = run(self.solver_name, self.data_getter.problem_instance_name(), self.params)
+        result = run(self.solver_name, self.data_getter.problem_instance_name(), self.params, self.time_limit)
         if (self.get_rank() == 0):
             result['maxcut']['solution'] = result['maxcut']['solution'].tolist()
             result['meta_data']['instance'] = self.data_getter.problem_instance_name()
+            result['meta_data']['parameters'] = { 'time_limit': self.time_limit if self.time_limit > 0 else None }
             return result
         else:
             return None
@@ -222,8 +224,8 @@ class DataGetterJson(DataGetter):
 class QUBOSolver(MaxCutSolver):
     solver_name = f'PyBiqBin-QUBO {__version__}'
 
-    def __init__(self, data_getter: DataGetter, params: str, optimize_input:bool=False):
-        super().__init__(data_getter, params)
+    def __init__(self, data_getter: DataGetter, params: str, optimize_input:bool=False, time_limit:int=0):
+        super().__init__(data_getter, params, time_limit)
         self.optimize_input: bool = optimize_input
         self.gcd: int = 1
 
@@ -306,10 +308,8 @@ class QUBOSolver(MaxCutSolver):
                              'x': qubo_x,
                              'cardinality': float(cardinality),
                              }
-            result['meta_data']['parameters'] = {
-                'optimize_input': self.optimize_input,
-                'gcd' : self.gcd
-            }
+            result['meta_data']['parameters']['optimize_input'] = self.optimize_input
+            result['meta_data']['parameters']['gcd'] = self.gcd
             return result
         else:
             return None
@@ -330,6 +330,41 @@ class BaseParser(argparse.ArgumentParser):
                         help='overwrite output.json instead of labeling with _NUMBER'
                         )
         self.add_argument('-o', '--output', help='set custom output file path')
+        # time limit format taken from SLURM docs https://slurm.schedmd.com/sbatch.html
+        self.add_argument('-t', '--time', default='0', type=self.parse_time_limit, help='set running time limit; acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"')
+    
+    def get_time_limit(self):
+        ...
+    def parse_time_limit(self, s: str) -> int:
+        """
+        Parse Slurm-style time limits:
+        - "MM" (minutes only)
+        - "HH:MM:SS"
+        - "D-HH:MM:SS"
+        Returns:
+            int: total seconds
+        """
+        # If format includes days
+        if "-" in s:
+            days_str, rest = s.split("-", 1)
+            days = int(days_str)
+        else:
+            days, rest = 0, s
+
+        parts = rest.split(":")
+        if len(parts) == 3:
+            hours, minutes, seconds = map(int, parts)
+        elif len(parts) == 2:
+            hours, minutes = map(int, parts)
+            seconds = 0
+        elif len(parts) == 1:
+            # Slurm allows just minutes like "30"
+            return int(parts[0]) * 60
+        else:
+            raise argparse.ArgumentTypeError(f"Invalid time format: {s}")
+
+        total_seconds = days*86400 + hours*3600 + minutes*60 + seconds
+        return int(total_seconds)
 
 class ParserMaxCut(BaseParser):
     def __init__(self):

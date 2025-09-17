@@ -18,6 +18,10 @@ int numbWorkers;
 int num_workers_used = 0;
 int time_limit_reached = 0;
 
+int heuristic_counter;
+int heuristic_sum;
+
+
 int wrapped_main(int argc, char **argv) {
 
     /*******************************************************
@@ -240,6 +244,8 @@ int wrapped_main(int argc, char **argv) {
 
     FINISH:
 
+    // Reduce all heuristic_counter values into heuristic_sum on rank 0
+    MPI_Reduce(&heuristic_counter, &heuristic_sum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     /* Print results to the standard output and to the output file */
     if (rank == 0) {
         #ifndef PURE_C
@@ -277,5 +283,5 @@ int main(int argc, char **argv) {
 /// @brief alloc matrix and alloc vector macros use this
 /// @param abort_code 
 void abort_alloc_fail(int abort_code) {
-    MPI_Abort(MPI_COMM_WORLD, abort_code);                                                      \
+    MPI_Abort(MPI_COMM_WORLD, abort_code);                                            \
 }

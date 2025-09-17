@@ -105,7 +105,6 @@ class MaxCutSolver:
         set_read_data(self.read_data)
         set_heuristic(self.heuristic)
         # For testing purposes
-        self.heuristic_counter = 0
         self.time_limit = time_limit
 
     def read_data(self) -> np.ndarray:
@@ -129,7 +128,6 @@ class MaxCutSolver:
         Returns:
             float: value of the solution array "x" found by the heuristic function
         """
-        self.heuristic_counter += 1
         return default_heuristic(L0, L, xfixed, sol_X, x)
 
     def run(self):

@@ -25,6 +25,9 @@ std::vector<int> selected_nodes;
 extern int num_workers_used;
 extern int time_limit_reached;
 extern int rank;
+extern int heuristic_counter;
+extern int heuristic_sum;
+
 double running_time;
 int time_limit;
 
@@ -122,6 +125,8 @@ py::array_t<int> get_selected_nodes_np_array()
 py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_name, int time_limit_in)
 {
     time_limit = time_limit_in;
+    heuristic_counter = 0;
+
     char *argv[3] = {prog_name, problem_instance_name, params_file_name};
     wrapped_main(3, argv);
     clean_python_references();
@@ -134,6 +139,7 @@ py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_
     meta_data["time"] = running_time;
     meta_data["time_limit_reached"] = (time_limit_reached) ? true : false;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
+    meta_data["heuristic_run_count"] = heuristic_sum;
     meta_data["num_workers_used"] = num_workers_used;
     solution_info["computed_val"] = Bab_LBGet();
     solution_info["solution"] = get_selected_nodes_np_array();
@@ -203,6 +209,7 @@ py::array_t<T> wrapped_matrix(T *data, ssize_t rows, ssize_t cols)
 /// @return best lower bound of the current subproblem found by the heuristic used
 double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x)
 {
+    heuristic_counter++;
     // Wrap matrices
     py::array_t<double> P0_L_array = wrapped_matrix(P0->L, P0->n, P0->n);
     py::array_t<double> P_L_array = wrapped_matrix(P->L, P->n, P->n);

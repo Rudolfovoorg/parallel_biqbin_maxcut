@@ -29,3 +29,4 @@
 - added qubo optimization step to divide the qubo by gcd
 - updated readme
 - added setting time limit to solver
+- moved heuristic counter from python to C to sum the value up using MPI

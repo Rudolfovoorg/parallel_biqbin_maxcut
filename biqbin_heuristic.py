@@ -28,9 +28,7 @@ class QuboDwaveSampler(QUBOSolver):
         Returns:
             np.ndarray: solution nodes provided by the heuristc, should be in 0, 1 form (1 node is chosen, 0 it is not chosen)
         """
-
-        self.heuristic_counter += 1
-
+        
         _x = np.array(
             list(self.sampler.sample_qubo(-L[:-1, :-1],
                  **self.sampler_kwargs).first.sample.values()),

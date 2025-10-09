@@ -44,10 +44,14 @@ double rho = 0.0;                   // used in BQP -> MC transformation: exact p
 double *F_obj_data;
 double *c_obj_data;
 
-/*** read input file containing data for linearly constrained BQP: 
-     objective: F,c, constraints: A,b ***/
-double* post_process_BQP_input(InputData input_data, int* adj_N) {
 
+/// @brief Original post_process_BQP_input from https://github.com/Rudolfovoorg/serial_biqbin_general_bqp/blob/main/process_input.c
+/// @param input_data 
+/// @param adj_N number of vertices in adjacency matrix
+/// @return adjacency matrix
+double* post_process_BQP_input(InputData input_data, int* adj_N) {
+    /*** read input file containing data for linearly constrained BQP: 
+     objective: F,c, constraints: A,b ***/
     int m = input_data.m;
     int n = input_data.n;
     double *A_con = input_data.A;
@@ -270,6 +274,11 @@ double* post_process_BQP_input(InputData input_data, int* adj_N) {
     return Adj;
 }
 
+/// @brief Original read_data from https://github.com/Rudolfovoorg/serial_biqbin_general_bqp/blob/main/process_input.c
+///        converted to fit the Python wrapper.
+/// @param instance path to instance file
+/// @param adj_N vertices in adjacency matrix
+/// @return adjacency matrix
 double* read_data_bqp(const char *instance, int *adj_N) {
 
     InputData input_data;
@@ -439,7 +448,8 @@ double* read_data_bqp(const char *instance, int *adj_N) {
     return adj;
 }
 
-/* get final output for BQP*/
+/// @brief Convert Max-Cut solution back into BQP solution and return it to the Python wrapper
+/// @return BQP results in a python dictionary
 py::dict read_solution_bqp() {
 
     py::dict result_dict;
@@ -475,7 +485,7 @@ py::dict read_solution_bqp() {
             printf("Best value = %.0lf\n", const_val - best_sol);
         }    
     }
-    result_dict["best_value"] = const_val - best_sol;
+    result_dict["computed_val"] = const_val - best_sol;
     
     // output solution
     // extern double *F_obj_data;

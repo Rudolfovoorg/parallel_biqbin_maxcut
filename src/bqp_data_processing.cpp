@@ -1,14 +1,23 @@
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
+
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h> // for std::vector
 
 #include "biqbin.h"
+#include "wrapper.h"
+#include "biqbin_cpp_api.h"
+
+namespace py = pybind11;
 
 // macro to handle the errors in the input reading
 #define READING_ERROR(file,cond,message)\
         if ((cond)) {\
             fprintf(stderr, "\nError: "#message"\n");\
             fclose(file);\
-            return 1;\
+            exit(1);\
         }
 
 // macro to handle the errors in the input reading
@@ -18,7 +27,7 @@
             fprintf(stderr, "\n"#message); \
             fprintf(stderr, "\n" __VA_ARGS__);\
             fclose(file);\
-            return 1;\
+            exit(1);\
         }
 
 typedef struct InputData
@@ -31,10 +40,13 @@ typedef struct InputData
     char name[255];
 } InputData;
 
-extern FILE *output;
-extern Problem *SP;             
-extern Problem *PP;            
+extern int stopped;
+extern FILE *output;       
 extern int BabPbSize;
+extern BiqBinParameters params;
+extern Problem *SP;             
+extern Problem *PP;
+extern BabSolution* BabSol;
 
 /* global variables for BQP->MC tansformation */
 double const_val = 0.0;             // constant value used in BQP -> MC tranformation. The opt. value of the original problem is const_val - OP_MC
@@ -44,7 +56,7 @@ double *c_obj_data;
 
 /*** read input file containing data for linearly constrained BQP: 
      objective: F,c, constraints: A,b ***/
-void post_process_BQP_input(InputData input_data) {
+double* post_process_BQP_input(InputData input_data, int* adj_N) {
 
     int m = input_data.m;
     int n = input_data.n;
@@ -250,6 +262,7 @@ void post_process_BQP_input(InputData input_data) {
     // we multiply by 4 to get integer values in the end!
 
     double *Adj;
+    *adj_N = n + 1;
     alloc_matrix(Adj, n+1, double);
     for (int ii = 0; ii < n+1; ++ii) {            
         for (int jj = 0; jj < n+1; ++jj) {
@@ -258,96 +271,16 @@ void post_process_BQP_input(InputData input_data) {
         }
     } 
     //print_matrix(Adj,n+1,n+1);
-
-
-    // we follow with the same steps as in readData function (this part of the code is copied):
-    // construct diag(Ae) and Laplacian
-
-    // allocate memory for original problem SP and subproblem PP
-    alloc(SP, Problem);
-    alloc(PP, Problem);
-
-    // size of matrix L
-    SP->n = n+1;   
-    PP->n = SP->n;              
-
-    // allocate memory for objective matrices for SP and PP
-    alloc_matrix(SP->L, SP->n, double);
-    alloc_matrix(PP->L, SP->n, double);
-
-    // IMPORTANT: last node is fixed to 0
-    // --> BabPbSize is one less than the size of problem SP
-    BabPbSize = SP->n - 1;
-    
-    
-
-    /********** construct SP->L from Adj **********/
-    /*
-     * SP->L = [ Laplacian,  Laplacian*e; (Laplacian*e)',  e'*Laplacian*e]
-     */
-    // NOTE: we multiply with 1/4 afterwards when subproblems PP are created!
-    //       (in function createSubproblem)
-    // NOTE: Laplacian is stored in upper left corner of L
-
-    // (1) construct vec Adje = Adj*e 
-    double *Adje;
-    alloc_vector(Adje, n+1, double);
-
-    for (int ii = 0; ii < n+1; ++ii) {
-        for (int jj = 0; jj < n+1; ++jj) {
-            Adje[ii] += Adj[jj + ii * (n+1)];
-        }
-    }
-
-    // (2) construct Diag(Adje)
-    double *tmp;
-    alloc_matrix(tmp, n+1, double);
-    Diag(tmp, Adje, n+1);
-
-    // (3) fill upper left corner of L with Laplacian = tmp - Adj,
-    //     vector parts and constant part      
-    double sum_row = 0.0;
-    double sum = 0.0;
-
-    // NOTE: skip last vertex (it is fixed to 0)!!
-    for (int ii = 0; ii < n+1; ++ii) {            
-        for (int jj = 0; jj < n+1; ++jj) {
-
-            // matrix part of L
-            if ( (ii < n) && (jj < n) ) {
-                SP->L[jj + ii * (n+1)] = tmp[jj + ii * (n+1)] - Adj[jj + ii * (n+1)]; 
-                sum_row += SP->L[jj + ii * (n+1)];       
-            }
-            // vector part of L
-            else if ( (jj == n) && (ii != n)  ) {
-                SP->L[jj + ii * (n+1)] = sum_row;
-                sum += sum_row;
-            }
-            // vector part of L
-            else if ( (ii == n) && (jj != n)  ) {
-                SP->L[jj + ii * (n+1)] = SP->L[ii + jj * (n+1)];
-            }
-            // constant term in L
-            else { 
-                SP->L[jj + ii * (n+1)] = sum;
-            }
-        }
-        sum_row = 0.0;
-    }  
-
-    //print_matrix(SP->L,n+1,n+1);
-
     /* free stuff */
     free(C);
     free(tmp_X);
     free(tmp_C); 
     free(L_tmp);
-    free(Adj);
-    free(Adje);
-    free(tmp);
+
+    return Adj;
 }
 
-int read_data_BQP(const char *instance) {
+double* read_data_bqp(const char *instance, int *adj_N) {
 
     InputData input_data;
     // input data  file line counter
@@ -393,7 +326,7 @@ int read_data_BQP(const char *instance) {
     int i, j;
     double value;
 
-    // matrix A_con: allocate and set to 0 
+    // matrix A_con: allocate and set to 0
     double *A_con;
     alloc_vector(A_con, m*n, double);
     input_data.A = A_con;
@@ -508,8 +441,88 @@ int read_data_BQP(const char *instance) {
        
        c_obj[ i-1 ] = value;
     }
-    post_process_BQP_input(input_data);
-
-    return 0;    
+    double* adj = post_process_BQP_input(input_data, adj_N);
+    free(input_data.A);
+    free(input_data.b);
+    free(input_data.F);
+    free(input_data.c);
+    return adj;
 }
 
+/* get final output for BQP*/
+py::dict read_solution_bqp() {
+
+    py::dict result_dict;
+
+    // Best solution found
+    double best_sol = Bab_LBGet();
+    
+    result_dict["rho"] = rho;
+    result_dict["const_value"] = const_val;
+    
+    
+    // check for infeasibility of original problem
+    if (const_val - best_sol > rho) {
+        printf("Original problem is INFEASIBLE due to condition const_val - opt_MC > rho: %lf > %lf.\n", const_val - best_sol, rho);
+        result_dict["feasible_solution"] = false;
+        return result_dict;
+    }
+    
+    result_dict["feasible_solution"] = true;
+
+
+    // output value
+    // normal termination
+    if (!stopped) {
+        printf("Minimum value of the original problem is const_val - Maximum value: %.0lf\n", const_val - best_sol);
+        
+    } else { // B&B stopped early
+        if (params.root) {
+            printf("Best value (root) = %.0lf\n", const_val - best_sol);
+        }
+        else { /* time limit reached */
+            printf("TIME LIMIT REACHED.\n");
+            printf("Best value = %.0lf\n", const_val - best_sol);
+        }    
+    }
+    result_dict["best_value"] = const_val - best_sol;
+    
+    // output solution
+    // extern double *F_obj_data;
+    // extern double *c_obj_data; 
+    // max-cut has symmetrix solutions: if x is opt.sol then -x is also. 
+    // We need to check both to see which one is the minimizer of the original problem
+
+    // compute opt_value = x'Fx + c'x
+    extern std::vector<int> solution_x;
+    double opt_value = 0.0;
+    for (int ii = 0; ii < BabPbSize; ++ii) {            
+        for (int jj = 0; jj < BabPbSize; ++jj) {
+            opt_value += (solution_x[ii])*F_obj_data[jj + ii * BabPbSize]*(solution_x[jj]);
+        }
+        opt_value += c_obj_data[ii]*(solution_x[ii]);
+    }
+    
+    std::vector<int> bqp_sol_x;
+    printf("Solution = ( ");
+    if ( (int)(const_val - best_sol) == (int)(opt_value) ) {
+        for (int i = 0; i < BabPbSize; ++i) {
+            printf("%d ", solution_x[i]);
+            bqp_sol_x.push_back(solution_x[i]);
+        }
+    }
+    else {
+        for (int i = 0; i < BabPbSize; ++i) {
+            printf("%d ", 1 - solution_x[i]); // flip
+            bqp_sol_x.push_back(1 - solution_x[i]);
+        }
+    }
+    
+    printf(")\n");
+    result_dict["x"] = py::cast(bqp_sol_x);
+
+
+    free(F_obj_data);
+    free(c_obj_data);
+    return result_dict;
+}

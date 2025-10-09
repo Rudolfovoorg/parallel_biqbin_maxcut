@@ -258,6 +258,9 @@ py::array_t<double> read_data_bqp_python(const std::string &instance)
     return py::array_t<double>({adj_N, adj_N}, adj);
 }
 
+/// @brief Read and parse bqp json data
+/// @param instance Built in DataGetterBQPJson
+/// @return adjacency matrix
 py::array_t<double> read_data_bqp_json_python(py::dict &instance) 
 {
     double *adj;
@@ -266,20 +269,26 @@ py::array_t<double> read_data_bqp_json_python(py::dict &instance)
     input_data.n = instance["number_of_variables"].cast<int>();
     input_data.m = instance["number_of_constraints"].cast<int>();
 
+    // https://pybind11.readthedocs.io/en/stable/advanced/pycpp/numpy.html - under "vectorizing functions"
+    // grab the underlying numpy array
     py::array_t<double> A_array = instance["Am"].cast<py::array_t<double>>();
     py::array_t<double> F_array = instance["Fm"].cast<py::array_t<double>>();
     py::array_t<double> c_array = instance["cm"].cast<py::array_t<double>>();
-    py::array_t<double> b_array = instance["bm"].cast<py::array_t<double>>();  // Add this if needed
+    py::array_t<double> b_array = instance["bm"].cast<py::array_t<double>>();
 
+    // grab the buffer info
     auto A_buf = A_array.request();
     auto F_buf = F_array.request();
     auto c_buf = c_array.request();
     auto b_buf = b_array.request();
 
+    // cast buffer info into a double* raw pointer, it is owned by Python
     input_data.A = static_cast<double*>(A_buf.ptr);
     input_data.F = static_cast<double*>(F_buf.ptr);
     input_data.c = static_cast<double*>(c_buf.ptr);
     input_data.b = static_cast<double*>(b_buf.ptr);
+
+    // Original function
     adj = post_process_BQP_input(input_data, &adj_N);
 
     return py::array_t<double>({adj_N, adj_N}, adj);

@@ -128,7 +128,13 @@ test-qubo-python-heuristic: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json
 	python tests/check_qubo_test.py tests/qubos/80/kcluster80_025_20_1.json
 
-test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic
+test-bqp-python: clean-output
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data
+	python tests/check_bqp_test.py tests/bqp/test_bqp.data
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j
+	python tests/check_bqp_test.py tests/bqp/test_bqp.json
+
+test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic test-bqp-python
 
 docker: 
 	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 

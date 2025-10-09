@@ -188,7 +188,7 @@ mpirun -n N python3 biqbin_maxcut.py problem_instance [-p PARAMS] [-w] [-o OUTPU
 
 Example:
 ```bash
-mpirun -n 3 python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json params
+mpirun -n 3 python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json
 ```
 General command:
 ```bash
@@ -212,7 +212,7 @@ In our example we use DWaves `neal.SimulatedAnnealingSampler`.
 
 Example:
 ```bash
-mpirun -n 3 python3 biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json params
+mpirun -n 3 python3 biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json
 ```
 General command:
 ```bash
@@ -229,6 +229,31 @@ mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OU
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-h`, `--help`: Show help message and exit.
 
+### Python Wrapper for general BQP
+
+Example:
+```bash
+mpirun -n 3 python3 biqbin_bqp.py tests/bqp/test_bqp.data
+```
+General command:
+```bash
+mpirun -n N python3 biqbin_bqp.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
+```
+
+- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
+- `problem_instance`: .
+- `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
+- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
+- `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
+- `-O`, `--optimize`: Divide QUBO values by their GCD.
+- `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
+-  `-j`, `--json`: Read a .json input file.
+- `-h`, `--help`: Show help message and exit.
+
+For input file example please see [bqp_input_example.md](bqp_input_example.md).
+
+---
+
 ### Examples
 
 Please check the following Python files to find how to setup biqbin solver through Python
@@ -236,6 +261,7 @@ Please check the following Python files to find how to setup biqbin solver throu
 - `biqbin_maxcut.py`: Example on how to run the default version of biqbin.
 - `biqbin_qubo.py`: Example on how to run QUBO problem.
 - `biqbin_heuristic.py`: Example on how to custom heuristc for lower bound estimation.
+- `biqbin_bqp.py`: Example on how to run general BQP biqbin.
 
 
 ---
@@ -258,6 +284,8 @@ Python versions of the solver use a DataGetter class, split into seperate subcla
 - `DataGetterMaxCutDefault` uses the default C implementation of parsing the file, thus requires the same edge weight format.
 - `DataGetterAdjacencyJson` parses a `json` serializable dictionary with "adjacency" key and a `scipy.coo_matrix` of an adjacency matrix as value.
 - `DataGetterJson` is the default `DataGetter` for QUBO instances, parses a `scipy.coo_matrix` of a QUBO into a MaxCut adjacency matrix.
+- `DataGetterBQPDefault` is the default `DataGetter` for BQP instances, parses a txt of a BQP into a MaxCut adjacency matrix.
+- `DataGetterBQPJson` is the json `DataGetter` for BQP instances, parses a json serializable file into a MaxCut adjacency matrix.
 
 #### MaxCut default input example
 C-version expects an edge weight list format, with the first line containing the number of vertices and edges:
@@ -285,6 +313,10 @@ Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` 
 ```
 
 Other key, value pairs can be added per users discretion.
+
+#### BQP input example
+Is explained [here](bqp_input_example.md).
+
 ---
 
 > **NOTE (AGAIN):** Biqbin can only solve problem instances with  **integer edge weight**!  

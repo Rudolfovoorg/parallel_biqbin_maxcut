@@ -30,3 +30,6 @@
 - updated readme
 - added setting time limit to solver
 - moved heuristic counter from python to C to sum the value up using MPI
+- added instance cpp parsing from https://github.com/Rudolfovoorg/serial_biqbin_general_bqp/tree/main
+- added Solver, DataGetter and argparser for bqp version
+- added tests for bqp version

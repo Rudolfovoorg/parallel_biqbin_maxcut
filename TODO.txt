@@ -3,3 +3,5 @@
 - Add additional converters and other utilities to utils.py
 - Fix MPI Finalize conflicts with Python objects
 - Change the way file parameters are read and set
+- Change the way tests are handled
+- Add instances and solutions for all version for proper testing

@@ -13,7 +13,7 @@ from biqbin import (run, set_heuristic,
                     default_heuristic,
                     get_rank, set_read_data,
                     default_read_data, read_data_bqp,
-                    read_solution_bqp)
+                    read_solution_bqp, read_data_bqp_json)
 
 
 class DataGetter(ABC):
@@ -91,7 +91,7 @@ class DataGetterAdjacencyJson(DataGetterMaxCutDefault):
 
 class DataGetterBQPDefault(DataGetter):
     """
-    Uses the default C implementation or MaxCut, reads and parses maxcut instance file in edge weight list format and parses
+    Uses the default C implementation of biqbin_general_bqp, reads and parses bqp instance file and parses
     into the adjacency matrix.
     """
     def __init__(self, filename: str):
@@ -114,6 +114,50 @@ class DataGetterBQPDefault(DataGetter):
     def read_file(self):
         self.adj_matrix = read_data_bqp(self.filename)
         return self.adj_matrix
+    
+class DataGetterBQPJson(DataGetterBQPDefault):
+    """
+    Uses the default json implementation of biqbin_general_bqp, reads and parses bqp instance file and parses
+    into the adjacency matrix.
+    """
+    def read_file(self):
+        instance = self.read_bqp_json(self.filename)
+        self.adj_matrix = read_data_bqp_json(instance)
+        return self.adj_matrix
+    
+    def read_bqp_json(self, filename):
+        with open(filename, 'r') as f:
+            instance = json.load(f)
+        # zes it is realy like this in biqbin :(
+        def f(F):
+            for i,j,v in F:
+                if i==j:
+                    yield (i, j), v
+                else:
+                    yield (i, j), v
+                    yield (j, i), v
+                    
+        
+        Fdict = dict(f(instance["F"]))
+        Anp = np.array(instance["A"])
+        cnp = np.array(instance["c"])
+        bnp = np.array(instance["b"])
+
+        Find, Fv = (list(Fdict.keys()), list(Fdict.values()))
+        Find = np.asarray(Find)
+
+        Fm = sp.sparse.coo_matrix((Fv, (Find[:, 0], Find[:, 1])), shape=(instance["number_of_variables"], instance["number_of_variables"])).todense()
+        Am = sp.sparse.coo_matrix((Anp[:, 2], (Anp[:, 0], Anp[:, 1])), shape=(instance["number_of_constraints"], instance["number_of_variables"])).todense()
+        cm = sp.sparse.coo_matrix((cnp[:, 1], ([0]*len(instance["c"]), cnp[:, 0])), shape=(1, instance["number_of_variables"])).todense()
+        bm = sp.sparse.coo_matrix((bnp[:, 1], (bnp[:, 0], [0]*len(instance["b"]))), shape=(instance["number_of_constraints"], 1)).todense()
+                    
+                    
+        instance["Fm"] = Fm
+        instance["Am"] = Am
+        instance["cm"] = cm
+        instance["bm"] = bm
+        
+        return instance
 
 class MaxCutSolver:
     """Default MaxCut Biqbin Wrapper, runs Biqbin MaxCut using its original functions
@@ -406,6 +450,7 @@ class BaseParser(argparse.ArgumentParser):
 class ParserBQP(BaseParser):
     def __init__(self):
         super().__init__(prog=f'biqbin_bqp.py', description='Biqbin BQP solver')
+        self.add_argument('-j', '--json', action='store_true', help='use json input file')
 
 class ParserMaxCut(BaseParser):
     def __init__(self):

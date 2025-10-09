@@ -30,16 +30,6 @@ namespace py = pybind11;
             exit(1);\
         }
 
-typedef struct InputData
-{
-    int m, n;
-    double *A;
-    double *b;
-    double *F;
-    double *c;
-    char name[255];
-} InputData;
-
 extern int stopped;
 extern FILE *output;       
 extern int BabPbSize;

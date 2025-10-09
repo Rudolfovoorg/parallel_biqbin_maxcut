@@ -1,6 +1,6 @@
 # python>=3.12
 
+numpy
 pybind11
 scipy
-numpy
 dwave-neal 

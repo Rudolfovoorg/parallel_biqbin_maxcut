@@ -12,7 +12,8 @@ from glob import glob
 from biqbin import (run, set_heuristic,
                     default_heuristic,
                     get_rank, set_read_data,
-                    default_read_data)
+                    default_read_data, read_data_bqp,
+                    read_solution_bqp)
 
 
 class DataGetter(ABC):
@@ -88,6 +89,32 @@ class DataGetterAdjacencyJson(DataGetterMaxCutDefault):
         
         return self.adj_matrix
 
+class DataGetterBQPDefault(DataGetter):
+    """
+    Uses the default C implementation or MaxCut, reads and parses maxcut instance file in edge weight list format and parses
+    into the adjacency matrix.
+    """
+    def __init__(self, filename: str):
+        self.filename = filename
+        self.adj_matrix = None
+    
+    def problem_instance_name(self) -> str:
+        """Get the instance file path
+
+        Returns:
+            str: path to instance file
+        """
+        return self.filename
+
+    def problem_instance(self):
+        """Gets the adjacency matrix from the instance file
+        """
+        return self.adj_matrix
+    
+    def read_file(self):
+        self.adj_matrix = read_data_bqp(self.filename)
+        return self.adj_matrix
+
 class MaxCutSolver:
     """Default MaxCut Biqbin Wrapper, runs Biqbin MaxCut using its original functions
     """
@@ -104,7 +131,6 @@ class MaxCutSolver:
         self.params = params
         set_read_data(self.read_data)
         set_heuristic(self.heuristic)
-        # For testing purposes
         self.time_limit = time_limit
 
     def read_data(self) -> np.ndarray:
@@ -138,13 +164,12 @@ class MaxCutSolver:
         """
         result = run(self.solver_name, self.data_getter.problem_instance_name(), self.params, self.time_limit)
         if (self.get_rank() == 0):
-            result['maxcut']['solution'] = result['maxcut']['solution'].tolist()
             result['meta_data']['instance'] = self.data_getter.problem_instance_name()
             result['meta_data']['parameters'] = { 'time_limit': self.time_limit if self.time_limit > 0 else None }
             return result
         else:
             return None
-
+        
     def get_rank(self) -> int:
         """MPI process rank
 
@@ -300,7 +325,6 @@ class QUBOSolver(MaxCutSolver):
             computed_val = self.data_getter.problem_instance().dot(qubo_x).dot(qubo_x)
             cardinality = sum(qubo_x)
             result['maxcut']['computed_val'] *= self.gcd
-            result['maxcut']['x'] = mc_x
             result['qubo'] = {'computed_val': float(computed_val),
                              'solution': qubo_solution,
                              'x': qubo_x,
@@ -312,6 +336,21 @@ class QUBOSolver(MaxCutSolver):
         else:
             return None
         
+
+class BQPSolver(MaxCutSolver):
+        def run(self) -> dict:
+            """Runs the original biqbin then adds the bqp solution info to the result dict
+
+            Returns:
+                dict: result dict containing "maxcut" and "qubo" keys with their respective solutions
+            """
+            result = super().run()
+            if (self.get_rank() == 0):
+                result['bqp'] = read_solution_bqp()
+                return result
+            else:
+                return None
+
 
 class BaseParser(argparse.ArgumentParser):
     def __init__(self, prog: str, description: str):
@@ -364,11 +403,14 @@ class BaseParser(argparse.ArgumentParser):
         total_seconds = days*86400 + hours*3600 + minutes*60 + seconds
         return int(total_seconds)
 
+class ParserBQP(BaseParser):
+    def __init__(self):
+        super().__init__(prog=f'biqbin_bqp.py', description='Biqbin BQP solver')
+
 class ParserMaxCut(BaseParser):
     def __init__(self):
         super().__init__(prog=f'biqbin_maxcut.py', description='Biqbin Maxcut solver')
         self.add_argument('-e', '--edge_weight', action='store_true', help='use edge weight input file')
-
         
 class ParserQubo(BaseParser):
     def __init__(self, prog=f'biqbin_qubo.py', description='Biqbin QUBO solver'):

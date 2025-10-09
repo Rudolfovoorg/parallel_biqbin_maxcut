@@ -172,9 +172,6 @@ double GW_heuristic(double *P0_L, int P0_N , double *P_L, int P_N, int *node_xfi
 // RK double mc_1opt(int *x, Problem *P0);
 double mc_1opt(int *x, double *P_L, int P_N);
 
-/* ipm_mc_pk.c */
-void ipm_mc_pk(double *L, int n, double *X, double *phi, int print);
-
 /* operators.c */
 void diag(const double *X, double *y, int n);
 void Diag(double *X, const double *y, int n);

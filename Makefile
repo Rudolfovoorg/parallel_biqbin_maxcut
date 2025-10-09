@@ -46,7 +46,6 @@ C_OBJS = $(C_BUILD_DIR)/bundle.o $(C_BUILD_DIR)/allocate_free.o $(C_BUILD_DIR)/b
          $(C_BUILD_DIR)/evaluate.o $(C_BUILD_DIR)/heap.o $(C_BUILD_DIR)/ipm_mc_pk.o \
          $(C_BUILD_DIR)/heuristic.o $(C_BUILD_DIR)/main.o $(C_BUILD_DIR)/operators.o \
          $(C_BUILD_DIR)/process_input.o $(C_BUILD_DIR)/qap_simulated_annealing.o \
-		 $(C_BUILD_DIR)/bqp_data_processing.o
 
 # BiqBin objects
 OBJS =   $(WRAPPER_BUILD_DIR)/bundle.o $(WRAPPER_BUILD_DIR)/allocate_free.o $(WRAPPER_BUILD_DIR)/bab_functions.o \
@@ -54,7 +53,7 @@ OBJS =   $(WRAPPER_BUILD_DIR)/bundle.o $(WRAPPER_BUILD_DIR)/allocate_free.o $(WR
          $(WRAPPER_BUILD_DIR)/evaluate.o $(WRAPPER_BUILD_DIR)/heap.o $(WRAPPER_BUILD_DIR)/ipm_mc_pk.o \
          $(WRAPPER_BUILD_DIR)/heuristic.o $(WRAPPER_BUILD_DIR)/main.o $(WRAPPER_BUILD_DIR)/operators.o \
          $(WRAPPER_BUILD_DIR)/process_input.o $(WRAPPER_BUILD_DIR)/qap_simulated_annealing.o \
-		 $(WRAPPER_BUILD_DIR)/bqp_data_processing.o
+		 $(WRAPPER_BUILD_DIR)/bqp_data_processing.o $(WRAPPER_BUILD_DIR)/wrapper.o
 
 # All objects
 
@@ -75,6 +74,7 @@ clean-output:
 	rm -f rudy/*.output*
 	rm -f tests/rudy/*.output*
 	rm -f tests/qubos/*/*.output*
+	rm -f tests/bqp/*.output*
 
 # Clean rule #
 clean: clean-output
@@ -98,11 +98,11 @@ $(C_BUILD_DIR)/%.o: src/%.c  | $(C_BUILD_DIR)
 $(WRAPPER_BUILD_DIR)/%.o: src/%.c  | $(WRAPPER_BUILD_DIR)
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
-$(WRAPPER_BUILD_DIR)/wrapper.o: src/wrapper.cpp  | $(WRAPPER_BUILD_DIR)
+$(WRAPPER_BUILD_DIR)/%.o: src/%.cpp  | $(WRAPPER_BUILD_DIR)
 	$(CPP) $(CPPFLAGS) $(INCLUDES) -c -o $@ $<
 
 # Python module rule
-$(PYMOD_OUT): $(OBJS) build/wrapper/wrapper.o
+$(PYMOD_OUT): $(OBJS) build/wrapper/wrapper.o build/wrapper/bqp_data_processing.o
 	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
 
 # Tests

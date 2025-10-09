@@ -7,6 +7,15 @@
 # define EXTERN_C
 #endif
 
+typedef struct InputData
+{
+    int m, n;
+    double *A;
+    double *b;
+    double *F;
+    double *c;
+} InputData;
+
 EXTERN_C double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x);
 EXTERN_C int wrapped_read_data();
 EXTERN_C void clean_python_references(void);

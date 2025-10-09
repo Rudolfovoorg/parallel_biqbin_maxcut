@@ -1,5 +1,5 @@
 import argparse
-from biqbin_base import BQPSolver, DataGetterBQPDefault, ParserBQP
+from biqbin_base import BQPSolver, DataGetterBQPDefault, DataGetterBQPJson, ParserBQP
 
 """
     Default MaxCut Biqbin wrapper example
@@ -11,8 +11,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     # Create an instance of the MaxCutSolver passing in the above arguments
-    data_getter = DataGetterBQPDefault(args.problem_instance)
-
+    if args.json:
+        data_getter = DataGetterBQPJson(args.problem_instance)
+    else:
+        data_getter = DataGetterBQPDefault(args.problem_instance)
     solver = BQPSolver(data_getter, args.params, args.time)
     result = solver.run()  # run the solver
 

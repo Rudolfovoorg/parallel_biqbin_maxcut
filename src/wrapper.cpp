@@ -22,12 +22,6 @@ extern int BabPbSize;
 std::vector<int> selected_nodes;
 std::vector<int> solution_x;
 
-
-/* bqp funtions */
-extern py::dict read_solution_bqp();
-extern double* read_data_bqp(const char *instance, int *adj_N);
-extern double* post_process_BQP_input(InputData input_data, int* adj_N);
-
 /* meta_data */
 extern int num_workers_used;
 extern int time_limit_reached;
@@ -246,54 +240,6 @@ py::array_t<double> read_data_python(const std::string &instance)
     return py::array_t<double>({adj_N, adj_N}, adj);
 }
 
-/// @brief Read the bqp problem file return the adjacency matrix
-/// @param instance path to instance file
-/// @return adjacency matrix
-py::array_t<double> read_data_bqp_python(const std::string &instance)
-{
-    double *adj;
-    int adj_N;
-    adj = read_data_bqp(instance.c_str(), &adj_N);
-
-    return py::array_t<double>({adj_N, adj_N}, adj);
-}
-
-/// @brief Read and parse bqp json data
-/// @param instance Built in DataGetterBQPJson
-/// @return adjacency matrix
-py::array_t<double> read_data_bqp_json_python(py::dict &instance) 
-{
-    double *adj;
-    int adj_N;
-    InputData input_data;
-    input_data.n = instance["number_of_variables"].cast<int>();
-    input_data.m = instance["number_of_constraints"].cast<int>();
-
-    // https://pybind11.readthedocs.io/en/stable/advanced/pycpp/numpy.html - under "vectorizing functions"
-    // grab the underlying numpy array
-    py::array_t<double> A_array = instance["Am"].cast<py::array_t<double>>();
-    py::array_t<double> F_array = instance["Fm"].cast<py::array_t<double>>();
-    py::array_t<double> c_array = instance["cm"].cast<py::array_t<double>>();
-    py::array_t<double> b_array = instance["bm"].cast<py::array_t<double>>();
-
-    // grab the buffer info
-    auto A_buf = A_array.request();
-    auto F_buf = F_array.request();
-    auto c_buf = c_array.request();
-    auto b_buf = b_array.request();
-
-    // cast buffer info into a double* raw pointer, it is owned by Python
-    input_data.A = static_cast<double*>(A_buf.ptr);
-    input_data.F = static_cast<double*>(F_buf.ptr);
-    input_data.c = static_cast<double*>(c_buf.ptr);
-    input_data.b = static_cast<double*>(b_buf.ptr);
-
-    // Original function
-    adj = post_process_BQP_input(input_data, &adj_N);
-
-    return py::array_t<double>({adj_N, adj_N}, adj);
-}
-
 /// @brief Get an adjacency matrix from Python and set Problem *SP->L and *PP global variables
 int wrapped_read_data()
 {
@@ -336,8 +282,5 @@ PYBIND11_MODULE(biqbin, m)
     m.def("run", &run_py);
     m.def("default_heuristic", &run_heuristic_python);
     m.def("default_read_data", &read_data_python);
-    m.def("read_data_bqp", &read_data_bqp_python);
-    m.def("read_data_bqp_json", &read_data_bqp_json_python);
-    m.def("read_solution_bqp", &read_solution_bqp);
     m.def("get_rank", &get_rank);
 }

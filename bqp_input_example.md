@@ -31,7 +31,7 @@ Same data can be passed in the following .json format:
     "number_of_constraints": m, 
     "A": [
         [row_1, col_1, value_1], 
-            ...
+                ...
         [row_n, col_m, value_nm]
         ], 
 

@@ -12,8 +12,9 @@ from glob import glob
 from biqbin import (run, set_heuristic,
                     default_heuristic,
                     get_rank, set_read_data,
-                    default_read_data, read_data_bqp,
-                    read_solution_bqp, read_data_bqp_json)
+                    default_read_data)
+
+from bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_json, read_solution_bqp
 
 
 class DataGetter(ABC):
@@ -89,38 +90,23 @@ class DataGetterAdjacencyJson(DataGetterMaxCutDefault):
         
         return self.adj_matrix
 
-class DataGetterBQPDefault(DataGetter):
+class DataGetterBQPDefault(DataGetterMaxCutDefault):
     """
     Uses the default C implementation of biqbin_general_bqp, reads and parses bqp instance file and parses
     into the adjacency matrix.
     """
-    def __init__(self, filename: str):
-        self.filename = filename
-        self.adj_matrix = None
-    
-    def problem_instance_name(self) -> str:
-        """Get the instance file path
-
-        Returns:
-            str: path to instance file
-        """
-        return self.filename
-
-    def problem_instance(self):
-        """Gets the adjacency matrix from the instance file
-        """
-        return self.adj_matrix
-    
     def read_file(self):
+        print("PLACEHOLDER FUNCTION")
         self.adj_matrix = read_data_bqp(self.filename)
         return self.adj_matrix
     
-class DataGetterBQPJson(DataGetterBQPDefault):
+class DataGetterBQPJson(DataGetterMaxCutDefault):
     """
     Uses the default json implementation of biqbin_general_bqp, reads and parses bqp instance file and parses
     into the adjacency matrix.
     """
     def read_file(self):
+        print("PLACEHOLDER FUNCTION")
         instance = self.read_bqp_json(self.filename)
         self.adj_matrix = read_data_bqp_json(instance)
         return self.adj_matrix
@@ -390,11 +376,10 @@ class BQPSolver(MaxCutSolver):
             """
             result = super().run()
             if (self.get_rank() == 0):
-                result['bqp'] = read_solution_bqp()
+                result['bqp'] = read_solution_bqp(result, len(self.data_getter.problem_instance()) - 1,)
                 return result
             else:
                 return None
-
 
 class BaseParser(argparse.ArgumentParser):
     def __init__(self, prog: str, description: str):

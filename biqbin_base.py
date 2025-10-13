@@ -15,6 +15,7 @@ from biqbin import (run, set_heuristic,
                     default_read_data)
 
 
+
 class DataGetter(ABC):
     """Abstract class to parse qubo data
     """
@@ -104,7 +105,6 @@ class MaxCutSolver:
         self.params = params
         set_read_data(self.read_data)
         set_heuristic(self.heuristic)
-        # For testing purposes
         self.time_limit = time_limit
 
     def read_data(self) -> np.ndarray:
@@ -138,13 +138,12 @@ class MaxCutSolver:
         """
         result = run(self.solver_name, self.data_getter.problem_instance_name(), self.params, self.time_limit)
         if (self.get_rank() == 0):
-            result['maxcut']['solution'] = result['maxcut']['solution'].tolist()
             result['meta_data']['instance'] = self.data_getter.problem_instance_name()
             result['meta_data']['parameters'] = { 'time_limit': self.time_limit if self.time_limit > 0 else None }
             return result
         else:
             return None
-
+        
     def get_rank(self) -> int:
         """MPI process rank
 
@@ -300,7 +299,6 @@ class QUBOSolver(MaxCutSolver):
             computed_val = self.data_getter.problem_instance().dot(qubo_x).dot(qubo_x)
             cardinality = sum(qubo_x)
             result['maxcut']['computed_val'] *= self.gcd
-            result['maxcut']['x'] = mc_x
             result['qubo'] = {'computed_val': float(computed_val),
                              'solution': qubo_solution,
                              'x': qubo_x,
@@ -364,11 +362,11 @@ class BaseParser(argparse.ArgumentParser):
         total_seconds = days*86400 + hours*3600 + minutes*60 + seconds
         return int(total_seconds)
 
+
 class ParserMaxCut(BaseParser):
     def __init__(self):
         super().__init__(prog=f'biqbin_maxcut.py', description='Biqbin Maxcut solver')
         self.add_argument('-e', '--edge_weight', action='store_true', help='use edge weight input file')
-
         
 class ParserQubo(BaseParser):
     def __init__(self, prog=f'biqbin_qubo.py', description='Biqbin QUBO solver'):

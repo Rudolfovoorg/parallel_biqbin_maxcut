@@ -231,6 +231,9 @@ mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OU
 
 ### Python Wrapper for general BQP
 
+> **NOTE:** BQP is considered to be a placeholder implementation at this time!
+
+
 Example:
 ```bash
 mpirun -n 3 python3 biqbin_bqp.py tests/bqp/test_bqp.data
@@ -315,7 +318,10 @@ Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` 
 Other key, value pairs can be added per users discretion.
 
 #### BQP input example
-Is explained [here](bqp_input_example.md).
+
+> **NOTE:** BQP is considered to be a placeholder implementation at this time as is the input example provided below.
+
+Input is explained [here](bqp_input_example.md).
 
 ---
 

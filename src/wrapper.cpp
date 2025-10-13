@@ -20,6 +20,7 @@ extern int BabPbSize;
 
 /* final solution */
 std::vector<int> selected_nodes;
+std::vector<int> solution_x;
 
 /* meta_data */
 extern int num_workers_used;
@@ -106,13 +107,14 @@ void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, con
 
 /// @brief Creates a numpy array of the solution, returned after biqbin is done solving
 /// @return np.ndarray(dtype = np.int32) of the final solution (node names in a np list)
-py::array_t<int> get_selected_nodes_np_array()
+template <typename T>
+py::array_t<T> get_numpy_array_from_vec(std::vector<T> &in_vec)
 {
-    auto result = py::array_t<int>(selected_nodes.size());
-    auto buf = result.mutable_unchecked<1>();
-    for (size_t i = 0; i < selected_nodes.size(); ++i)
+    auto result = py::array_t<T>(in_vec.size());
+    auto buf = result.template mutable_unchecked<1>();
+    for (size_t i = 0; i < in_vec.size(); ++i)
     {
-        buf(i) = selected_nodes[i];
+        buf(i) = in_vec[i];
     }
     return result;
 }
@@ -142,7 +144,8 @@ py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_
     meta_data["heuristic_run_count"] = heuristic_sum;
     meta_data["num_workers_used"] = num_workers_used;
     solution_info["computed_val"] = Bab_LBGet();
-    solution_info["solution"] = get_selected_nodes_np_array();
+    solution_info["solution"] = py::cast(selected_nodes); // we converted it from numpy to regular list immidiately in python so might as well do it here.
+    solution_info["x"] = py::cast(solution_x);
     result_dict["meta_data"] = meta_data;
     result_dict["maxcut"] = solution_info;
 
@@ -259,11 +262,13 @@ void copy_solution()
 {
     for (int i = 0; i < BabPbSize; ++i)
     {
+        solution_x.push_back(BabSol->X[i]); // binary solution vec x
         if (BabSol->X[i] == 1)
         {
             selected_nodes.push_back(i + 1); // 1-based indexing
         }
     }
+    solution_x.push_back(0); // .. solution is one more than BabPbSize
 }
 
 /// @brief record time at the end
@@ -277,6 +282,5 @@ PYBIND11_MODULE(biqbin, m)
     m.def("run", &run_py);
     m.def("default_heuristic", &run_heuristic_python);
     m.def("default_read_data", &read_data_python);
-    m.def("read_bqp_data", &read_data_BQP);
     m.def("get_rank", &get_rank);
 }

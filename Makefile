@@ -31,12 +31,17 @@ PYTHON_LIB := -lpython$(PYTHON_VERSION) $(PYTHON_LDFLAGS) $(PYTHON_LIBS)
 INCLUDES += $(PYBIND11_INCLUDES) $(PYTHON_INCLUDE)
 LIB += $(PYTHON_LIB)
 
-# Python module (Boost)
+# Python module (Pybind11)
 PYMODULE = biqbin.so
 PYMOD_OUT = $(WRAPPER_BUILD_DIR)/$(PYMODULE)
 # C only binary
 BIQBIN_BINARY = biqbin
 BINS =  $(C_BUILD_DIR)/$(BIQBIN_BINARY)
+
+# BQP module (Pybind11)
+BQP_BUILD_DIR = build/bqp_PLACEHOLDER
+BQPMODULE = bqp_data_processing_PLACEHOLDER.so
+BQPMOD_OUT = $(BQP_BUILD_DIR)/$(BQPMODULE)
 
 RUN_ENVS = OPENBLAS_NUM_THREADS=1 GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1
 
@@ -46,7 +51,6 @@ C_OBJS = $(C_BUILD_DIR)/bundle.o $(C_BUILD_DIR)/allocate_free.o $(C_BUILD_DIR)/b
          $(C_BUILD_DIR)/evaluate.o $(C_BUILD_DIR)/heap.o $(C_BUILD_DIR)/ipm_mc_pk.o \
          $(C_BUILD_DIR)/heuristic.o $(C_BUILD_DIR)/main.o $(C_BUILD_DIR)/operators.o \
          $(C_BUILD_DIR)/process_input.o $(C_BUILD_DIR)/qap_simulated_annealing.o \
-		 $(C_BUILD_DIR)/bqp_data_processing.o
 
 # BiqBin objects
 OBJS =   $(WRAPPER_BUILD_DIR)/bundle.o $(WRAPPER_BUILD_DIR)/allocate_free.o $(WRAPPER_BUILD_DIR)/bab_functions.o \
@@ -54,7 +58,7 @@ OBJS =   $(WRAPPER_BUILD_DIR)/bundle.o $(WRAPPER_BUILD_DIR)/allocate_free.o $(WR
          $(WRAPPER_BUILD_DIR)/evaluate.o $(WRAPPER_BUILD_DIR)/heap.o $(WRAPPER_BUILD_DIR)/ipm_mc_pk.o \
          $(WRAPPER_BUILD_DIR)/heuristic.o $(WRAPPER_BUILD_DIR)/main.o $(WRAPPER_BUILD_DIR)/operators.o \
          $(WRAPPER_BUILD_DIR)/process_input.o $(WRAPPER_BUILD_DIR)/qap_simulated_annealing.o \
-		 $(WRAPPER_BUILD_DIR)/bqp_data_processing.o
+		 $(WRAPPER_BUILD_DIR)/wrapper.o
 
 # All objects
 
@@ -66,24 +70,27 @@ CPPFLAGS = $(CPPOPTI) -Wall -W -pedantic
 .PHONY : all clean test tests
 
 # Default rule is to create all binaries #
-all: clean $(BINS) $(PYMOD_OUT)
+all: clean $(BINS) $(PYMOD_OUT) $(BQPMOD_OUT)
 	cp $(PYMOD_OUT) .
 	cp $(BINS) .
+	cp $(BQPMOD_OUT) .
 
 	
 clean-output:
 	rm -f rudy/*.output*
 	rm -f tests/rudy/*.output*
 	rm -f tests/qubos/*/*.output*
+	rm -f tests/bqp/*.output*
 
 # Clean rule #
 clean: clean-output
 	rm -rf build/
 	rm -rf $(BIQBIN_BINARY)
 	rm -rf $(PYMODULE)
+	rm -rf $(BQPMODULE)
 
 # Ensure output directories exist
-$(WRAPPER_BUILD_DIR) $(C_BUILD_DIR):
+$(WRAPPER_BUILD_DIR) $(C_BUILD_DIR) $(BQP_BUILD_DIR):
 	mkdir -p build
 	mkdir -p $@
 
@@ -98,11 +105,18 @@ $(C_BUILD_DIR)/%.o: src/%.c  | $(C_BUILD_DIR)
 $(WRAPPER_BUILD_DIR)/%.o: src/%.c  | $(WRAPPER_BUILD_DIR)
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 
-$(WRAPPER_BUILD_DIR)/wrapper.o: src/wrapper.cpp  | $(WRAPPER_BUILD_DIR)
+$(WRAPPER_BUILD_DIR)/%.o: src/%.cpp  | $(WRAPPER_BUILD_DIR)
 	$(CPP) $(CPPFLAGS) $(INCLUDES) -c -o $@ $<
 
 # Python module rule
 $(PYMOD_OUT): $(OBJS) build/wrapper/wrapper.o
+	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
+
+# bqp module build
+$(BQP_BUILD_DIR)/bqp_data_processing.o: src/bqp_PLACEHOLDER/bqp_data_processing.cpp | $(BQP_BUILD_DIR)
+	$(CPP) $(CPPFLAGS) $(INCLUDES) -c -o $@ $<
+
+$(BQPMOD_OUT): $(BQP_BUILD_DIR)/bqp_data_processing.o | $(BQP_BUILD_DIR)
 	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
 
 # Tests
@@ -128,7 +142,13 @@ test-qubo-python-heuristic: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json
 	python tests/check_qubo_test.py tests/qubos/80/kcluster80_025_20_1.json
 
-test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic
+test-bqp-python: clean-output
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data
+	python tests/check_bqp_test.py tests/bqp/test_bqp.data
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j
+	python tests/check_bqp_test.py tests/bqp/test_bqp.json
+
+test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic test-bqp-python
 
 docker: 
 	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 

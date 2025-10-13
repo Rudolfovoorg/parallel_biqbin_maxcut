@@ -14,7 +14,6 @@ from biqbin import (run, set_heuristic,
                     get_rank, set_read_data,
                     default_read_data)
 
-from bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_json, read_solution_bqp
 
 
 class DataGetter(ABC):
@@ -89,61 +88,6 @@ class DataGetterAdjacencyJson(DataGetterMaxCutDefault):
             raise ValueError("All values in the adjacency matrix need to be integers!")
         
         return self.adj_matrix
-
-class DataGetterBQPDefault(DataGetterMaxCutDefault):
-    """
-    Uses the default C implementation of biqbin_general_bqp, reads and parses bqp instance file and parses
-    into the adjacency matrix.
-    """
-    def read_file(self):
-        print("PLACEHOLDER FUNCTION")
-        self.adj_matrix = read_data_bqp(self.filename)
-        return self.adj_matrix
-    
-class DataGetterBQPJson(DataGetterMaxCutDefault):
-    """
-    Uses the default json implementation of biqbin_general_bqp, reads and parses bqp instance file and parses
-    into the adjacency matrix.
-    """
-    def read_file(self):
-        print("PLACEHOLDER FUNCTION")
-        instance = self.read_bqp_json(self.filename)
-        self.adj_matrix = read_data_bqp_json(instance)
-        return self.adj_matrix
-    
-    def read_bqp_json(self, filename):
-        with open(filename, 'r') as f:
-            instance = json.load(f)
-        # zes it is realy like this in biqbin :(
-        def f(F):
-            for i,j,v in F:
-                if i==j:
-                    yield (i, j), v
-                else:
-                    yield (i, j), v
-                    yield (j, i), v
-                    
-        
-        Fdict = dict(f(instance["F"]))
-        Anp = np.array(instance["A"])
-        cnp = np.array(instance["c"])
-        bnp = np.array(instance["b"])
-
-        Find, Fv = (list(Fdict.keys()), list(Fdict.values()))
-        Find = np.asarray(Find)
-
-        Fm = sp.sparse.coo_matrix((Fv, (Find[:, 0], Find[:, 1])), shape=(instance["number_of_variables"], instance["number_of_variables"])).todense()
-        Am = sp.sparse.coo_matrix((Anp[:, 2], (Anp[:, 0], Anp[:, 1])), shape=(instance["number_of_constraints"], instance["number_of_variables"])).todense()
-        cm = sp.sparse.coo_matrix((cnp[:, 1], ([0]*len(instance["c"]), cnp[:, 0])), shape=(1, instance["number_of_variables"])).todense()
-        bm = sp.sparse.coo_matrix((bnp[:, 1], (bnp[:, 0], [0]*len(instance["b"]))), shape=(instance["number_of_constraints"], 1)).todense()
-                    
-                    
-        instance["Fm"] = Fm
-        instance["Am"] = Am
-        instance["cm"] = cm
-        instance["bm"] = bm
-        
-        return instance
 
 class MaxCutSolver:
     """Default MaxCut Biqbin Wrapper, runs Biqbin MaxCut using its original functions
@@ -367,20 +311,6 @@ class QUBOSolver(MaxCutSolver):
             return None
         
 
-class BQPSolver(MaxCutSolver):
-        def run(self) -> dict:
-            """Runs the original biqbin then adds the bqp solution info to the result dict
-
-            Returns:
-                dict: result dict containing "maxcut" and "qubo" keys with their respective solutions
-            """
-            result = super().run()
-            if (self.get_rank() == 0):
-                result['bqp'] = read_solution_bqp(result, len(self.data_getter.problem_instance()) - 1,)
-                return result
-            else:
-                return None
-
 class BaseParser(argparse.ArgumentParser):
     def __init__(self, prog: str, description: str):
         super().__init__(prog=prog, description=description,
@@ -432,10 +362,6 @@ class BaseParser(argparse.ArgumentParser):
         total_seconds = days*86400 + hours*3600 + minutes*60 + seconds
         return int(total_seconds)
 
-class ParserBQP(BaseParser):
-    def __init__(self):
-        super().__init__(prog=f'biqbin_bqp.py', description='Biqbin BQP solver')
-        self.add_argument('-j', '--json', action='store_true', help='use json input file')
 
 class ParserMaxCut(BaseParser):
     def __init__(self):

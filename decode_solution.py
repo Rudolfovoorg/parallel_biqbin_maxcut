@@ -51,15 +51,12 @@ def decode_solution(input_json, output_json):
     return metrics
 
 def pretty_print(data: dict):
-    portfolio_df = pd.DataFrame([{
-    'total_budget:': data['budget'],
-    'budget_spent': data['budget_spent'],
-    'expected_return': data['port_ret'],
-    'variance': data['port_var'],
-    'risk': data['port_std']
-    }])
+    # --- Portfolio summary: all keys except 'stocks' ---
+    portfolio_summary = {k: v for k, v in data.items() if k != 'stocks'}
+    portfolio_df = pd.DataFrame([portfolio_summary])
+
     # --- Stocks holdings ---
-    stocks_df = pd.DataFrame(list(data['stocks'].items()), columns=['stock', 'quantity'])
+    stocks_df = pd.DataFrame(list(data.get('stocks', {}).items()), columns=['stock', 'quantity'])
 
     # Show results
     print('Portfolio Summary:')
@@ -86,6 +83,7 @@ def main():
         output_json = json.load(f)
 
     metrics = decode_solution(input_json, output_json)
+    print(metrics)
     pretty_print(metrics)
     with open(input_file + '.portfolio_solution.json', 'w') as f:
         json.dump(metrics, f)

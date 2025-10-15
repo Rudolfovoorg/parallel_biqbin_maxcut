@@ -3,4 +3,8 @@
 numpy
 pybind11
 scipy
-dwave-neal 
+dwave-neal
+pandas
+PyYAML
+yfinance
+openpyxl

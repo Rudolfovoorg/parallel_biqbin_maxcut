@@ -1,0 +1,11 @@
+type: quantities
+data_path: cleaned_data.xlsx
+tickers: [AAPL, MSFT, NVDA, TSLA]
+start_date: "2023-01-05"
+end_date: "2023-12-28"
+budget: 100000
+q: 5
+penalty: 10
+annualize: true
+scale: 100
+output: qubo_quantities.json

@@ -1,0 +1,11 @@
+type: selection
+data_path: cleaned_data.xlsx
+tickers: [AAPL, JPM, MSFT, JNJ, TSLA, NVDA]
+start_date": "2023-1-05"
+end_date": "2023-12-29"
+q: 2.0
+penalty: 1.0
+cardinality: 3
+annualize: true
+scale: 100
+output: qubo_selection.json

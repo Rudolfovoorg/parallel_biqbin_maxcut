@@ -20,6 +20,11 @@ Biqbin needs a specific environment (libraries) to compile and run, for this we 
 apptainer pull workshop-trdina.sif oras://docker.io/benozupanc/workshop-trdina:1.0.3
 ```
 
+Update Python requirements
+```bash
+apptainer exec workshop-trdina.sif pip install -r requirements.txt
+```
+
 ### Compile Biqbin
 There is a Makefile available that will compile the source code into binaries: 
 ```bash

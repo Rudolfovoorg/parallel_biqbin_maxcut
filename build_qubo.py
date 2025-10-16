@@ -257,7 +257,7 @@ def build_qubo_from_config(cfg: Dict[str, Any]) -> None:
     mu, sigma = compute_returns_and_cov(df_prices, annualize=annualize)
 
     if qubo_type == "selection":
-        cardinality = int(cfg.get("cardinality", len(tickers)//2))
+        cardinality = int(cfg.get("cardinality")) if cfg.get("cardinality") is not None else None
         Q = build_selection_qubo(mu, sigma, q=q, cardinality_k=cardinality, penalty=penalty)
         Q_scaled = np.round(Q * scale)
         qubo_dict = qubo_to_biqbin_representation(Q_scaled)

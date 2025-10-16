@@ -1,3 +1,9 @@
+### Connect to Trdina HPC
+Open the terminal (Powershell on Windows) and enter:
+```bash
+ssh fisuserXXX@trdina-login.fis.unm.si
+```
+Enter your password when prompted.
 
 ### Download Biqbin solver
 Clone the specific branch from github with the following command:
@@ -11,7 +17,7 @@ cd parallel_biqbin_maxcut/
 ### Pull the workshop specific container
 Biqbin needs a specific environment (libraries) to compile and run, for this we prepared an apptainer container for this workshop:
 ```bash
-apptainer pull workshop-trdina.sif oras://docker.io/benozupanc/workshop-trdina:1.0.2
+apptainer pull workshop-trdina.sif oras://docker.io/benozupanc/workshop-trdina:1.0.3
 ```
 
 ### Compile Biqbin

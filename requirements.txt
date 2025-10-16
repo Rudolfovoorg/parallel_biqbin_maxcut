@@ -8,3 +8,10 @@ pandas
 PyYAML
 yfinance
 openpyxl
+
+# Dwave
+dwave_cloud_client
+dwave_neal
+dwave_preprocessing
+dwave_samplers
+dwave_system

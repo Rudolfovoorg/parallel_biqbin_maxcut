@@ -1,7 +1,7 @@
 ### Connect to Trdina HPC
 Open the terminal (Powershell on Windows) and enter:
 ```bash
-ssh fisuserXXX@trdina-login.fis.unm.si
+ssh fisuserXX@trdina-login.fis.unm.si
 ```
 Enter your password when prompted.
 

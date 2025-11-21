@@ -34,3 +34,4 @@
 - added Solver, DataGetter and argparser for bqp version
 - added tests for bqp version
 - added qplib format parsing to and from qubo parsing, added tests for qplib
+- added check for problem size before solving

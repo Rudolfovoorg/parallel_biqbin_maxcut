@@ -8,12 +8,12 @@ import numpy as np
 import scipy as sp
 import json
 from glob import glob
+import pyqplib
 
 from biqbin import (run, set_heuristic,
                     default_heuristic,
                     get_rank, set_read_data,
                     default_read_data)
-
 
 
 class DataGetter(ABC):
@@ -194,6 +194,7 @@ class DataGetterJson(DataGetter):
             filename (str): path to file
         """
         self.filename = filename
+        self.qubo: np.ndarray | None = None
 
     def problem_instance_name(self) -> str:
         """Get the instance file path
@@ -203,14 +204,14 @@ class DataGetterJson(DataGetter):
         """
         return self.filename
 
-    def problem_instance(self) -> np.ndarray:
+    def problem_instance(self):
         """Gets the qubo
 
         Returns:
             nd.ndarray: qubo in a numpy array
         """
         return self.qubo
-    
+
     def read_file(self):
         with open(self.filename, "r") as f:
             self.qubo_data = json.load(f)
@@ -218,10 +219,70 @@ class DataGetterJson(DataGetter):
         return self.qubo
 
 
+class DataGetterQPLIB(DataGetterJson):
+    """DataGetter for QPLIB instances https://qplib.zib.de/, 
+    only unconstrained binary problems are allowed. 
+
+    Args:
+        DataGetterJson (class): inherits from DataGetterJson, the default qubo datagetter
+    """
+    def __init__(self, filename: str):
+        super().__init__(filename)
+        self.qplib_problem = None
+
+    def read_file(self):
+        """Reads .qplib format and constructs a qubo. 
+        Checks if the problem itself is valid for Biqbin solver, while the integer check 
+        is done when converting the constructed QUBO to Max-Cut form.
+
+        Raises:
+            ValueError: Only unconstrained problems are valid
+            ValueError: Only binary problems are valid
+
+        Returns:
+            np.ndarray: constructed qubo in upper triangular form
+        """
+        self.pqlib_problem = pyqplib.read_problem(self.filename)
+
+        # Check if the problem fits the solver
+        if self.pqlib_problem.description.cons_type != pyqplib.ProblemConsType.UNCONSTRAINED:
+            raise ValueError("Biqbin can only handle unconstrained problems!")
+        if self.pqlib_problem.description.var_type != pyqplib.ProblemVarType.BINARY:
+            raise ValueError("Problem is not binary!")
+
+        # pyqplib has it's own matrix represantation
+        self.qubo = self.pqlib_problem.obj.mat.full().todense()
+
+        self.qubo = np.triu(self.qubo) / 2
+        self.qubo += np.diag(self.pqlib_problem.obj.lin)
+
+        if self.pqlib_problem.obj.sense == pyqplib.Sense.MAXIMIZE:
+            self.qubo *= -1
+
+        # We save qubos in upper triangular form while the qplib uses the lower triangular form
+        return self.qubo.T
+
+    def update_result(self, result: dict) -> None:
+        """Adds qplib solution to the result dictionary under 'qplib' key
+
+        Args:
+            result (dict): qubo solution result
+        """
+        super().add_custom_result(result)
+
+        min_max_multiply = -1 if self.pqlib_problem.obj.sense == pyqplib.Sense.MAXIMIZE else 1
+
+        result['qplib'] = {
+            'computed_val': result['qubo']['computed_val'] * min_max_multiply,
+            'x': result['qubo']['x'],
+            'solution': result['qubo']['solution']
+        }
+
+
 class QUBOSolver(MaxCutSolver):
     solver_name = f'PyBiqBin-QUBO {__version__}'
 
-    def __init__(self, data_getter: DataGetter, params: str, optimize_input:bool=False, time_limit:int=0):
+    def __init__(self, data_getter: DataGetter, params: str, optimize_input: bool = False, time_limit: int = 0):
         super().__init__(data_getter, params, time_limit)
         self.optimize_input: bool = optimize_input
         self.gcd: int = 1
@@ -274,7 +335,6 @@ class QUBOSolver(MaxCutSolver):
 
         x_mc_sol[_x_mc] = -1
         x_mc_sol *= -x_mc_sol[-1]
-        x_mc_sol
         y = 1/2*(x_mc_sol+1)[:-1]
         qubo_solution = np.nonzero(y)[0] + 1
         return qubo_solution.tolist(), y.astype(int).tolist(), xx.tolist()
@@ -306,6 +366,7 @@ class QUBOSolver(MaxCutSolver):
                              }
             result['meta_data']['parameters']['optimize_input'] = self.optimize_input
             result['meta_data']['parameters']['gcd'] = self.gcd
+            self.data_getter.update_result(result)
             return result
         else:
             return None
@@ -371,6 +432,7 @@ class ParserMaxCut(BaseParser):
 class ParserQubo(BaseParser):
     def __init__(self, prog=f'biqbin_qubo.py', description='Biqbin QUBO solver'):
         super().__init__(prog=prog, description=description)
+        self.add_argument('--qplib', action='store_true', help='Use .qplib file format')
         self.add_argument('-O', '--optimize', action='store_true', help='Divide QUBO values by their GCD')
         
 class ParserDWaveHeuristic(ParserQubo):

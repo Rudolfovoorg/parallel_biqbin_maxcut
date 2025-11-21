@@ -219,7 +219,7 @@ General command:
 mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OUTPUT] [-i] [-d]
 ```
 
-- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
+- `N`: Number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
 - `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
@@ -227,6 +227,7 @@ mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OU
 - `-d`, `--debug`: Enables debug logs
 - `-i`, `--info`: Enable info logs
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
+- `--qplib`: Use qplib file format for the problem instance.
 - `-h`, `--help`: Show help message and exit.
 
 ### Python Wrapper for general BQP
@@ -316,6 +317,8 @@ Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` 
 ```
 
 Other key, value pairs can be added per users discretion.
+
+> **NOTE:** [.qplib](https://qplib.zib.de/) file format is allowed with `--qplib` cli argument.
 
 #### BQP input example
 

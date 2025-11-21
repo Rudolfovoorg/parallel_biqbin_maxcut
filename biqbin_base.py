@@ -268,8 +268,6 @@ class DataGetterQPLIB(DataGetterJson):
         Args:
             result (dict): qubo solution result
         """
-        super().add_custom_result(result)
-
         min_max_multiply = -1 if self.pqlib_problem.obj.sense == pyqplib.Sense.MAXIMIZE else 1
 
         result['qplib'] = {
@@ -366,7 +364,6 @@ class QUBOSolver(MaxCutSolver):
                              }
             result['meta_data']['parameters']['optimize_input'] = self.optimize_input
             result['meta_data']['parameters']['gcd'] = self.gcd
-            self.data_getter.update_result(result)
             return result
         else:
             return None

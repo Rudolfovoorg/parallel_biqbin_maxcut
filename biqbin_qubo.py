@@ -24,7 +24,5 @@ if __name__ == '__main__':
     rank = solver.get_rank()
     if rank == 0:
         # Master rank prints the results
-        if args.qplib:
-            data_getter.update_result(result)
         print(result)
         solver.save_result(result, args.output, args.overwrite)

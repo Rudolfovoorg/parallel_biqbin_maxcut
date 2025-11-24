@@ -15,7 +15,7 @@ class QuboDwaveSampler(QUBOSolver):
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
 
-    def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.array, sol_X: np.array, x: np.array):
+    def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray):
         """Heuristc with D-Waves simulated annealing sampler
 
         Args:

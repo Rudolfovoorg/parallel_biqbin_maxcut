@@ -1,7 +1,9 @@
+from typing import Dict, Any
 import scipy as sp
 import numpy as np
+from numpy import typing as npt
 
-def to_sparse(qubo):
+def to_sparse(qubo: npt.ArrayLike):
     """Converts a 2D array to the expected sparse coo_matrix representation.
 
     Args:
@@ -18,7 +20,23 @@ def to_sparse(qubo):
         'col': qubo_sparse_coo.col.tolist(), 
         'data': qubo_sparse_coo.data.tolist()
     }
+
+def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float32]:
+    """Helper function that converts from sparse coo matrix to regular form
+
+    Args:
+        sparse_matrix (dict): scipy sparse coo matrix
+
+    Returns:
+        np.ndarray: regular form matrix
+    """
+    return sp.sparse.coo_matrix(
+        (sparse_matrix['data'],
+            (sparse_matrix['row'], sparse_matrix['col'])),
+        shape=sparse_matrix['shape'], dtype='float'
+    ).todense().getA()
     
+
 def qubo_to_biqbin_representation(qubo) -> dict:
     """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable 
     dict with 'qubo' key and a sparse qubo represantation as value.

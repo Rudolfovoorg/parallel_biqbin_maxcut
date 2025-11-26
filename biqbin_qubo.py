@@ -1,6 +1,6 @@
 import sys
 
-from biqbin_base import QUBOSolver, DataGetterJson, ParserQubo, DataGetterQPLIB
+from biqbin_base_refactor import QUBOSolver, QuboFromJson, ParserQubo, QuboToJson
 
 """
     Default Qubo solver using Biqbin MaxCut wrapper
@@ -11,18 +11,20 @@ if __name__ == '__main__':
     parser = ParserQubo()
     args = parser.parse_args()
     # Instance of the default DataGetterJson class takes the path to qubo.json
-    if args.qplib:
-        data_getter = DataGetterQPLIB(args.problem_instance)
-    else:
-        data_getter = DataGetterJson(args.problem_instance)
-        
+    # if args.qplib:
+    #     data_getter = DataGetterQPLIB(args.problem_instance)
+    # else:
+    #     data_getter = DataGetterJson(args.problem_instance)
+    
+    problem = QuboFromJson(args.problem_instance).read()
     # Initialize QUBOSolver class which takes a DataGetter class instance, path to parameters file and bool if optimizing
-    solver = QUBOSolver(data_getter=data_getter, params=args.params, optimize_input=args.optimize, time_limit=args.time)
+    solver = QUBOSolver(problem=problem, params=args.params, optimize_input=args.optimize, time_limit=args.time)
     # Run biqbin solver
-    result = solver.run()
+    solution = solver.run()
 
     rank = solver.get_rank()
     if rank == 0:
         # Master rank prints the results
-        print(result)
-        solver.save_result(result, args.output, args.overwrite)
+        
+        print(solution)
+        QuboToJson(args.problem_instance + '.output').write(solution, True)

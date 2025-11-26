@@ -275,12 +275,12 @@ void copy_solution()
 /// @param time
 void record_time(double time) { running_time = time; }
 
-PYBIND11_MODULE(biqbin, m)
+PYBIND11_MODULE(biqbin, m, "Biqbin solver")
 {
-    m.def("set_heuristic", &set_heuristic_override);
-    m.def("set_read_data", &set_read_data_override);
-    m.def("run", &run_py);
-    m.def("default_heuristic", &run_heuristic_python);
-    m.def("default_read_data", &read_data_python);
-    m.def("get_rank", &get_rank);
+    m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");
+    m.def("set_read_data", &set_read_data_override, "Overrride data reading function");
+    m.def("run", &run_py, "Run the solver");
+    m.def("default_heuristic", &run_heuristic_python, "Default GW heuristic");
+    m.def("default_read_data", &read_data_python, "Default read data in C");
+    m.def("get_rank", &get_rank, "Get the mpi rank");
 }

@@ -1,3 +1,4 @@
+from utils import check_matrix_validity_wrap
 import numpy.typing as npt
 __version__ = '2.0.0'
 
@@ -13,8 +14,7 @@ import pyqplib
 from utils import from_sparse
 from biqbin import (run, set_heuristic,
                     default_heuristic,
-                    get_rank, set_read_data,
-                    default_read_data)
+                    get_rank, set_read_data)
 
 
 class PrettyPrint:
@@ -27,39 +27,11 @@ class PrettyPrint:
 
 class ProblemMaxCut(PrettyPrint):
     def __init__(self, maxcut_adjacency_matrix: npt.ArrayLike, problem_name: str) -> None:
-        self.maxcut_adjacency_matrix = self._check_input(
-            maxcut_adjacency_matrix)
+        self.maxcut_adjacency_matrix = maxcut_adjacency_matrix
         self.problem_name = problem_name
 
     def __str__(self) -> str:
         return f'{super().__str__()}\nMaxCut adjacency matrix =\n{self.maxcut_adjacency_matrix}'
-
-    def _check_input(self, maxcut_adjacency_matrix: npt.ArrayLike) -> npt.NDArray[np.float64 | np.int_]:
-        """Check the validity of the input data
-        """
-        if not isinstance(maxcut_adjacency_matrix, np.ndarray):
-            maxcut_adjacency_matrix = np.array(
-                maxcut_adjacency_matrix, dtype=np.float64)
-
-        if not np.issubdtype(maxcut_adjacency_matrix.dtype, np.number):
-            raise TypeError(
-                f'Max-Cut adjacency matrix must use a numeric dtype (int or float), got {maxcut_adjacency_matrix.dtype}')
-
-        if maxcut_adjacency_matrix.ndim != 2:
-            raise ValueError(
-                'Dimension of the Max-Cut adjacency matrix needs to be 2!')
-
-        n, m = maxcut_adjacency_matrix.shape
-        if n != m:
-            raise ValueError(
-                f'Max-Cut adjacency matrix shape must be square (n, n), but got ({n}, {m})')
-
-        adj_int = np.array(maxcut_adjacency_matrix, dtype=np.int64)
-        if not np.all(maxcut_adjacency_matrix == adj_int):
-            raise ValueError(
-                'All values in the Max-Cut adjacency matrix need to be integers!')
-
-        return maxcut_adjacency_matrix
 
 
 class ProblemQubo(ProblemMaxCut):
@@ -70,7 +42,8 @@ class ProblemQubo(ProblemMaxCut):
             super().__init__(self.qubo2maxcut(Q), problem_name)
         else:
             super().__init__(self.qubo2maxcut(-Q), problem_name)
-
+            
+    @check_matrix_validity_wrap
     def qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
         """Convert qubo to adjacency matrix that biqbin can read, 
         optionally optimizes the input data by dividing the values by the gcd.
@@ -322,6 +295,13 @@ class QuboFromJson(FromFile):
         return ProblemQubo(qubo, True, self.filename)
 
 
+class QuboFromNothing(FromFile):
+    def __init__(self, filename: str, problem_name: str | None = None, blah: np.ndarray = np.zeros((3, 2))):
+        super().__init__(filename, problem_name)
+        self.blah = blah
+    def read(self) -> ProblemQubo:
+        return ProblemQubo(self.blah, True, "blahblah")
+
 class QuboFromQPLIB(FromFile):
     """DataGetter for QPLIB instances https://qplib.zib.de/, 
     only unconstrained binary problems are allowed.
@@ -355,7 +335,7 @@ class QuboFromQPLIB(FromFile):
         # pyqplib has it's own matrix represantation
         qubo = qplib_problem.obj.mat.full().todense().T
 
-        qubo = np.triu(qubo) / 2
+        qubo = np.triu(qubo) / 10
         qubo += np.diag(qplib_problem.obj.lin)
 
         # Update goal of the objective function
@@ -363,7 +343,10 @@ class QuboFromQPLIB(FromFile):
         return ProblemQubo(qubo, minimize, self.problem_name)
 
 
-TProblem = TypeVar("TProblem", bound="ProblemMaxCut") # Python has generics/templating?
+# Python has generics/templating?
+TProblem = TypeVar("TProblem", bound="ProblemMaxCut")
+
+
 class MaxCutSolver(Generic[TProblem], PrettyPrint):
     """Default MaxCut Biqbin Wrapper, runs Biqbin MaxCut using its original functions
     """
@@ -412,11 +395,12 @@ class MaxCutSolver(Generic[TProblem], PrettyPrint):
             dict: result dict with keys: "max_val" - max cut solution value, "solution" - nodes in this solution, "time" - spent solving 
         """
         biqbin_result = run(self.solver_name, self.problem.problem_name,
-                     self.params, self.time_limit)
+                            self.params, self.time_limit)
         if (self.get_rank() == 0):
             if biqbin_result is None:
-                raise ValueError('result from biqbin is None, computation failed!')
-            
+                raise ValueError(
+                    'result from biqbin is None, computation failed!')
+
             biqbin_result['meta_data']['instance'] = self.problem.problem_name
             biqbin_result['meta_data']['parameters'] = {
                 'time_limit': self.time_limit if self.time_limit > 0 else None
@@ -440,7 +424,7 @@ class QUBOSolver(MaxCutSolver[ProblemQubo]):
     def __init__(self, problem: ProblemQubo, params: str, optimize_input: bool = False, time_limit: int = 0):
         super().__init__(problem, params, time_limit)
         # self.optimize_input: bool = optimize_input Deciding what to do with this still
-        # self.gcd: int = 1 
+        # self.gcd: int = 1
 
     def run(self) -> SolutionQubo | None:
         """Runs the original biqbin then adds the qubo solution nodes to the result dict
@@ -449,7 +433,7 @@ class QUBOSolver(MaxCutSolver[ProblemQubo]):
             dict: result dict containing "maxcut" and "qubo" keys with their respective solutions
         """
         biqbin_result = run(self.solver_name, self.problem.problem_name,
-                     self.params, self.time_limit)
+                            self.params, self.time_limit)
         if self.get_rank() == 0:
             if biqbin_result is None:
                 raise ValueError("result is None, solution not retrieved!")
@@ -460,7 +444,7 @@ class QUBOSolver(MaxCutSolver[ProblemQubo]):
             biqbin_result['meta_data']['parameters'] = {
                 'time_limit': self.time_limit if self.time_limit > 0 else None
             }
-           
+
             return SolutionQubo(biqbin_result, self.problem)
         else:
             return None

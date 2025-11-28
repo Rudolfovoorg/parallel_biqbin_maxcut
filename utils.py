@@ -93,11 +93,12 @@ def check_matrix_validity_wrap(func):
     return wrapper
 
 
-"""
-if not isinstance(maxcut_adjacency_matrix, np.ndarray):
-    maxcut_adjacency_matrix = np.array(
-        maxcut_adjacency_matrix, dtype=np.float64)
-"""
+def convert_numpy_to_json_serializable(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, np.generic):
+        return obj.item()
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
 def qubo_to_qplib_str(qubo: np.ndarray, problem_name: str) -> str:

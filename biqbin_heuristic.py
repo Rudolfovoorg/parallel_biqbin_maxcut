@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 from neal import SimulatedAnnealingSampler
-from biqbin_base import QUBOSolver, DataGetterJson, default_heuristic, ParserQubo, ParserDWaveHeuristic
+from biqbin_base import QUBOSolver, ProblemQubo, default_heuristic, ParserDWaveHeuristic, QuboFromJson, QuboToJson
 import logging
 from copy import deepcopy
 
@@ -10,10 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class QuboDwaveSampler(QUBOSolver):
-    def __init__(self, data_gettr, params: str, optimize_input:bool, time_limit: int, sampler, **sampler_kwargs):
-        super().__init__(data_gettr, params, optimize_input, time_limit)
+    def __init__(self, problem: ProblemQubo, params: str, time_limit: int, sampler, **sampler_kwargs):
+        super().__init__(problem, params, time_limit)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
+        self.heuristic_counter = 0
 
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray):
         """Heuristc with D-Waves simulated annealing sampler
@@ -28,14 +29,14 @@ class QuboDwaveSampler(QUBOSolver):
         Returns:
             np.ndarray: solution nodes provided by the heuristc, should be in 0, 1 form (1 node is chosen, 0 it is not chosen)
         """
-        
+
         _x = np.array(
             list(self.sampler.sample_qubo(-L[:-1, :-1],
                  **self.sampler_kwargs).first.sample.values()),
             dtype=np.int32
         )
 
-        _x = np.hstack([_x, [0]]) # simplification for above
+        _x = np.hstack([_x, [0]])  # simplification for above
 
         j = 0
         for i in range(len(x)):
@@ -78,29 +79,29 @@ if __name__ == '__main__':
 
     parser = ParserDWaveHeuristic()
     argv = parser.parse_args()
-    
+
     logging_level = logging.WARNING
     if argv.info:
         logging_level = logging.INFO
     if argv.debug:
         logging_level = logging.DEBUG
     logging.root.setLevel(logging_level)
-    
-    data_getter = DataGetterJson(argv.problem_instance)
-    solver = QuboDwaveSampler(data_getter, 
-                              params=argv.params, 
-                              optimize_input=argv.optimize, 
-                              time_limit=argv.time, 
-                              sampler=SimulatedAnnealingSampler(), 
-                              num_reads=10
-                              )
-    result = solver.run()
+
+    problem = QuboFromJson(argv.problem_instance).read()
+    solver = QuboDwaveSampler(problem=problem,
+                              params=argv.params,
+                              time_limit=argv.time,
+                              sampler=SimulatedAnnealingSampler(),
+                              num_reads=10)
+    solution = solver.run()
 
     rank = solver.get_rank()
     if logger.isEnabledFor(logging.INFO):
         print(f"{rank=} heuristics ran {solver.heuristic_counter} times")
-        
+
     if rank == 0:
         # Master rank prints the results
-        print(result)
-        solver.save_result(result, argv.output, argv.overwrite)
+        if solution is None:
+            raise ValueError(f'Solution to problem {problem} not found!')
+        print(solution)
+        QuboToJson(argv.problem_instance + '.output', argv.overwrite).write(solution)

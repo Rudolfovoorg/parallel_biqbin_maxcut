@@ -9,8 +9,9 @@ import argparse
 import numpy as np
 import json
 import pyqplib
+from pyqplib.obj import QuadraticObjective
 
-from utils import from_sparse, check_matrix_validity_wrap, convert_numpy_to_json_serializable
+from utils import from_sparse, check_matrix_validity_wrap, convert_numpy_to_json_serializable, divide_matrix_by_gcd
 from biqbin import (run, set_heuristic,
                     default_heuristic,
                     get_rank, set_read_data)
@@ -24,10 +25,19 @@ class PrettyPrint:
         return str(self)
 
 
-class ProblemMaxCut(PrettyPrint):
-    def __init__(self, maxcut_adjacency_matrix: npt.NDArray[np.floating | np.integer], problem_name: str) -> None:
+TProblem = TypeVar("TProblem", bound="ProblemMaxCut")
+TSolution = TypeVar('TSolution', bound="SolutionMaxCut")
+
+
+class ProblemMaxCut(Generic[TProblem], PrettyPrint):
+    def __init__(self,
+                 maxcut_adjacency_matrix: npt.NDArray[np.floating | np.integer],
+                 problem_name: str,
+                 optimize_input: bool = False) -> None:
         self._maxcut_adjacency_matrix = maxcut_adjacency_matrix
         self.problem_name = problem_name
+        self.gcd: int | None = None
+        self.optimize_mc_adj_matrix = optimize_input
 
     @property
     @check_matrix_validity_wrap
@@ -36,20 +46,24 @@ class ProblemMaxCut(PrettyPrint):
 
     @maxcut_adjacency_matrix.setter
     def maxcut_adjacency_matrix(self, value: npt.NDArray[np.floating | np.integer]):
-        self._maxcut_adjacency_matrix = value
+        if self.optimize_mc_adj_matrix:
+            self.gcd, self._maxcut_adjacency_matrix = divide_matrix_by_gcd(
+                value)
+        else:
+            self._maxcut_adjacency_matrix = value
 
     def __str__(self) -> str:
         return f'{super().__str__()}\nMaxCut adjacency matrix =\n{self.maxcut_adjacency_matrix}'
 
 
 class ProblemQubo(ProblemMaxCut):
-    def __init__(self, Q: np.ndarray, is_minimization: bool, problem_name: str):
+    def __init__(self, Q: np.ndarray, problem_name: str,  is_minimization: bool, optimize_input: bool):
         self.Q: np.ndarray = Q
         self.is_minimization: bool = is_minimization
         if self.is_minimization:
-            super().__init__(self.qubo2maxcut(Q), problem_name)
+            super().__init__(self.qubo2maxcut(Q), problem_name, optimize_input)
         else:
-            super().__init__(self.qubo2maxcut(-Q), problem_name)
+            super().__init__(self.qubo2maxcut(-Q), problem_name, optimize_input)
 
     @check_matrix_validity_wrap
     def qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
@@ -80,10 +94,14 @@ class ProblemQubo(ProblemMaxCut):
         return f'{super().__str__()}\nQubo =\n{self.Q}'
 
 
-class SolutionMaxCut(PrettyPrint):
-    def __init__(self, biqbin_result: dict) -> None:
+class SolutionMaxCut(Generic[TProblem], PrettyPrint):
+    def __init__(self, biqbin_result: dict, problem: TProblem) -> None:
+        if problem.optimize_mc_adj_matrix and problem.gcd != 1:
+            biqbin_result['maxcut']['computed_val'] *= problem.gcd
+
         self.__solution: dict = biqbin_result['maxcut']
         self.meta_data: dict = biqbin_result['meta_data']
+        self.problem: TProblem = problem
 
     @property
     def solution(self):
@@ -97,10 +115,9 @@ class SolutionMaxCut(PrettyPrint):
                 f'              x = {self.__solution['x']}\n')
 
 
-class SolutionQubo(SolutionMaxCut):
+class SolutionQubo(SolutionMaxCut[ProblemQubo]):
     def __init__(self, biqbin_result: dict, problem: ProblemQubo) -> None:
-        super().__init__(biqbin_result)
-        self.problem = problem
+        super().__init__(biqbin_result, problem)
         self.solution_maxcut = super().solution
         self.__solution = self.maxcut2qubo()
 
@@ -160,34 +177,35 @@ class SolutionQubo(SolutionMaxCut):
         )
 
 
-class FromFile(ABC, PrettyPrint):
-    def __init__(self, filename: str, problem_name: str | None = None):
-        self.filename: str = filename
-        self.problem_name: str = problem_name if problem_name else filename
-
+class LoadFromFile(ABC):
+    """Interface for all file loader classes, subclasses must implement a `read` method,
+    that takes a filename and returns a ProblemMaxCut or it's subclass (i.e. ProblemQubo) 
+    """
     @abstractmethod
-    def read(self) -> ProblemMaxCut:
+    def read(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> ProblemMaxCut:
         ...
 
-    def __str__(self):
-        return (
-            f'{super().__str__()}\n'
-            f'Input filename: {self.filename}')
 
-
-TSolution = TypeVar('TSolution', bound=SolutionMaxCut)
-
-
-class ToFile(ABC, PrettyPrint, Generic[TSolution]):
-    def __init__(self, filename: str, overwrite: bool = False):
-        self.filename: str = filename
-        self.overwrite: bool = overwrite
-
+class SaveToFile(ABC, Generic[TSolution]):
+    """Base abstract class for saving the solution to disk. All subclasses must implenent the 
+    `write` method that takes a solution and saves it as file.
+    """
     @abstractmethod
-    def write(self, solution: TSolution) -> None:
+    def write(self, solution: TSolution, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
         ...
 
     def get_output_path(self, out_file: str, overwrite: bool) -> str:
+        """Get the proper output path in case it already exists and we do not wish to overwrite.
+        Attaches _N where N is the number of the next free output file. Adds .json if not already in the 
+        out_file's name.
+
+        Args:
+            out_file (str): output file path.
+            overwrite (bool): if overwriting the outfile will not be changed.
+
+        Returns:
+            str: output file path
+        """
         out_file = out_file[:-5] if out_file.endswith('.json') else out_file
         if overwrite:
             return out_file
@@ -197,26 +215,41 @@ class ToFile(ABC, PrettyPrint, Generic[TSolution]):
             out_file += f'_{file_count}'
         return out_file + '.json'
 
-    def __str__(self):
-        return (
-            f'{super().__str__()}\n'
-            f'Output filename: {self.filename}\n'
-            f'Overwrite output: {self.overwrite}'
-        )
 
+class MaxCutFromJson(LoadFromFile):
+    def read(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> ProblemMaxCut:
+        """Read MaxCut json file that contains the adjacency matrix in sparse format.
 
-class MaxCutFromJson(FromFile):
-    def read(self) -> ProblemMaxCut:
-        with open(self.filename, "r") as f:
+        Args:
+            filename (str): Path to json file containing 'maxcut' key and sparse adjacency matrix as value.
+            problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
+            optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
+
+        Returns:
+            ProblemMaxCut: _description_
+        """
+        with open(filename, "r") as f:
             mc_data = json.load(f)
 
-        adj_matrix = from_sparse(mc_data["adjacency"])
-        return ProblemMaxCut(adj_matrix, self.filename)
+        if problem_name is None:
+            problem_name = filename
+        adj_matrix = from_sparse(mc_data["maxcut"])
+        return ProblemMaxCut(adj_matrix, problem_name, optimize_input=optimize_input)
 
 
-class MaxCutFromEdgeWeights(FromFile):
-    def read(self) -> ProblemMaxCut:
-        with open(self.filename, 'r') as f:
+class MaxCutFromEdgeWeights(LoadFromFile):
+    def read(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> ProblemMaxCut:
+        """Read MaxCut edge weight file and return the MaxCutProblem.
+
+        Args:
+            filename (str): path to edge weight file. 
+            problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
+            optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
+
+        Returns:
+            ProblemMaxCut: Problem that can be passed into MaxCutSolver.compute.
+        """
+        with open(filename, 'r') as f:
             # Read number of vertices and edges
             num_vertices, num_edges = map(int, f.readline().split())
             adj_matrix = np.zeros(
@@ -229,11 +262,15 @@ class MaxCutFromEdgeWeights(FromFile):
 
                 adj_matrix[i, j] = weight
                 adj_matrix[j, i] = weight
-            return ProblemMaxCut(adj_matrix, self.problem_name)
+        if problem_name is None:
+            problem_name = filename
+        return ProblemMaxCut(adj_matrix, problem_name, optimize_input=optimize_input)
 
 
-class MaxCutToJson(ToFile):
-    def write(self, solution: SolutionMaxCut, with_metadata=True) -> None:
+class MaxCutToJson(SaveToFile):
+    """Helper class to save the SolutionMaxCut as a json file.
+    """
+    def write(self, solution: SolutionMaxCut, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
         """Save the solution as JSON file.
 
         Args:
@@ -242,7 +279,7 @@ class MaxCutToJson(ToFile):
         """
 
         # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(self.filename, self.overwrite)
+        output_path = self.get_output_path(filename, overwrite)
 
         save_output = {
             'maxcut': solution.solution
@@ -255,14 +292,11 @@ class MaxCutToJson(ToFile):
                       default=convert_numpy_to_json_serializable)
 
 
-class QuboToJson(ToFile):
+class QuboToJson(SaveToFile):
     """Helper class to save QUBO solution as json file.
-
-    Args:
-        ToFile (_type_): _description_
     """
 
-    def write(self, solution: SolutionQubo, with_metadata=True) -> None:
+    def write(self, solution: SolutionQubo, filename: str, overwrite: bool = False, with_metadata: bool = True, with_maxcut_solution: bool = False) -> None:
         """Save qubo solution to a json file.
 
         Args:
@@ -270,13 +304,16 @@ class QuboToJson(ToFile):
             with_metadata (bool, optional): Add meta_data to output. Defaults to True.
             with_maxcut_solution (bool, optional): Add MaxCut solution to save output. Defaults to False.
         """
+
         # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(self.filename, self.overwrite)
+        output_path = self.get_output_path(filename, overwrite)
 
         save_output = {
             'qubo': solution.solution
         }
-        save_output['maxcut'] = solution.solution_maxcut
+
+        if with_maxcut_solution:
+            save_output['maxcut'] = solution.solution_maxcut
         if with_metadata:
             save_output['meta_data'] = solution.meta_data
 
@@ -285,50 +322,72 @@ class QuboToJson(ToFile):
                       default=convert_numpy_to_json_serializable)
 
 
-class QuboFromJson(FromFile):
+class QuboFromJson(LoadFromFile):
     """Reads qubo instance file, should be a json dictionary with "qubo" key
     and a COO sparse matrix with data, row and col.
     """
 
-    def read(self) -> ProblemQubo:
-        with open(self.filename, "r") as f:
+    def read(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> ProblemQubo:
+        """Read from the given filename and return the ProblemQubo used by the QuboSolver.
+
+        Args:
+            filename (str): path to json file containing 'qubo' key and sparse matrix presentation as value. 
+            problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
+            optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
+
+        Returns:
+            ProblemQubo: Qubo Problem class that can be passed into QuboSolver.compute method.
+        """
+        with open(filename, "r") as f:
             qubo_data = json.load(f)
 
+        if problem_name is None:
+            problem_name = filename
         qubo = from_sparse(qubo_data["qubo"])
-        return ProblemQubo(qubo, True, self.filename)
+        return ProblemQubo(Q=qubo, problem_name=problem_name, is_minimization=True, optimize_input=optimize_input)
 
 
-class QuboFromQPLIB(FromFile):
+class QuboFromQPLIB(LoadFromFile):
     """DataGetter for QPLIB instances https://qplib.zib.de/, 
     only unconstrained binary problems are allowed.
     """
 
-    def read(self) -> ProblemQubo:
+    def read(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> ProblemQubo:
         """Reads .qplib format and constructs a qubo. 
         Checks if the problem itself is valid for Biqbin solver, while the integer check 
         is done when converting the constructed QUBO to Max-Cut form.
 
+        Args:
+            filename (str): path to qplib file. 
+            problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
+            optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
+
         Raises:
             ValueError: Only unconstrained problems are valid
             ValueError: Only binary problems are valid
+            ValueError: Only quadratic problems are valid
 
         Returns:
             ProblemQUBO
         """
-        qplib_problem = pyqplib.read_problem(self.filename)
-
+        qplib_problem = pyqplib.read_problem(filename)
         # Check if reading qplib format worked
         if not isinstance(qplib_problem, pyqplib.Problem):
             raise ValueError(
-                f"Failed reading qplib problem at path {self.filename}!")
+                f"Failed reading qplib problem at path {filename}!")
+
+        if problem_name is None:
+            problem_name = filename
 
         # Check if the problem fits the solver
         if qplib_problem.description.cons_type != pyqplib.ProblemConsType.UNCONSTRAINED:
             raise ValueError("Biqbin can only handle unconstrained problems!")
         if qplib_problem.description.var_type != pyqplib.ProblemVarType.BINARY:
             raise ValueError("Problem is not binary!")
+        if not isinstance(qplib_problem.obj, QuadraticObjective):
+            raise ValueError("Problem is not quadratic!")
 
-        # pyqplib has it's own matrix represantation
+        # pyqplib has it's own matrix representation
         qubo = qplib_problem.obj.mat.full().todense().T
 
         qubo = np.triu(qubo) / 2
@@ -336,26 +395,23 @@ class QuboFromQPLIB(FromFile):
 
         # Update goal of the objective function
         minimize = qplib_problem.obj.sense == pyqplib.Sense.MINIMIZE
-        return ProblemQubo(qubo, minimize, self.problem_name)
 
-
-TProblem = TypeVar("TProblem", bound="ProblemMaxCut")
+        return ProblemQubo(Q=qubo, problem_name=problem_name, is_minimization=minimize, optimize_input=optimize_input)
 
 
 class MaxCutSolver(Generic[TProblem], PrettyPrint):
-    """Default MaxCut Biqbin Wrapper, runs Biqbin MaxCut using its original functions
+    """Default MaxCut Biqbin Python Wrapper, runs Biqbin MaxCut using its original C-functions
     """
     solver_name = f'PyBiqBin-MaxCut {__version__}'
 
-    def __init__(self, problem: TProblem, params: str, time_limit: int = 0):
+    def __init__(self, params: str, time_limit: int = 0):
         """Initialize the solver
 
         Args:
-            problem (ProblemMaxCut): MaxCut problem
             params (str): path to parameters file
             time_limit (int): time limit in seconds
         """
-        self.problem: TProblem = problem
+        self.problem: TProblem | None = None
         self.params = params
         self.time_limit = time_limit
         set_read_data(self.read_data)
@@ -368,10 +424,13 @@ class MaxCutSolver(Generic[TProblem], PrettyPrint):
         Returns:
             np.ndarray: adjacency matrix
         """
+        if self.problem is None:
+            raise ValueError("Problem instance not set!")
+
         return self.problem.maxcut_adjacency_matrix
 
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
-        """Default heuristic (heuristic_unpacked in heuristic.c)
+        """Default GW heuristic (heuristic_unpacked in heuristic.c)
 
         Args:
             L0 (np.ndarray): original Problem *SP->L matrix
@@ -385,24 +444,48 @@ class MaxCutSolver(Generic[TProblem], PrettyPrint):
         """
         return default_heuristic(L0, L, xfixed, sol_X, x)
 
-    def run(self) -> SolutionMaxCut | None:
-        """Runs Biqbin Maxcut solver
+    def _run_solver(self) -> dict | None:
+        """Runs Biqbin C/C++ implementation
+
+        Raises:
+            ValueError: If no result is retrieved on the master process.
 
         Returns:
-            dict: result dict with keys: "max_val" - max cut solution value, "solution" - nodes in this solution, "time" - spent solving 
+            dict | None: Solution python dict built by C++, or None on MPI rank != 0
         """
+        if self.problem is None:
+            raise ValueError("Problem instance not set!")
+
         biqbin_result = run(self.solver_name, self.problem.problem_name,
                             self.params, self.time_limit)
+
         if (self.get_rank() == 0):
             if biqbin_result is None:
                 raise ValueError(
-                    'result from biqbin is None, computation failed!')
+                    'Result from BiqBin is None, computation failed!')
 
             biqbin_result['meta_data']['instance'] = self.problem.problem_name
             biqbin_result['meta_data']['parameters'] = {
-                'time_limit': self.time_limit if self.time_limit > 0 else None
+                'time_limit': self.time_limit if self.time_limit > 0 else None,
+                'optimized': self.problem.optimize_mc_adj_matrix,
+                'gcd': self.problem.gcd
             }
-            return SolutionMaxCut(biqbin_result)
+            return biqbin_result
+
+    def compute(self, problem: TProblem) -> SolutionMaxCut | None:
+        """Compute the MaxCut solution using Biqbin
+
+        Args:
+            problem (ProblemMaxCut): problem to be solved.
+
+        Returns:
+            SolutionMaxCut | None: Returns the solution class on MPI rank == 0.
+        """
+        self.problem = problem
+
+        biqbin_result = self._run_solver()
+        if biqbin_result is not None:
+            return SolutionMaxCut(biqbin_result, self.problem)
         else:
             return None
 
@@ -418,26 +501,17 @@ class MaxCutSolver(Generic[TProblem], PrettyPrint):
 class QUBOSolver(MaxCutSolver[ProblemQubo]):
     solver_name = f'PyBiqBin-QUBO {__version__}'
 
-    def __init__(self, problem: ProblemQubo, params: str, time_limit: int = 0):
-        super().__init__(problem, params, time_limit)
-
-    def run(self) -> SolutionQubo | None:
-        """Runs the original biqbin then adds the qubo solution nodes to the result dict
+    def compute(self, problem: ProblemQubo) -> SolutionQubo | None:
+        """Computes the solution to the QUBO using Biqbin, only MPI rank == 0 returns Solution
 
         Returns:
-            dict: result dict containing "maxcut" and "qubo" keys with their respective solutions
+            SolutionQubo: Solution class for QUBO problem. returns None if MPI rank != 0.
         """
-        biqbin_result = run(self.solver_name, self.problem.problem_name,
-                            self.params, self.time_limit)
-        if self.get_rank() == 0:
-            if biqbin_result is None:
-                raise ValueError("result is None, solution not retrieved!")
+        self.problem = problem
 
-            biqbin_result['meta_data']['instance'] = self.problem.problem_name
-            biqbin_result['meta_data']['parameters'] = {
-                'time_limit': self.time_limit if self.time_limit > 0 else None
-            }
+        biqbin_result = self._run_solver()
 
+        if biqbin_result is not None:
             return SolutionQubo(biqbin_result, self.problem)
         else:
             return None
@@ -459,13 +533,12 @@ class BaseParser(argparse.ArgumentParser):
                           action='store_true',
                           help='overwrite output.json instead of labeling with _NUMBER'
                           )
+        self.add_argument('-O', '--optimize', action='store_true',
+                          help='Divides the final input matrix values by their GCD')
         self.add_argument('-o', '--output', help='set custom output file path')
         # time limit format taken from SLURM docs https://slurm.schedmd.com/sbatch.html
         self.add_argument('-t', '--time', default='0', type=self.parse_time_limit,
                           help='set running time limit; acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"')
-
-    def get_time_limit(self):
-        ...
 
     def parse_time_limit(self, s: str) -> int:
         """
@@ -511,8 +584,6 @@ class ParserQubo(BaseParser):
         super().__init__(prog=prog, description=description)
         self.add_argument('--qplib', action='store_true',
                           help='Use .qplib file format')
-        self.add_argument('-O', '--optimize', action='store_true',
-                          help='Divide QUBO values by their GCD')
 
 
 class ParserDWaveHeuristic(ParserQubo):

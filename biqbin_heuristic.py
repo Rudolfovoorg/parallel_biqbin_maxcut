@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class QuboDwaveSampler(QUBOSolver):
-    def __init__(self, problem: ProblemQubo, params: str, time_limit: int, sampler, **sampler_kwargs):
-        super().__init__(problem, params, time_limit)
+    def __init__(self, params: str, time_limit: int, sampler, **sampler_kwargs):
+        super().__init__(params, time_limit)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
         self.heuristic_counter = 0
@@ -87,13 +87,15 @@ if __name__ == '__main__':
         logging_level = logging.DEBUG
     logging.root.setLevel(logging_level)
 
-    problem = QuboFromJson(argv.problem_instance).read()
+    reader = QuboFromJson()
+    problem = reader.read(argv.problem_instance, optimize_input=argv.optimize)
     solver = QuboDwaveSampler(problem=problem,
                               params=argv.params,
                               time_limit=argv.time,
                               sampler=SimulatedAnnealingSampler(),
                               num_reads=10)
-    solution = solver.run()
+    
+    solution = solver.compute(problem)
 
     rank = solver.get_rank()
     if logger.isEnabledFor(logging.INFO):
@@ -104,4 +106,5 @@ if __name__ == '__main__':
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
         print(solution)
-        QuboToJson(argv.problem_instance + '.output', argv.overwrite).write(solution)
+        QuboToJson().write(solution, problem.problem_name + ".output",
+                           overwrite=argv.overwrite, with_maxcut_solution=True)

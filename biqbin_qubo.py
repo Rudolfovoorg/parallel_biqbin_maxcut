@@ -5,25 +5,41 @@ from biqbin_base import QUBOSolver, QuboFromJson, QuboFromQPLIB, ParserQubo, Qub
 """
 
 if __name__ == '__main__':
-    # Path to qubo json file file and path to parameters file
     parser = ParserQubo()
     args = parser.parse_args()
     
+    # Select the reader class based on the file format
     if args.qplib:
-        file_loader = QuboFromQPLIB(args.problem_instance)
+        file_reader = QuboFromQPLIB()
     else:
-        file_loader = QuboFromJson(args.problem_instance)
+        file_reader = QuboFromJson()
     
-    problem = file_loader.read()
-    # Initialize QUBOSolver class which takes a DataGetter class instance, path to parameters file and bool if optimizing
-    solver = QUBOSolver(problem=problem, params=args.params, time_limit=args.time)
-    # Run biqbin solver
-    solution = solver.run()
+    # Read the file and get the problem
+    problem = file_reader.read(args.problem_instance, optimize_input=args.optimize)
+    
+    # Initialize QUBOSolver class which takes a path to parameters file and time limit
+    solver = QUBOSolver(params=args.params, time_limit=args.time)
+    
+    # Run biqbin solver to solve the qubo, passing in the problem
+    solution = solver.compute(problem=problem)
 
+    # Get the MPI rank and if master rank print the solution and save it as json
     rank = solver.get_rank()
     if rank == 0:
         # Master rank prints the results
         if solution is None:
             raise ValueError(f'Could not compute solution for {problem}')
         print(solution.meta_data)
-        QuboToJson(args.problem_instance + '.output', args.overwrite).write(solution)
+        
+        # Save output path
+        file_writer = QuboToJson()
+        if isinstance(args.output, str):
+            output_path = args.output
+            print(output_path)
+        else:
+            output_path = args.problem_instance + '.output'
+        file_writer.write(solution,
+                          output_path,
+                          overwrite=args.overwrite,
+                          with_metadata=True,
+                          with_maxcut_solution=True)

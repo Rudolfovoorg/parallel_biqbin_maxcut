@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Dict, Any
+from typing import Tuple
 import scipy as sp
 import numpy as np
 from numpy import typing as npt
@@ -100,6 +100,13 @@ def convert_numpy_to_json_serializable(obj):
         return obj.item()
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
+
+def divide_matrix_by_gcd(matrix: np.ndarray) -> Tuple[int, np.ndarray]:
+    greatest_common_divisor = np.gcd.reduce(matrix)
+    if greatest_common_divisor > 1:
+        matrix /= greatest_common_divisor
+        
+    return greatest_common_divisor, matrix
 
 def qubo_to_qplib_str(qubo: np.ndarray, problem_name: str) -> str:
     """Converts a dense qubo representation 2D np array into the qplib format string

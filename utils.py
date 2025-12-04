@@ -79,7 +79,7 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
     adj_int = np.array(input_matrix, dtype=np.int64)
     if not np.all(input_matrix == adj_int):
         raise ValueError(
-            'All values in the input matrix need to be integers!')
+            f'All values in the input matrix need to be integers!\nmatrix = \n{input_matrix}')
 
     return input_matrix
 
@@ -101,12 +101,12 @@ def convert_numpy_to_json_serializable(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
-def divide_matrix_by_gcd(matrix: np.ndarray) -> Tuple[int, np.ndarray]:
-    greatest_common_divisor = np.gcd.reduce(matrix)
+def divide_matrix_by_gcd(matrix: np.ndarray) -> int:
+    greatest_common_divisor = np.gcd.reduce(matrix.astype(int).flatten())
     if greatest_common_divisor > 1:
         matrix /= greatest_common_divisor
-        
-    return greatest_common_divisor, matrix
+
+    return int(greatest_common_divisor)
 
 def qubo_to_qplib_str(qubo: np.ndarray, problem_name: str) -> str:
     """Converts a dense qubo representation 2D np array into the qplib format string

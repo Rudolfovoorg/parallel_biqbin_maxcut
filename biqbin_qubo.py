@@ -16,21 +16,21 @@ if __name__ == '__main__':
     
     # Read the file and get the problem
     problem = file_reader.read(args.problem_instance, optimize_input=args.optimize)
-    
+    problem.verbose = args.verbose
     # Initialize QUBOSolver class which takes a path to parameters file and time limit
     solver = QUBOSolver(params=args.params, time_limit=args.time)
     
     # Run biqbin solver to solve the qubo, passing in the problem
     solution = solver.compute(problem=problem)
-
     # Get the MPI rank and if master rank print the solution and save it as json
     rank = solver.get_rank()
     if rank == 0:
         # Master rank prints the results
         if solution is None:
             raise ValueError(f'Could not compute solution for {problem}')
-        print(solution.meta_data)
         
+        solution.verbose = args.verbose
+        print(solution) 
         # Save output path
         file_writer = QuboToJson()
         if isinstance(args.output, str):

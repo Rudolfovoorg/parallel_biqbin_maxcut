@@ -20,6 +20,7 @@ if __name__ == '__main__':
     problem = file_reader.read(
         args.problem_instance, optimize_input=args.optimize)
     
+    problem.verbose = args.verbose
     # Create an instance of the MaxCutSolver passing in path to params file and time limit
     solver = MaxCutSolver(args.params, args.time)
     # Compute the solution for the given problem
@@ -30,6 +31,8 @@ if __name__ == '__main__':
         # Print the results if master rank
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
+        
+        solution.verbose = args.verbose
         print(solution)
         
         # Save solution

@@ -78,25 +78,24 @@ if __name__ == '__main__':
     logging.basicConfig()
 
     parser = ParserDWaveHeuristic()
-    argv = parser.parse_args()
+    args = parser.parse_args()
 
     logging_level = logging.WARNING
-    if argv.info:
+    if args.info:
         logging_level = logging.INFO
-    if argv.debug:
+    if args.debug:
         logging_level = logging.DEBUG
     logging.root.setLevel(logging_level)
 
     reader = QuboFromJson()
-    problem = reader.read(argv.problem_instance, optimize_input=argv.optimize)
+    problem = reader.read(args.problem_instance, optimize_input=args.optimize)
     solver = QuboDwaveSampler(problem=problem,
-                              params=argv.params,
-                              time_limit=argv.time,
+                              params=args.params,
+                              time_limit=args.time,
                               sampler=SimulatedAnnealingSampler(),
                               num_reads=10)
     
     solution = solver.compute(problem)
-
     rank = solver.get_rank()
     if logger.isEnabledFor(logging.INFO):
         print(f"{rank=} heuristics ran {solver.heuristic_counter} times")
@@ -105,6 +104,8 @@ if __name__ == '__main__':
         # Master rank prints the results
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
+        
+        solution.verbose = args.verbose
         print(solution)
         QuboToJson().write(solution, problem.problem_name + ".output",
-                           overwrite=argv.overwrite, with_maxcut_solution=True)
+                           overwrite=args.overwrite, with_maxcut_solution=True)

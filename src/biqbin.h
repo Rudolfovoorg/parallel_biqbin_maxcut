@@ -125,7 +125,7 @@ void initializeBabSolution(void);
 int Init_PQ(void);
 int Bab_Init(int argc, char **argv, int rank);
 int updateSolution(int *x);
-void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWorkers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype);
+void master_Bab_Main(Message message, int source, int *busyWorkers, int num_workers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype);
 void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank);
 void printSolution(FILE *file);
 void printFinalOutput(FILE *file, int num_nodes);

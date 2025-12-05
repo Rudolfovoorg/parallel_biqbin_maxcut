@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 from neal import SimulatedAnnealingSampler
-from biqbin_base import QUBOSolver, ProblemQubo, default_heuristic, ParserDWaveHeuristic, QuboFromJson, QuboToJson
+from biqbin_base import QUBOSolver, ProblemQubo, goemans_williamson_heuristic, ParserDWaveHeuristic, QuboFromJson, QuboToJson, init_mpi
 import logging
 from copy import deepcopy
 
@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class QuboDwaveSampler(QUBOSolver):
-    def __init__(self, params: str, time_limit: int, sampler, **sampler_kwargs):
-        super().__init__(params, time_limit)
+    def __init__(self, problem, params: str, time_limit: int, sampler, **sampler_kwargs):
+        super().__init__(problem, params, time_limit)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
         self.heuristic_counter = 0
@@ -49,7 +49,8 @@ class QuboDwaveSampler(QUBOSolver):
         sol_value = self.evaluate_solution(L0, x)
 
         if logger.isEnabledFor(logging.DEBUG):
-            her_value = default_heuristic(L0, L, xfixed, sol_X, deepcopy(x))
+            her_value = goemans_williamson_heuristic(
+                L0, L, xfixed, sol_X, deepcopy(x))
             logger.debug(
                 f'Custom heuristic: {sol_value}, default heuristic: {her_value}')
 
@@ -77,6 +78,7 @@ if __name__ == '__main__':
     # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
     logging.basicConfig()
 
+    size, rank = init_mpi()
     parser = ParserDWaveHeuristic()
     args = parser.parse_args()
 
@@ -87,16 +89,15 @@ if __name__ == '__main__':
         logging_level = logging.DEBUG
     logging.root.setLevel(logging_level)
 
-    reader = QuboFromJson()
-    problem = reader.read(args.problem_instance, optimize_input=args.optimize)
+    reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
+    problem = reader.read()
     solver = QuboDwaveSampler(problem=problem,
                               params=args.params,
                               time_limit=args.time,
                               sampler=SimulatedAnnealingSampler(),
                               num_reads=10)
-    
-    solution = solver.compute(problem)
-    rank = solver.get_rank()
+
+    solution = solver.compute()
     if logger.isEnabledFor(logging.INFO):
         print(f"{rank=} heuristics ran {solver.heuristic_counter} times")
 
@@ -104,7 +105,7 @@ if __name__ == '__main__':
         # Master rank prints the results
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
-        
+
         solution.verbose = args.verbose
         print(solution)
         QuboToJson().write(solution, problem.problem_name + ".output",

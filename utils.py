@@ -63,7 +63,7 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
         raise TypeError(
             f"Input matrix must be a numpy.ndarray, got {type(input_matrix)}")
 
-    if not np.issubdtype(input_matrix.dtype, np.number):
+    if not np.issubdtype(input_matrix.dtype, np.floating) and not np.issubdtype(input_matrix.dtype, np.integer):
         raise TypeError(
             f'Input matrix must use a numeric dtype (int or float), got {input_matrix.dtype}')
 
@@ -83,13 +83,12 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
 
     return input_matrix
 
-
 def check_matrix_validity_wrap(func):
     @wraps(func)
     def wrapper(*args, **kwargs) -> npt.NDArray[np.float64]:
         matrix_to_validate = func(*args, *kwargs)
         return check_matrix_validity(matrix_to_validate)
-    
+
     return wrapper
 
 
@@ -107,6 +106,7 @@ def divide_matrix_by_gcd(matrix: np.ndarray) -> int:
         matrix /= greatest_common_divisor
 
     return int(greatest_common_divisor)
+
 
 def qubo_to_qplib_str(qubo: np.ndarray, problem_name: str) -> str:
     """Converts a dense qubo representation 2D np array into the qplib format string

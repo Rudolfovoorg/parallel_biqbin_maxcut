@@ -1,11 +1,10 @@
 #ifndef BIQBIN_CPP_API_H
 #define BIQBIN_CPP_API_H
 
-
 #ifdef __cplusplus
-# define EXTERN_C extern "C"
+#define EXTERN_C extern "C"
 #else
-# define EXTERN_C
+#define EXTERN_C
 #endif
 
 /* macros for allocating vectors and matrices */
@@ -16,7 +15,7 @@
         fprintf(stderr,                                                                     \
                 "\nError: Memory allocation problem for variable " #var " in %s line %d\n", \
                 __FILE__, __LINE__);                                                        \
-        abort_alloc_fail(10);                                                          \
+        abort_alloc_fail(10);                                                               \
     }
 
 #define alloc(var, type) alloc_vector(var, 1, type)
@@ -62,14 +61,14 @@ typedef struct BabNode
                           // Used for determining the next node in priority queue.
 } BabNode;
 
-EXTERN_C double runHeuristic_unpacked(double *P0_L, int P0_N , double *P_L, int P_N, int *node_xfixed, int *node_sol_X, int *x);
+EXTERN_C double runHeuristic_unpacked(double *P0_L, int P0_N, double *P_L, int P_N, int *node_xfixed, int *node_sol_X, int *x);
 EXTERN_C int wrapped_main(int argc, char **argv);
-EXTERN_C double* readData(const char *instance, int *adj_N);
-EXTERN_C double Bab_LBGet(void);                              // returns global lower bound
+EXTERN_C double *readData(const char *instance, int *adj_N);
+EXTERN_C double Bab_LBGet(void); // returns global lower bound
 EXTERN_C int update_best(int *xbest, int *xnew, double *best, int P0_N);
 EXTERN_C double evaluateSolution(int *sol);
 EXTERN_C void abort_alloc_fail(int abort_code);
-EXTERN_C int process_adj_matrix(double* Adj, int Adj_N);
-EXTERN_C int Bab_numEvalNodes(void);                          // returns number of evaluated nodes
+EXTERN_C int process_adj_matrix(double *Adj, int Adj_N);
+EXTERN_C int Bab_numEvalNodes(void); // returns number of evaluated nodes
 EXTERN_C void ipm_mc_pk(double *L, int n, double *X, double *phi, int print);
 #endif

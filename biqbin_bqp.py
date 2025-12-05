@@ -5,7 +5,7 @@ import numpy as np
 import warnings
 
 from utils import convert_numpy_to_json_serializable
-from biqbin_base import LoadFromFile, BaseParser, MaxCutSolver, SolutionMaxCut, ProblemMaxCut, SaveToFile
+from biqbin_base import LoadFromFile, BaseParser, MaxCutSolver, SolutionMaxCut, ProblemMaxCut, SaveToFile, init_mpi
 
 # these functions are placeholder implementations!
 from bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_json, read_solution_bqp
@@ -47,12 +47,7 @@ class SolutionBQP(SolutionMaxCut[ProblemBQP]):
 class BQPSolver(MaxCutSolver[ProblemBQP]):
     solver_name = f'PyBiqBin-BQP-PLACEHOLDER'
 
-    def compute(self, problem: ProblemBQP) -> SolutionBQP | None:
-        self.problem = problem
-        
-        if self.problem is None:
-            raise ValueError("No problem instance to solve!")
-        
+    def compute(self) -> SolutionBQP | None:
         result = self._run_solver()
         if result is not None and self.get_rank() == 0:
             print(result)
@@ -65,14 +60,12 @@ class BQPFromFile(LoadFromFile):
     into the adjacency matrix.
     """
 
-    def read(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> ProblemBQP:
+    def read(self) -> ProblemBQP:
         warnings.warn("PLACEHOLDER FUNCTION")
         # This needs to be done in Python properly
-        adj_matrix = read_data_bqp(filename)
+        adj_matrix = read_data_bqp(self.filename)
 
-        if problem_name is None:
-            problem_name = filename
-        return ProblemBQP(adj_matrix, problem_name, optimize_input)
+        return ProblemBQP(adj_matrix, self.problem_name, self.optimize_input)
 
 
 class BQPFromJson(LoadFromFile):
@@ -81,13 +74,12 @@ class BQPFromJson(LoadFromFile):
     into the adjacency matrix.
     """
 
-    def read(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> ProblemBQP:
+    def read(self) -> ProblemBQP:
         warnings.warn("PLACEHOLDER FUNCTION")
-        instance = self.read_bqp_json(filename)
+        instance = self.read_bqp_json(self.filename)
         adj_matrix = read_data_bqp_json(instance)
-        if problem_name is None:
-            problem_name = filename
-        return ProblemBQP(adj_matrix, problem_name, optimize_input)
+
+        return ProblemBQP(adj_matrix, self.problem_name, self.optimize_input)
 
     def read_bqp_json(self, filename):
         with open(filename, 'r') as file:
@@ -153,19 +145,22 @@ class BQPToJson(SaveToFile[SolutionBQP]):
 
 
 if __name__ == '__main__':
+    size, rank = init_mpi()
     parser = ParserBQP()
     args = parser.parse_args()
 
     # Get the file reader for the BQP instance
     if args.json:
-        problem_reader = BQPFromJson()
+        problem_reader = BQPFromJson(
+            args.problem_instance, optimize_input=args.optimize)
     else:
-        problem_reader = BQPFromFile()
+        problem_reader = BQPFromFile(
+            args.problem_instance, optimize_input=args.optimize)
 
-    problem = problem_reader.read(args.problem_instance, optimize_input=args.optimize)
-    solver = BQPSolver(args.params, args.time)
+    problem = problem_reader.read()
+    solver = BQPSolver(problem, args.params, args.time)
 
-    solution = solver.compute(problem)  # run the solver
+    solution = solver.compute()  # run the solver
     rank = solver.get_rank()
 
     if rank == 0:
@@ -173,4 +168,5 @@ if __name__ == '__main__':
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
         print(solution)
-        BQPToJson().write(solution, problem.problem_name + '.output', with_metadata=True, with_maxcut_solution=True)
+        BQPToJson().write(solution, problem.problem_name + '.output',
+                          with_metadata=True, with_maxcut_solution=True)

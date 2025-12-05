@@ -82,10 +82,10 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
                 read_error = process_adj_matrix(adj, adj_N);
                 free(adj);
             }
-        #else
+            #else
             read_error = wrapped_read_data();
-        #endif
-
+            #endif
+            
         // bcast first read_error then whole graph
         MPI_Bcast(&read_error, 1, MPI_INT, 0, MPI_COMM_WORLD);
         if (read_error)

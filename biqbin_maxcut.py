@@ -7,8 +7,7 @@ from biqbin_base import MaxCutSolver, MaxCutFromJson, MaxCutFromEdgeWeights, Par
 
 if __name__ == '__main__':
     size, rank = init_mpi()
-    
-    print(f'{size = }; {rank = }')
+
     parser = ParserMaxCut()
     args = parser.parse_args()
 
@@ -25,11 +24,12 @@ if __name__ == '__main__':
 
     problem.verbose = args.verbose
     # Create an instance of the MaxCutSolver passing in path to params file and time limit
-    solver = MaxCutSolver(problem=problem, params=args.params, time_limit=args.time)
+    solver = MaxCutSolver(
+        problem=problem, params=args.params, time_limit=args.time)
     # Compute the solution for the given problem
     solution = solver.compute()
     # Get rank to only save the results on the master rank
-    
+
     if rank == 0:
         # Print the results if master rank
         if solution is None:
@@ -44,8 +44,7 @@ if __name__ == '__main__':
         else:
             output_path = args.problem_instance + '.output'
 
-        file_writer = MaxCutToJson()
-        file_writer.write(solution,
-                          output_path,
+        file_writer = MaxCutToJson(solution)
+        file_writer.write(output_path,
                           overwrite=args.overwrite,
                           with_metadata=True)

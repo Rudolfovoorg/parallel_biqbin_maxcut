@@ -23,7 +23,7 @@ class ProblemBQP(ProblemMaxCut):
         super().__init__(maxcut_adjacency_matrix, problem_name, optimize_input)
 
 
-class SolutionBQP(SolutionMaxCut[ProblemBQP]):
+class SolutionBQP(SolutionMaxCut):
     def __init__(self, biqbin_result: dict, problem: ProblemBQP) -> None:
         super().__init__(biqbin_result, problem)
         self.maxcut_solution = super().solution
@@ -44,8 +44,16 @@ class SolutionBQP(SolutionMaxCut[ProblemBQP]):
                 f'    Const value = {self.__solution['const_value']}\n')
 
 
-class BQPSolver(MaxCutSolver[ProblemBQP]):
+class BQPSolver(MaxCutSolver):
     solver_name = f'PyBiqBin-BQP-PLACEHOLDER'
+
+    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0):
+        super().__init__(problem, params, time_limit)
+        self.__problem: ProblemBQP = problem
+
+    @property
+    def problem(self) -> ProblemBQP:
+        return self.__problem
 
     def compute(self) -> SolutionBQP | None:
         result = self._run_solver()
@@ -119,8 +127,11 @@ class BQPFromJson(LoadFromFile):
         return instance
 
 
-class BQPToJson(SaveToFile[SolutionBQP]):
-    def write(self, solution: SolutionBQP, filename: str, overwrite: bool = False, with_metadata: bool = True, with_maxcut_solution: bool = False) -> None:
+class BQPToJson(SaveToFile):
+    def __init__(self, solution: SolutionBQP) -> None:
+        self.solution: SolutionBQP = solution
+
+    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True, with_maxcut_solution: bool = False) -> None:
         """Save the bqp solution as JSON file.
 
         Args:
@@ -132,12 +143,12 @@ class BQPToJson(SaveToFile[SolutionBQP]):
         output_path = self.get_output_path(filename, overwrite)
 
         save_output = {
-            'bqp': solution.solution,
+            'bqp': self.solution.solution,
         }
         if with_maxcut_solution:
-            save_output['maxcut'] = solution.maxcut_solution
+            save_output['maxcut'] = self.solution.maxcut_solution
         if with_metadata:
-            save_output['meta_data'] = solution.meta_data
+            save_output['meta_data'] = self.solution.meta_data
 
         with open(output_path, 'w') as f:
             json.dump(save_output, f,
@@ -168,5 +179,11 @@ if __name__ == '__main__':
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
         print(solution)
-        BQPToJson().write(solution, problem.problem_name + '.output',
-                          with_metadata=True, with_maxcut_solution=True)
+        solution_writer = BQPToJson(solution)
+        if isinstance(args.output, str):
+            output_path = args.output
+        else:
+            output_path = args.problem_instance + '.output'
+        solution_writer.write(output_path,
+                              with_metadata=True,
+                              with_maxcut_solution=True)

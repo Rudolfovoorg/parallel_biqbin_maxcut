@@ -108,5 +108,12 @@ if __name__ == '__main__':
 
         solution.verbose = args.verbose
         print(solution)
-        QuboToJson().write(solution, problem.problem_name + ".output",
-                           overwrite=args.overwrite, with_maxcut_solution=True)
+        solution_writer = QuboToJson(solution)
+        if isinstance(args.output, str):
+            output_path = args.output
+        else:
+            output_path = args.problem_instance + '.output'
+
+        solution_writer.write(output_path,
+                              overwrite=args.overwrite, 
+                              with_maxcut_solution=True)

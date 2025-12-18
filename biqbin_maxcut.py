@@ -1,14 +1,10 @@
 import argparse
-from biqbin_base import MaxCutSolver, MaxCutFromJson, MaxCutFromEdgeWeights, ParserMaxCut, MaxCutToJson, init_mpi
+from biqbin_base import MaxCutSolver, ArgParserMaxCut, MaxCutToJson, get_rank
+from data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson
 
-"""
-    Default MaxCut Biqbin wrapper example
-"""
 
 if __name__ == '__main__':
-    size, rank = init_mpi()
-
-    parser = ParserMaxCut()
+    parser = ArgParserMaxCut()
     args = parser.parse_args()
 
     # Select the file reader based on the file format
@@ -22,24 +18,20 @@ if __name__ == '__main__':
     # Read the file
     problem = file_reader.read()
 
-    problem.verbose = args.verbose
     # Create an instance of the MaxCutSolver passing in path to params file and time limit
     solver = MaxCutSolver(
         problem=problem, params=args.params, time_limit=args.time)
     # Compute the solution for the given problem
     solution = solver.compute()
     # Get rank to only save the results on the master rank
-
-    if rank == 0:
+    if get_rank() == 0:
         # Print the results if master rank
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
 
-        solution.verbose = args.verbose
-        print(solution)
-
+        solution.print_computed_solution(args.verbose)
         # Save solution
-        if isinstance(args.output, str):
+        if args.output:
             output_path = args.output
         else:
             output_path = args.problem_instance + '.output'

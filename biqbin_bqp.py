@@ -1,17 +1,17 @@
 import json
-from numpy._typing import NDArray
 import scipy as sp
 import numpy as np
 import warnings
 
 from utils import convert_numpy_to_json_serializable
-from biqbin_base import LoadFromFile, BaseParser, MaxCutSolver, SolutionMaxCut, ProblemMaxCut, SaveToFile, init_mpi
+from biqbin_base import ArgParserBase, MaxCutSolver, SolutionMaxCut, ProblemMaxCut, ToFile, get_rank
+from data_parsers import FromFile
 
 # these functions are placeholder implementations!
 from bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_json, read_solution_bqp
 
 
-class ParserBQP(BaseParser):
+class ParserBQP(ArgParserBase):
     def __init__(self):
         super().__init__(prog=f'biqbin_bqp.py', description='Biqbin BQP solver')
         self.add_argument('-j', '--json', action='store_true',
@@ -57,12 +57,12 @@ class BQPSolver(MaxCutSolver):
 
     def compute(self) -> SolutionBQP | None:
         result = self._run_solver()
-        if result is not None and self.get_rank() == 0:
+        if result is not None:
             print(result)
             return SolutionBQP(result, self.problem)
 
 
-class BQPFromFile(LoadFromFile):
+class BQPFromFile(FromFile):
     """
     Uses the C implementation of biqbin_general_bqp, reads and parses bqp instance file and parses
     into the adjacency matrix.
@@ -76,7 +76,7 @@ class BQPFromFile(LoadFromFile):
         return ProblemBQP(adj_matrix, self.problem_name, self.optimize_input)
 
 
-class BQPFromJson(LoadFromFile):
+class BQPFromJson(FromFile):
     """
     Uses the default json implementation of biqbin_general_bqp, reads and parses bqp instance file and parses
     into the adjacency matrix.
@@ -127,7 +127,7 @@ class BQPFromJson(LoadFromFile):
         return instance
 
 
-class BQPToJson(SaveToFile):
+class BQPToJson(ToFile):
     def __init__(self, solution: SolutionBQP) -> None:
         self.solution: SolutionBQP = solution
 
@@ -156,7 +156,6 @@ class BQPToJson(SaveToFile):
 
 
 if __name__ == '__main__':
-    size, rank = init_mpi()
     parser = ParserBQP()
     args = parser.parse_args()
 
@@ -172,9 +171,8 @@ if __name__ == '__main__':
     solver = BQPSolver(problem, args.params, args.time)
 
     solution = solver.compute()  # run the solver
-    rank = solver.get_rank()
 
-    if rank == 0:
+    if get_rank() == 0:
         # Convert the Max-Cut solution back to BQP !! PLACEHOLDER FUNCTION !!
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')

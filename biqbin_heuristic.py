@@ -1,7 +1,8 @@
 import numpy as np
 import sys
 from neal import SimulatedAnnealingSampler
-from biqbin_base import QUBOSolver, ProblemQubo, goemans_williamson_heuristic, ParserDWaveHeuristic, QuboFromJson, QuboToJson, init_mpi
+from biqbin_base import QUBOSolver, goemans_williamson_heuristic, ArgParserDWaveHeuristic, QuboToJson, get_rank
+from data_parsers import QuboFromJson
 import logging
 from copy import deepcopy
 
@@ -78,8 +79,7 @@ if __name__ == '__main__':
     # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
     logging.basicConfig()
 
-    size, rank = init_mpi()
-    parser = ParserDWaveHeuristic()
+    parser = ArgParserDWaveHeuristic()
     args = parser.parse_args()
 
     logging_level = logging.WARNING
@@ -98,6 +98,7 @@ if __name__ == '__main__':
                               num_reads=10)
 
     solution = solver.compute()
+    rank = get_rank()
     if logger.isEnabledFor(logging.INFO):
         print(f"{rank=} heuristics ran {solver.heuristic_counter} times")
 
@@ -106,8 +107,7 @@ if __name__ == '__main__':
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
 
-        solution.verbose = args.verbose
-        print(solution)
+        solution.print_computed_solution(args.verbose)
         solution_writer = QuboToJson(solution)
         if isinstance(args.output, str):
             output_path = args.output
@@ -115,5 +115,5 @@ if __name__ == '__main__':
             output_path = args.problem_instance + '.output'
 
         solution_writer.write(output_path,
-                              overwrite=args.overwrite, 
+                              overwrite=args.overwrite,
                               with_maxcut_solution=True)

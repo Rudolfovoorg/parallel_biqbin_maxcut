@@ -25,6 +25,7 @@ class ProblemMaxCut(PrettyPrint):
                  maxcut_adjacency_matrix: npt.NDArray[np.floating | np.integer],
                  problem_name: str,
                  optimize_mc_adj_matrix: bool = False) -> None:
+        
         self.problem_name = problem_name
         self.optimize_mc_adj_matrix = optimize_mc_adj_matrix
         self.gcd: int = 1
@@ -521,8 +522,8 @@ class ArgParserMaxCut(ArgParserBase):
 class ArgParserQubo(ArgParserBase):
     def __init__(self, prog=f'biqbin_qubo.py', description='Biqbin QUBO solver'):
         super().__init__(prog=prog, description=description)
-        self.add_argument('--qplib', action='store_true',
-                          help='Use .qplib file format')
+        # self.add_argument('--qplib', action='store_true',
+        #                   help='Use .qplib file format')
 
 
 class ArgParserDWaveHeuristic(ArgParserQubo):

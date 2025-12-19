@@ -20,7 +20,9 @@ if __name__ == '__main__':
 
     # Create an instance of the MaxCutSolver passing in path to params file and time limit
     solver = MaxCutSolver(
-        problem=problem, params=args.params, time_limit=args.time)
+        problem=problem,
+        params=args.params,
+        time_limit=args.time)
     # Compute the solution for the given problem
     solution = solver.compute()
     # Get rank to only save the results on the master rank

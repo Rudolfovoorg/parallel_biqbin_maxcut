@@ -28,34 +28,35 @@ if __name__ == '__main__':
         com_len_x = sum(com_x)
         exp_x = expected_result[problem]["x"]
         exp_len_x = sum(exp_x)
+        diffs['len_diffs'] = abs(com_len_x - exp_len_x)
         if abs(val_diff) > 0.0001:
             print(f"Computed x = {com_x}")
             print(f"Expected x = {exp_x}")
             test_failed = True
         test_failed = not all(result[problem]["x"][i] == expected_result[problem]["x"][i] for i in range(len(result[problem]["x"])))
     
-    if not result["bqp"]["feasible_solution"] == expected_result["bqp"]["feasible_solution"]:
-        test_failed = True
-    
-    if not result["bqp"]["rho"] == expected_result["bqp"]["rho"]:
-        test_failed = True
-        problem(f"Expected rho {expected_result["bqp"]["rho"]} != computed rho {result["bqp"]["rho"]}")
-    
-    if not result["bqp"]["rho"] == expected_result["bqp"]["rho"]:
-        test_failed = True
-        problem(f"Expected rho {expected_result["bqp"]["rho"]} != computed rho {result["bqp"]["rho"]}")
-    
-    if not result["bqp"]["const_value"] == expected_result["bqp"]["const_value"]:
-        test_failed = True
-        problem(f"Expected const_value {expected_result["bqp"]["const_value"]} != computed const_value {result["bqp"]["const_value"]}")
+        if not result["bqp"]["feasible_solution"] == expected_result["bqp"]["feasible_solution"]:
+            test_failed = True
+        
+        if not result["bqp"]["rho"] == expected_result["bqp"]["rho"]:
+            test_failed = True
+            print(f"Expected rho {expected_result["bqp"]["rho"]} != computed rho {result["bqp"]["rho"]}")
+        
+        if not result["bqp"]["rho"] == expected_result["bqp"]["rho"]:
+            test_failed = True
+            print(f"Expected rho {expected_result["bqp"]["rho"]} != computed rho {result["bqp"]["rho"]}")
+        
+        if not result["bqp"]["const_value"] == expected_result["bqp"]["const_value"]:
+            test_failed = True
+            print(f"Expected const_value {expected_result["bqp"]["const_value"]} != computed const_value {result["bqp"]["const_value"]}")
         
     if not test_failed:
         print(
-            f"OK! - {problem_instance_file_name} bqp val diff = {diffs["bqp_val"]}; bqp diff = {com_len_x - exp_len_x}; Time diff = {diffs["time"]}"
+            f"OK! - {problem_instance_file_name} bqp val diff = {diffs["bqp_val"]}; bqp diff = {diffs['len_diffs']}; Time diff = {diffs["time"]}"
         )
         exit(0)
     else:
         print(
-        f"FAILED! - {problem_instance_file_name} Maxcut diff = {diffs["maxcut_val"]}; bqp diff = {diffs["bqp_val"]};  Time diff = {diffs["time"]}"
+        f"FAILED! - {problem_instance_file_name} Maxcut diff = {diffs["maxcut_val"]}; bqp diff = {diffs["len_diffs"]};  Time diff = {diffs["time"]}"
         )
         exit(1)

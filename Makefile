@@ -32,10 +32,10 @@ INCLUDES += $(PYBIND11_INCLUDES) $(PYTHON_INCLUDE)
 LIB += $(PYTHON_LIB)
 
 # Python module (Pybind11)
-PYMODULE = biqbin.so
+PYMODULE = biqbin_module.so
 PYMOD_OUT = $(WRAPPER_BUILD_DIR)/$(PYMODULE)
 # C only binary
-BIQBIN_BINARY = biqbin
+BIQBIN_BINARY = biqbin_executable
 BINS =  $(C_BUILD_DIR)/$(BIQBIN_BINARY)
 
 # BQP module (Pybind11)
@@ -71,9 +71,9 @@ CPPFLAGS = $(CPPOPTI) -Wall -W -pedantic
 
 # Default rule is to create all binaries #
 all: clean $(BINS) $(PYMOD_OUT) $(BQPMOD_OUT)
-	cp $(PYMOD_OUT) .
+	cp $(PYMOD_OUT) biqbin/
 	cp $(BINS) .
-	cp $(BQPMOD_OUT) .
+	cp $(BQPMOD_OUT) biqbin/
 
 	
 clean-output:

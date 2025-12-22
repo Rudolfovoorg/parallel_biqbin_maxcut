@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import scipy as sp
-from utils import qubo_to_biqbin_representation
+from biqbin.utils import qubo_to_biqbin_representation
     
 # Some "qubo" 2D matrix, all values must be integers
 qubo = np.array(

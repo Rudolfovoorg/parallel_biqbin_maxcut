@@ -1,6 +1,7 @@
 import argparse
-from biqbin.biqbin_base import MaxCutSolver, ArgParserMaxCut, MaxCutToJson, get_rank
-from biqbin.data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson
+from biqbin.biqbin_base import MaxCutSolver, get_rank
+from biqbin.data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson, MaxCutToJson
+from biqbin.argparsers import ArgParserMaxCut
 
 
 if __name__ == '__main__':

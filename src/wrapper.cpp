@@ -1,6 +1,7 @@
 
 #include <iostream>
 
+#include <mpi.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h> // for std::vector
@@ -25,24 +26,26 @@ std::vector<int> solution_x;
 /* meta_data */
 extern int num_workers_used;
 extern int time_limit_reached;
-extern int rank;
 extern int heuristic_counter;
 extern int heuristic_sum;
+
+/* MPI data */
+extern int rank;
+extern int num_workers;
 
 double running_time;
 int time_limit;
 
 // Python override functions
 py::object python_heuristic_override;
-py::object py_read_data_override;
+
+// Python received problem, memory is owned by Python
+double *adj_matrix;
+int adj_matrix_size;
 
 /// @brief set heuristic function from python
 /// @param func
 void set_heuristic_override(py::object func) { python_heuristic_override = func; }
-
-/// @brief set problem instance reading function from Python
-/// @param func
-void set_read_data_override(py::object func) { py_read_data_override = func; }
 
 int get_rank() { return rank; }
 int get_time_limit() { return time_limit; }
@@ -50,7 +53,6 @@ int get_time_limit() { return time_limit; }
 /// @brief TODO: find a better fix for conflicts with MPI
 void clean_python_references(void)
 {
-    py_read_data_override = py::object();
     python_heuristic_override = py::object();
 }
 
@@ -85,8 +87,10 @@ void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, con
     }
 
     // If 2D, check if square
-    if (expected_ndim == 2) {
-        if (np_in.shape(0) != np_in.shape(1)) {
+    if (expected_ndim == 2)
+    {
+        if (np_in.shape(0) != np_in.shape(1))
+        {
             throw py::type_error(np_array_name + " must be square (shape[0] == shape[1]), got shape (" +
                                  std::to_string(np_in.shape(0)) + ", " + std::to_string(np_in.shape(1)) + ")");
         }
@@ -124,10 +128,19 @@ py::array_t<T> get_numpy_array_from_vec(std::vector<T> &in_vec)
 /// @param problem_instance_name argv[1] "problem_path_to_file"
 /// @param params_file_name argv[2] "path_to_params_file"
 /// @return biqbin maxcut result
-py::dict run_py(char* prog_name, char* problem_instance_name, char* params_file_name, int time_limit_in)
+py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, char *params_file_name, int time_limit_in)
 {
     time_limit = time_limit_in;
     heuristic_counter = 0;
+
+    if (rank == 0)
+    {
+        // One last safety check
+        check_np_array_validity<double>(adj_matrix_in, 2, "maxcut_adjacency_matrix");
+        // Set the problem data, memory owned by Python
+        adj_matrix_size = adj_matrix_in.shape(0);
+        adj_matrix = static_cast<double *>(adj_matrix_in.mutable_data());
+    }
 
     char *argv[3] = {prog_name, problem_instance_name, params_file_name};
     wrapped_main(3, argv);
@@ -228,33 +241,10 @@ double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x)
         .cast<double>();
 }
 
-/// @brief Read the instance problem file return the adjacency matrix
-/// @param instance path to instance file
-/// @return adjacency matrix
-py::array_t<double> read_data_python(const std::string &instance)
-{
-    double *adj;
-    int adj_N;
-    adj = readData(instance.c_str(), &adj_N);
-
-    return py::array_t<double>({adj_N, adj_N}, adj);
-}
-
 /// @brief Get an adjacency matrix from Python and set Problem *SP->L and *PP global variables
 int wrapped_read_data()
 {
-    py::array np_adj;
-    try
-    {
-        np_adj = py_read_data_override().cast<py::array>();
-    }
-    catch (const py::error_already_set &e)
-    {
-        std::cerr << "Python error: " << e.what() << std::endl;
-        std::exit(1);
-    }
-    check_np_array_validity<double>(np_adj, 2, "adj");
-    return process_adj_matrix(static_cast<double *>(np_adj.mutable_data()), np_adj.shape(0));
+    return process_adj_matrix(adj_matrix, adj_matrix_size);
 }
 
 /// @brief Copy the solution before memory is freed, so it can be retrieved in Python
@@ -275,12 +265,21 @@ void copy_solution()
 /// @param time
 void record_time(double time) { running_time = time; }
 
-PYBIND11_MODULE(biqbin, m)
+py::tuple init_mpi_python()
 {
-    m.def("set_heuristic", &set_heuristic_override);
-    m.def("set_read_data", &set_read_data_override);
-    m.def("run", &run_py);
-    m.def("default_heuristic", &run_heuristic_python);
-    m.def("default_read_data", &read_data_python);
-    m.def("get_rank", &get_rank);
+    // Initialize MPI without propagating CLI arguments
+    MPI_Init(NULL, NULL);
+    // get number of proccesses and corresponding ranks
+    MPI_Comm_size(MPI_COMM_WORLD, &num_workers);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    return py::make_tuple(num_workers, rank);
+}
+
+PYBIND11_MODULE(biqbin, m, "Biqbin solver")
+{
+    m.def("init_mpi", &init_mpi_python, "Initialize MPI protocol");
+    m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");
+    m.def("run", &run_py, "Run the solver");
+    m.def("goemans_williamson_heuristic", &run_heuristic_python, "Default C-implemented GW heuristic");
+    m.def("get_rank", &get_rank, "Get the mpi rank");
 }

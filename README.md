@@ -2,10 +2,12 @@
 
 ## **Quantum solver for hard BInary Quadratic problems (QBIQ)**
 
-### **Aris Project (L1-60136),  1.1.2025 - 31.12.2027**
+### **Aris Project (L1-60136), 1.1.2025 - 31.12.2027**
+
 [Aris project link](https://cris.cobiss.net/ecris/si/en/project/22627)
 
 ---
+
 **Copyright © 2021 — The BiqBin Project**  
 Funded by **FWF (I 3199-N31)** and **ARRS (P2-0162)**
 
@@ -36,88 +38,112 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 
 ---
 
+## Setup
 
-##  Setup
+> **Note:** This readme is for PC example, for HPC please refer to [HPC_EXAMPLE.md](HPC_EXAMPLE.md)
 
->**Note:** This readme is for PC example, for HPC please refer to [HPC_EXAMPLE.md](HPC_EXAMPLE.md)
-
-#### Biqbin requires **Linux operating system**. 
+#### Biqbin requires **Linux operating system**.
 
 It also requires:
+
 - Python development headers (the `python3-dev` package).
 - MPI implementation (`OpenMPI` or `MPICH`)
 - `OpenBLAS` mathematics library
 
 The rest can be installed with `pip install -r requirements.txt`:
+
 ```
 pybind11
 scipy
 numpy
-dwave-neal 
+dwave-neal
 ```
 
 Below are description on two seperate setup instruction, either [**Anaconda**](#conda-based-build) or [**Docker**](#docker) based builds.
 
 ### Conda based build
+
 This project is fully buildable inside a Conda environment.
 
 ### Setup Instructions (Conda Environment)
+
 #### 1. Install Anaconda (if not already)
 
 Download
+
 ```bash
 curl -O https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
 ```
+
 Install
+
 ```bash
 bash ~/Anaconda3-2024.10-1-Linux-x86_64.sh
 ```
+
 ---
+
 Configure solver if not set to libmamba
+
 ```bash
 conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
+
 Update to nevest
+
 ```bash
 conda update -n base -c defaults conda
 ```
 
 #### 2. Create and activate Conda environment
+
 Create
+
 ```bash
 conda create -n biqbin-py312 python=3.12
 ```
+
 Activate
+
 ```bash
 conda activate biqbin-py312
 ```
 
 #### 3. Install dependencies
+
 C and C++ compiler
+
 ```bash
 conda install -c conda-forge gxx
 ```
+
 MPI
+
 ```bash
 conda install conda-forge::openmpi
 ```
+
 OpenBLAS
+
 ```bash
 conda install -c conda-forge openblas
 ```
+
 Python packages
+
 ```bash
 pip install -r requirements.txt
 ```
 
 #### 5. Compile using Makefile
+
 ```bash
 make
 make test
 ```
 
-##  Docker
+## Docker
 
 **`Dockerfile`** available for running the solver in a docker container, image can be created using Makefile command
 
@@ -126,33 +152,38 @@ make docker
 ```
 
 To access the docker container use:
+
 ```bash
-make docker-shell 
+make docker-shell
 ```
+
 for other specific commands please checkout the `Makefile`
 
 ## Usage
 
-> **NOTE:** Biqbin can only solve problem instances with  **integer edge weight**!  
+> **NOTE:** Biqbin can only solve problem instances with **integer edge weight**!  
 > This applies both to the Maxcut and Qubo solvers.
-
 
 > **Min Processes:** Biqbin requires needs at least **3 mpi processes to run**!
 
-> **Over Concurrency:** Depending on your system you must set `OpenBlas` environment variables, to prevent over threading which can **significantly** slow down your system:  
+> **Over Concurrency:** Depending on your system you must set `OpenBlas` environment variables, to prevent over threading which can **significantly** slow down your system:
+
 ```bash
  export OPENBLAS_NUM_THREADS=1
  export GOTO_NUM_THREADS=1
  export OMP_NUM_THREADS=1
- ```
+```
 
 ### Original Biqbin Maxcut Parallel solver - C only
 
 Example:
+
 ```bash
 mpirun -n 3 ./biqbin tests/rudy/g05_60.0 params
 ```
+
 General command:
+
 ```bash
 mpirun -n N ./biqbin problem_instance params
 ```
@@ -166,10 +197,13 @@ mpirun -n N ./biqbin problem_instance params
 ### Python Wrapper for Biqbin Maxcut Parallel solver
 
 Example:
+
 ```bash
 mpirun -n 3 python3 biqbin_maxcut.py tests/rudy/g05_60.0.json
 ```
+
 General command:
+
 ```bash
 mpirun -n N python3 biqbin_maxcut.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 ```
@@ -177,53 +211,64 @@ mpirun -n N python3 biqbin_maxcut.py problem_instance [-p PARAMS] [-w] [-o OUTPU
 - `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
 - `problem_instance`: A `JSON` serializable sparse coo adjacency matrix.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
+- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-e`, `--edge_weight`: Optional command to use edge weight `problem_instance` that C-only solver uses.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
+- `-O`, `--optimize`: Divides the final input matrix values by their GCD
 - `-h`, `--help`: Show help message and exit.
+
 ---
 
 ### Python Wrapper for QUBO-s
 
 Example:
+
 ```bash
 mpirun -n 3 python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json
 ```
+
 General command:
+
 ```bash
-mpirun -n N python3 biqbin_qubo.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
+mpirun -n N python3 biqbin_qubo.py problem_instance [-p PARAMS] [-w] [-o OUTPUT] [-O]
 ```
 
 - `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
 - `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
+- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-O`, `--optimize`: Divide QUBO values by their GCD.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-h`, `--help`: Show help message and exit.
 
 ---
+
 ### QUBO DWaveSampler
+
 In `biqbin_heuristic.py` there is an example of a `QuboDwaveSampler` class which inhearits from `QUBOSolver` which overrides
 Biqbins default heuristic. It takes an extra `sampler` argument plus any arguments Dwaves sampler takes.
 In our example we use DWaves `neal.SimulatedAnnealingSampler`.
 
 Example:
+
 ```bash
 mpirun -n 3 python3 biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json
 ```
+
 General command:
+
 ```bash
-mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OUTPUT] [-i] [-d]
+mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OUTPUT] [-i] [-d] [-O]
 ```
 
-- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
+- `N`: Number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
 - `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
+- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
+- `-O`, `--optimize`: Divides the final input matrix values by their GCD
 - `-d`, `--debug`: Enables debug logs
 - `-i`, `--info`: Enable info logs
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
@@ -233,12 +278,14 @@ mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OU
 
 > **NOTE:** BQP is considered to be a placeholder implementation at this time!
 
-
 Example:
+
 ```bash
 mpirun -n 3 python3 biqbin_bqp.py tests/bqp/test_bqp.data
 ```
+
 General command:
+
 ```bash
 mpirun -n N python3 biqbin_bqp.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 ```
@@ -246,11 +293,11 @@ mpirun -n N python3 biqbin_bqp.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 - `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
 - `problem_instance`: .
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '_NUMBER'.
+- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-O`, `--optimize`: Divide QUBO values by their GCD.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
--  `-j`, `--json`: Read a .json input file.
+- `-j`, `--json`: Read a .json input file.
 - `-h`, `--help`: Show help message and exit.
 
 For input file example please see [bqp_input_example.md](bqp_input_example.md).
@@ -266,7 +313,6 @@ Please check the following Python files to find how to setup biqbin solver throu
 - `biqbin_heuristic.py`: Example on how to custom heuristc for lower bound estimation.
 - `biqbin_bqp.py`: Example on how to run general BQP biqbin.
 
-
 ---
 
 > **NOTE:** The default **maximum problem size** is **1024 nodes**.  
@@ -276,21 +322,23 @@ Please check the following Python files to find how to setup biqbin solver throu
 
 ## Input files
 
-> **NOTE:** Biqbin can only solve problem instances with  **integer edge weight**!  
+> **NOTE:** Biqbin can only solve problem instances with **integer edge weight**!  
 > This applies both to the Maxcut and Qubo solvers.
 
 Below are example of instance problem files for Maxcut (C and python versions) and Qubos (python version).
 
-### `DataGetter class`
-Python versions of the solver use a DataGetter class, split into seperate subclasses for different types of input instances/problems:
 
-- `DataGetterMaxCutDefault` uses the default C implementation of parsing the file, thus requires the same edge weight format.
-- `DataGetterAdjacencyJson` parses a `json` serializable dictionary with "adjacency" key and a `scipy.coo_matrix` of an adjacency matrix as value.
-- `DataGetterJson` is the default `DataGetter` for QUBO instances, parses a `scipy.coo_matrix` of a QUBO into a MaxCut adjacency matrix.
-- `DataGetterBQPDefault` is the default `DataGetter` for BQP instances, parses a txt of a BQP into a MaxCut adjacency matrix.
-- `DataGetterBQPJson` is the json `DataGetter` for BQP instances, parses a json serializable file into a MaxCut adjacency matrix.
+### `ToFile` class
+
+Python versions of the solver use a `ToFile` class, split into seperate subclasses to read different types of input formats, instances/problems.
+`ToFile` derived class needs to implement `read(filename: str)` method that returns and instance of a `ProblemMaxCut` class (or it's subclass, such as `ProblemQubo` class).
+
+- `MaxCutFromEdgeWeights` reads and parses an edge-weight text format.
+- `MaxCutFromJson` parses a `json` serializable dictionary with "adjacency" key and a `scipy.coo_matrix` of an adjacency matrix as value.
+- `QuboFromJson` file reader for QUBO instances, parses a `scipy.coo_matrix`.
 
 #### MaxCut default input example
+
 C-version expects an edge weight list format, with the first line containing the number of vertices and edges:
 
 ```
@@ -298,13 +346,23 @@ C-version expects an edge weight list format, with the first line containing the
 1 2 3
 1 3 -4
 ```
+
 An example of a problem instance with 3 vertices and 2 edges, edge (1, 2) with weight of 3 and edge (1, 3) with weight of -4.
 
 #### MaxCut adjacency json input example
-Json serializable dictionary with "adjacency" key and a `scipy.coo_matrix` of an adjacency matrix as value:
+
+Json serializable dictionary with "maxcut" key and a `scipy.coo_matrix` of an adjacency matrix as value:
 
 ```json
-{"adjacency": {"shape": [2, 2], "nnz": 4, "row": [0, 0, 1, 1], "col": [0, 1, 0, 1], "data": [-1, 3, 3, -1]}}
+{
+    "maxcut": {
+        "shape": [2, 2],
+    "nnz": 4,
+    "row": [0, 0, 1, 1],
+    "col": [0, 1, 0, 1],
+    "data": [-1, 3, 3, -1]
+  }
+}
 ```
 
 #### Qubo input example
@@ -312,7 +370,15 @@ Json serializable dictionary with "adjacency" key and a `scipy.coo_matrix` of an
 Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` as value:
 
 ```json
-{"qubo": {"shape": [2, 2], "nnz": 4, "row": [0, 0, 1, 1], "col": [0, 1, 0, 1], "data": [-1, 3, 3, -1]}}
+{
+    "qubo": {
+        "shape": [2, 2],
+    "nnz": 4,
+    "row": [0, 0, 1, 1],
+    "col": [0, 1, 0, 1],
+    "data": [-1, 3, 3, -1]
+  }
+}
 ```
 
 Other key, value pairs can be added per users discretion.
@@ -325,9 +391,8 @@ Input is explained [here](bqp_input_example.md).
 
 ---
 
-> **NOTE (AGAIN):** Biqbin can only solve problem instances with  **integer edge weight**!  
+> **NOTE (AGAIN):** Biqbin can only solve problem instances with **integer edge weight**!  
 > This applies all versions of the solver.
-
 
 #### Utils
 
@@ -337,15 +402,15 @@ A converter `utils.py` which takes in a dense QUBO 2D list or numpy array and re
 def to_sparse(qubo):
     qubo_sparse_coo = sp.sparse.coo_matrix(qubo)
     return {
-        'shape': qubo_sparse_coo.shape, 
-        'nnz': qubo_sparse_coo.nnz, 
-        'row': qubo_sparse_coo.row.tolist(), 
-        'col': qubo_sparse_coo.col.tolist(), 
+        'shape': qubo_sparse_coo.shape,
+        'nnz': qubo_sparse_coo.nnz,
+        'row': qubo_sparse_coo.row.tolist(),
+        'col': qubo_sparse_coo.col.tolist(),
         'data': qubo_sparse_coo.data.tolist()
     }
 
 def qubo_to_biqbin_representation(qubo) -> dict:
-    """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable 
+    """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable
     dict with 'qubo' key and a sparse qubo represantation as value.
 
     Args:
@@ -362,11 +427,9 @@ def qubo_to_biqbin_representation(qubo) -> dict:
     }
 ```
 
-
 Another example is available in `qubo_setup_example.py`.
 
 ## Explanation of Parameters
-
 
 | Parameter           | Description                                                                    |
 | ------------------- | ------------------------------------------------------------------------------ |
@@ -390,9 +453,11 @@ Another example is available in `qubo_setup_example.py`.
 | `use_diff`          | If `1`, **only add cutting planes** when necessary to speed up B&B             |
 | `time_limit`        | Maximum runtime in **seconds**. If `0`, runs until optimal solution is found   |
 | `branchingStrategy` | Branching strategy:<br>`0 = LEAST_FRACTIONAL`<br>`1 = MOST_FRACTIONAL`         |
+
 ---
 
 ## Contact information
 
 For any inquiries about the software provided use the following contacts:
+
 - Beno Zupanc: [Github account](https://github.com/Zvmcevap) or [email](beno.zupanc@rudolfovo.eu)

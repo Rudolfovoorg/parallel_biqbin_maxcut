@@ -81,6 +81,7 @@ clean-output:
 	rm -f tests/rudy/*.output*
 	rm -f tests/qubos/*/*.output*
 	rm -f tests/bqp/*.output*
+	rm -f tests/qplib/*.output*
 
 # Clean rule #
 clean: clean-output
@@ -141,6 +142,14 @@ test-qubo-python-heuristic: clean-output
 	python tests/check_qubo_test.py tests/qubos/40/kcluster40_025_10_1.json
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json
 	python tests/check_qubo_test.py tests/qubos/80/kcluster80_025_20_1.json
+
+# test-qubo-qplib: clean-output
+# 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --qplib
+# 	python tests/check_qubo_test.py tests/qplib/kcluster40_025_10_1.qplib
+# 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster80_025_20_1.qplib --qplib
+# 	python tests/check_qubo_test.py tests/qplib/kcluster80_025_20_1.qplib
+# 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/5881.qplib --qplib
+# 	python tests/check_qubo_test.py tests/qplib/5881.qplib
 
 test-bqp-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data

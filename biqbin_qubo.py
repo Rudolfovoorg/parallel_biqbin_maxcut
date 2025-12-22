@@ -1,24 +1,41 @@
-import sys
-
-from biqbin_base import QUBOSolver, DataGetterJson, ParserQubo
+from biqbin_base import QUBOSolver, ArgParserQubo, QuboToJson, get_rank
+from data_parsers import QuboFromJson
 
 """
     Default Qubo solver using Biqbin MaxCut wrapper
 """
 
 if __name__ == '__main__':
-    # Path to qubo json file file and path to parameters file
-    parser = ParserQubo()
+    parser = ArgParserQubo()
     args = parser.parse_args()
-    # Instance of the default DataGetterJson class takes the path to qubo.json
-    data_getter = DataGetterJson(args.problem_instance)
-    # Initialize QUBOSolver class which takes a DataGetter class instance, path to parameters file and bool if optimizing
-    solver = QUBOSolver(data_getter=data_getter, params=args.params, optimize_input=args.optimize, time_limit=args.time)
-    # Run biqbin solver
-    result = solver.run()
 
-    rank = solver.get_rank()
-    if rank == 0:
+    file_reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
+
+    # Read the file and get the problem
+    problem = file_reader.read()
+    # Initialize QUBOSolver class which takes a path to parameters file and time limit
+    solver = QUBOSolver(problem=problem, params=args.params,
+                        time_limit=args.time)
+
+    # Run biqbin solver to solve the qubo, passing in the problem
+    solution = solver.compute()
+
+    # Get the MPI rank and if master rank print the solution and save it as json
+    if get_rank() == 0:
         # Master rank prints the results
-        print(result)
-        solver.save_result(result, args.output, args.overwrite)
+        if solution is None:
+            raise ValueError(f'Could not compute solution for {problem}')
+
+        solution.print_computed_solution(args.verbose)
+        # Save output path
+        file_writer = QuboToJson(solution)
+
+        if isinstance(args.output, str):
+            output_path = args.output
+        else:
+            output_path = args.problem_instance + '.output'
+
+        file_writer.write(output_path,
+                          overwrite=args.overwrite,
+                          with_metadata=True,
+                          with_maxcut_solution=True)

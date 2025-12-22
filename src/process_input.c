@@ -82,10 +82,10 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
                 read_error = process_adj_matrix(adj, adj_N);
                 free(adj);
             }
-        #else
+            #else
             read_error = wrapped_read_data();
-        #endif
-
+            #endif
+            
         // bcast first read_error then whole graph
         MPI_Bcast(&read_error, 1, MPI_INT, 0, MPI_COMM_WORLD);
         if (read_error)
@@ -257,11 +257,15 @@ double* readData(const char *instance, int *adj_N) {
 /// @param num_vertices number of vertices in the graph
 /// @return 0 if success 1 if fail
 int process_adj_matrix(double* Adj, int num_vertices) {
-    //RK int num_vertices = BabPbSize + 1;
-    // allocate memory for original problem SP and subproblem PP
-
+    
+    // Check if the problem size is compatible with Biqbin
+    if (num_vertices > NMAX) 
+    {
+        fprintf(stderr,"Number of vertices larger than NMAX in biqbin_cpp_api.h\n");
+        abort_alloc_fail(1);
+    }
     BabPbSize = num_vertices - 1; // RK // num_vertices - 1;
-
+    // allocate memory for original problem SP and subproblem PP
     alloc(SP, Problem);
     alloc(PP, Problem);
 
@@ -277,7 +281,6 @@ int process_adj_matrix(double* Adj, int num_vertices) {
     // --> BabPbSize is one less than the size of problem SP
     PP->n = SP->n;
     
-
     /********** construct SP->L from Adj **********/
     /*
      * SP->L = [ Laplacian,  Laplacian*e; (Laplacian*e)',  e'*Laplacian*e]

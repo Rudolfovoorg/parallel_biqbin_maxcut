@@ -16,4 +16,3 @@ qubo_dict = qubo_to_biqbin_representation(qubo)
 # Save to disk, to be read as input instance file
 with open("example_qubo.json", "w") as f:
     json.dump(qubo_dict, f)
-    

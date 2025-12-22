@@ -135,7 +135,7 @@ int updateSolution(int *x) {
 
 
 /* MASTER process main routine */
-void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWorkers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype) {
+void master_Bab_Main(Message message, int source, int *busyWorkers, int num_workers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype) {
 
     // If the algorithm stops before finding the optimal solution
     if (!stopped && (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit) ) {
@@ -184,7 +184,7 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
             int num_workers_available = (workers_request < *numbFreeWorkers) ? workers_request : *numbFreeWorkers;
             int available_workers[num_workers_available];
 
-            for(int i = 1, j = 0; (i < numbWorkers) && (j < num_workers_available); ++i)    // master has rank 0 and is not considered
+            for(int i = 1, j = 0; (i < num_workers) && (j < num_workers_available); ++i)    // master has rank 0 and is not considered
             {
                 if(busyWorkers[i] == 0){ // is free
                     available_workers[j] = i;
@@ -202,7 +202,7 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int numbWork
 	        // count current number of busy workers
 	        int current_busy = 0;
 
-	        for (int i = 1; i < numbWorkers; ++i) {
+	        for (int i = 1; i < num_workers; ++i) {
 		       if (busyWorkers[i] == 1)
 		       ++current_busy;
 	        } 

@@ -1,25 +1,44 @@
 import argparse
-from biqbin_base import MaxCutSolver, DataGetterMaxCutDefault, DataGetterAdjacencyJson, ParserMaxCut
+from biqbin_base import MaxCutSolver, ArgParserMaxCut, MaxCutToJson, get_rank
+from data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson
 
-"""
-    Default MaxCut Biqbin wrapper example
-"""
 
 if __name__ == '__main__':
-
-    parser = ParserMaxCut()
+    parser = ArgParserMaxCut()
     args = parser.parse_args()
-    
-    # Create an instance of the MaxCutSolver passing in the above arguments
-    if args.edge_weight:
-        data_getter = DataGetterMaxCutDefault(args.problem_instance)
-    else:
-        data_getter = DataGetterAdjacencyJson(args.problem_instance)
-    solver = MaxCutSolver(data_getter, args.params, args.time)
-    result = solver.run()  # run the solver
 
-    rank = solver.get_rank()
-    if rank == 0:
+    # Select the file reader based on the file format
+    if args.edge_weight:
+        file_reader = MaxCutFromEdgeWeights(
+            args.problem_instance, optimize_input=args.optimize)
+    else:
+        file_reader = MaxCutFromJson(
+            args.problem_instance, optimize_input=args.optimize)
+
+    # Read the file
+    problem = file_reader.read()
+
+    # Create an instance of the MaxCutSolver passing in path to params file and time limit
+    solver = MaxCutSolver(
+        problem=problem,
+        params=args.params,
+        time_limit=args.time)
+    # Compute the solution for the given problem
+    solution = solver.compute()
+    # Get rank to only save the results on the master rank
+    if get_rank() == 0:
         # Print the results if master rank
-        print(result)
-        solver.save_result(result, output_path_in=args.output, overwrite=args.overwrite)
+        if solution is None:
+            raise ValueError(f'Solution to problem {problem} not found!')
+
+        solution.print_computed_solution(args.verbose)
+        # Save solution
+        if args.output:
+            output_path = args.output
+        else:
+            output_path = args.problem_instance + '.output'
+
+        file_writer = MaxCutToJson(solution)
+        file_writer.write(output_path,
+                          overwrite=args.overwrite,
+                          with_metadata=True)

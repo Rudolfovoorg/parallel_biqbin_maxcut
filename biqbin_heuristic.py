@@ -1,7 +1,8 @@
 import numpy as np
 import sys
 from neal import SimulatedAnnealingSampler
-from biqbin_base import QUBOSolver, DataGetterJson, default_heuristic, ParserQubo, ParserDWaveHeuristic
+from biqbin_base import QUBOSolver, goemans_williamson_heuristic, ArgParserDWaveHeuristic, QuboToJson, get_rank
+from data_parsers import QuboFromJson
 import logging
 from copy import deepcopy
 
@@ -10,12 +11,13 @@ logger = logging.getLogger(__name__)
 
 
 class QuboDwaveSampler(QUBOSolver):
-    def __init__(self, data_gettr, params: str, optimize_input:bool, time_limit: int, sampler, **sampler_kwargs):
-        super().__init__(data_gettr, params, optimize_input, time_limit)
+    def __init__(self, problem, params: str, time_limit: int, sampler, **sampler_kwargs):
+        super().__init__(problem, params, time_limit)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
+        self.heuristic_counter = 0
 
-    def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.array, sol_X: np.array, x: np.array):
+    def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray):
         """Heuristc with D-Waves simulated annealing sampler
 
         Args:
@@ -28,14 +30,14 @@ class QuboDwaveSampler(QUBOSolver):
         Returns:
             np.ndarray: solution nodes provided by the heuristc, should be in 0, 1 form (1 node is chosen, 0 it is not chosen)
         """
-        
+
         _x = np.array(
             list(self.sampler.sample_qubo(-L[:-1, :-1],
                  **self.sampler_kwargs).first.sample.values()),
             dtype=np.int32
         )
 
-        _x = np.hstack([_x, [0]]) # simplification for above
+        _x = np.hstack([_x, [0]])  # simplification for above
 
         j = 0
         for i in range(len(x)):
@@ -48,7 +50,8 @@ class QuboDwaveSampler(QUBOSolver):
         sol_value = self.evaluate_solution(L0, x)
 
         if logger.isEnabledFor(logging.DEBUG):
-            her_value = default_heuristic(L0, L, xfixed, sol_X, deepcopy(x))
+            her_value = goemans_williamson_heuristic(
+                L0, L, xfixed, sol_X, deepcopy(x))
             logger.debug(
                 f'Custom heuristic: {sol_value}, default heuristic: {her_value}')
 
@@ -76,31 +79,41 @@ if __name__ == '__main__':
     # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
     logging.basicConfig()
 
-    parser = ParserDWaveHeuristic()
-    argv = parser.parse_args()
-    
+    parser = ArgParserDWaveHeuristic()
+    args = parser.parse_args()
+
     logging_level = logging.WARNING
-    if argv.info:
+    if args.info:
         logging_level = logging.INFO
-    if argv.debug:
+    if args.debug:
         logging_level = logging.DEBUG
     logging.root.setLevel(logging_level)
-    
-    data_getter = DataGetterJson(argv.problem_instance)
-    solver = QuboDwaveSampler(data_getter, 
-                              params=argv.params, 
-                              optimize_input=argv.optimize, 
-                              time_limit=argv.time, 
-                              sampler=SimulatedAnnealingSampler(), 
-                              num_reads=10
-                              )
-    result = solver.run()
 
-    rank = solver.get_rank()
+    reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
+    problem = reader.read()
+    solver = QuboDwaveSampler(problem=problem,
+                              params=args.params,
+                              time_limit=args.time,
+                              sampler=SimulatedAnnealingSampler(),
+                              num_reads=10)
+
+    solution = solver.compute()
+    rank = get_rank()
     if logger.isEnabledFor(logging.INFO):
         print(f"{rank=} heuristics ran {solver.heuristic_counter} times")
-        
+
     if rank == 0:
         # Master rank prints the results
-        print(result)
-        solver.save_result(result, argv.output, argv.overwrite)
+        if solution is None:
+            raise ValueError(f'Solution to problem {problem} not found!')
+
+        solution.print_computed_solution(args.verbose)
+        solution_writer = QuboToJson(solution)
+        if isinstance(args.output, str):
+            output_path = args.output
+        else:
+            output_path = args.problem_instance + '.output'
+
+        solution_writer.write(output_path,
+                              overwrite=args.overwrite,
+                              with_maxcut_solution=True)

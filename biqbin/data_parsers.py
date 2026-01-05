@@ -1,9 +1,10 @@
 import json
 import numpy as np
 from abc import ABC, abstractmethod
+from glob import glob
 
-from biqbin_base import ProblemMaxCut, ProblemQubo
-from utils import from_sparse
+from biqbin.biqbin_base import ProblemMaxCut, ProblemQubo, SolutionMaxCut, SolutionQubo
+from biqbin.utils import from_sparse, convert_numpy_to_json_serializable
 
 
 class FromFile(ABC):
@@ -90,3 +91,97 @@ class QuboFromJson(FromFile):
 
         qubo = from_sparse(qubo_data["qubo"])
         return ProblemQubo(Q=qubo, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
+
+
+
+class ToFile(ABC):
+    """Base abstract class for saving the solution to disk. All subclasses must implenent the 
+    `write` method that takes a solution and saves it as file.
+    """
+
+    @abstractmethod
+    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
+        ...
+
+    def get_output_path(self, out_file: str, overwrite: bool) -> str:
+        """Get the proper output path in case it already exists and we do not wish to overwrite.
+        Attaches _N where N is the number of the next free output file. Adds .json if not already in the 
+        out_file's name.
+
+        Args:
+            out_file (str): output file path.
+            overwrite (bool): if overwriting the outfile will not be changed.
+
+        Returns:
+            str: output file path
+        """
+        out_file = out_file[:-5] if out_file.endswith('.json') else out_file
+        if overwrite:
+            return out_file
+
+        file_count = len(glob(f'{out_file}*.json'))
+        if file_count > 0:
+            out_file += f'_{file_count}'
+        return out_file + '.json'
+
+
+class MaxCutToJson(ToFile):
+    """Helper class to save the SolutionMaxCut as a json file.
+    """
+
+    def __init__(self, solution: SolutionMaxCut) -> None:
+        self.solution: SolutionMaxCut = solution
+
+    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
+        """Save the solution as JSON file.
+
+        Args:
+            solution (SolutionMaxCut): Solution class returned by Biqbin after solving the problem
+            with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
+        """
+
+        # Check if output filename exists if we are not overriding and replace with filename_N.json
+        output_path = self.get_output_path(filename, overwrite)
+
+        save_output = {
+            'maxcut': self.solution.solution
+        }
+        if with_metadata:
+            save_output['meta_data'] = self.solution.meta_data
+
+        with open(output_path, 'w') as f:
+            json.dump(save_output, f,
+                      default=convert_numpy_to_json_serializable)
+
+
+class QuboToJson(ToFile):
+    """Helper class to save QUBO solution as json file.
+    """
+
+    def __init__(self, solution: SolutionQubo) -> None:
+        self.solution: SolutionQubo = solution
+
+    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True, with_maxcut_solution: bool = False) -> None:
+        """Save qubo solution to a json file.
+
+        Args:
+            solution (SolutionQubo): Solution class returned by Biqbin after solving the problem
+            with_metadata (bool, optional): Add meta_data to output. Defaults to True.
+            with_maxcut_solution (bool, optional): Add MaxCut solution to save output. Defaults to False.
+        """
+
+        # Check if output filename exists if we are not overriding and replace with filename_N.json
+        output_path = self.get_output_path(filename, overwrite)
+
+        save_output = {
+            'qubo': self.solution.solution
+        }
+
+        if with_maxcut_solution:
+            save_output['maxcut'] = self.solution.solution_maxcut
+        if with_metadata:
+            save_output['meta_data'] = self.solution.meta_data
+
+        with open(output_path, 'w') as f:
+            json.dump(save_output, f,
+                      default=convert_numpy_to_json_serializable)

@@ -275,7 +275,7 @@ py::tuple init_mpi_python()
     return py::make_tuple(num_workers, rank);
 }
 
-PYBIND11_MODULE(biqbin, m, "Biqbin solver")
+PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
 {
     m.def("init_mpi", &init_mpi_python, "Initialize MPI protocol");
     m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");

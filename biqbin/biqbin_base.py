@@ -1,15 +1,12 @@
-__version__ = '2.0.0'
+__version__ = '2.0.5'
 
 import numpy.typing as npt
-from abc import ABC, abstractmethod
-from glob import glob
 import argparse
 import numpy as np
-import json
 
-from utils import check_matrix_validity_wrap, convert_numpy_to_json_serializable, divide_matrix_by_gcd
-from biqbin import (run, set_heuristic, init_mpi,
-                    goemans_williamson_heuristic, get_rank)
+from biqbin.utils import check_matrix_validity_wrap,  divide_matrix_by_gcd
+from biqbin.biqbin_module import (run, set_heuristic, init_mpi,
+                                  goemans_williamson_heuristic, get_rank)
 
 
 class PrettyPrint:
@@ -25,7 +22,7 @@ class ProblemMaxCut(PrettyPrint):
                  maxcut_adjacency_matrix: npt.NDArray[np.floating | np.integer],
                  problem_name: str,
                  optimize_mc_adj_matrix: bool = False) -> None:
-        
+
         self.problem_name = problem_name
         self.optimize_mc_adj_matrix = optimize_mc_adj_matrix
         self.gcd: int = 1
@@ -288,7 +285,7 @@ class MaxCutSolver(PrettyPrint):
             raise ValueError("Problem instance not set!")
 
         size, rank = init_mpi()
-        
+
         if rank == 0:
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
@@ -359,178 +356,3 @@ class QUBOSolver(MaxCutSolver):
             return SolutionQubo(biqbin_result, self.problem)
         else:
             return None
-
-
-class ToFile(ABC):
-    """Base abstract class for saving the solution to disk. All subclasses must implenent the 
-    `write` method that takes a solution and saves it as file.
-    """
-
-    @abstractmethod
-    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
-        ...
-
-    def get_output_path(self, out_file: str, overwrite: bool) -> str:
-        """Get the proper output path in case it already exists and we do not wish to overwrite.
-        Attaches _N where N is the number of the next free output file. Adds .json if not already in the 
-        out_file's name.
-
-        Args:
-            out_file (str): output file path.
-            overwrite (bool): if overwriting the outfile will not be changed.
-
-        Returns:
-            str: output file path
-        """
-        out_file = out_file[:-5] if out_file.endswith('.json') else out_file
-        if overwrite:
-            return out_file
-
-        file_count = len(glob(f'{out_file}*.json'))
-        if file_count > 0:
-            out_file += f'_{file_count}'
-        return out_file + '.json'
-
-
-class MaxCutToJson(ToFile):
-    """Helper class to save the SolutionMaxCut as a json file.
-    """
-
-    def __init__(self, solution: SolutionMaxCut) -> None:
-        self.solution: SolutionMaxCut = solution
-
-    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
-        """Save the solution as JSON file.
-
-        Args:
-            solution (SolutionMaxCut): Solution class returned by Biqbin after solving the problem
-            with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
-        """
-
-        # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(filename, overwrite)
-
-        save_output = {
-            'maxcut': self.solution.solution
-        }
-        if with_metadata:
-            save_output['meta_data'] = self.solution.meta_data
-
-        with open(output_path, 'w') as f:
-            json.dump(save_output, f,
-                      default=convert_numpy_to_json_serializable)
-
-
-class QuboToJson(ToFile):
-    """Helper class to save QUBO solution as json file.
-    """
-
-    def __init__(self, solution: SolutionQubo) -> None:
-        self.solution: SolutionQubo = solution
-
-    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True, with_maxcut_solution: bool = False) -> None:
-        """Save qubo solution to a json file.
-
-        Args:
-            solution (SolutionQubo): Solution class returned by Biqbin after solving the problem
-            with_metadata (bool, optional): Add meta_data to output. Defaults to True.
-            with_maxcut_solution (bool, optional): Add MaxCut solution to save output. Defaults to False.
-        """
-
-        # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(filename, overwrite)
-
-        save_output = {
-            'qubo': self.solution.solution
-        }
-
-        if with_maxcut_solution:
-            save_output['maxcut'] = self.solution.solution_maxcut
-        if with_metadata:
-            save_output['meta_data'] = self.solution.meta_data
-
-        with open(output_path, 'w') as f:
-            json.dump(save_output, f,
-                      default=convert_numpy_to_json_serializable)
-
-
-class ArgParserBase(argparse.ArgumentParser):
-    def __init__(self, prog: str, description: str):
-        super().__init__(prog=prog, description=description,
-                         usage=f'mpirun [-n N] python3 {prog} problem_instance [-p PARAMS] [-w] [-o OUTPUT]',
-                         epilog='For more information please visit https://github.com/Rudolfovoorg/parallel_biqbin_maxcut',
-                         )
-        self.add_argument('problem_instance',
-                          help='Path to the problem instance file')
-
-        # Optional arguments
-        self.add_argument('-p', '--params', default='params',
-                          help='custom parameters file path (default: "params")')
-        self.add_argument('-w', '--overwrite',
-                          action='store_true',
-                          help='overwrite output.json instead of labeling with _NUMBER'
-                          )
-        self.add_argument('-O', '--optimize', action='store_true',
-                          help='Divides the final input matrix values by their GCD')
-        self.add_argument('-o', '--output', help='set custom output file path')
-        # time limit format taken from SLURM docs https://slurm.schedmd.com/sbatch.html
-        self.add_argument('-t', '--time', default='0', type=self.parse_time_limit,
-                          help='set running time limit; acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"')
-
-        self.add_argument('-v', '--verbose', action='store_true',
-                          help='Verbose prints to terminal')
-
-    def parse_time_limit(self, s: str) -> int:
-        """
-        Parse Slurm-style time limits:
-        - "MM" (minutes only)
-        - "HH:MM:SS"
-        - "D-HH:MM:SS"
-        Returns:
-            int: total seconds
-        """
-        # If format includes days
-        if "-" in s:
-            days_str, rest = s.split("-", 1)
-            days = int(days_str)
-        else:
-            days, rest = 0, s
-
-        parts = rest.split(":")
-        if len(parts) == 3:
-            hours, minutes, seconds = map(int, parts)
-        elif len(parts) == 2:
-            hours, minutes = map(int, parts)
-            seconds = 0
-        elif len(parts) == 1:
-            # Slurm allows just minutes like "30"
-            return int(parts[0]) * 60
-        else:
-            raise argparse.ArgumentTypeError(f"Invalid time format: {s}")
-
-        total_seconds = days*86400 + hours*3600 + minutes*60 + seconds
-        return int(total_seconds)
-
-
-class ArgParserMaxCut(ArgParserBase):
-    def __init__(self):
-        super().__init__(prog=f'biqbin_maxcut.py', description='Biqbin Maxcut solver')
-        self.add_argument('-e', '--edge_weight',
-                          action='store_true', help='use edge weight input file')
-
-
-class ArgParserQubo(ArgParserBase):
-    def __init__(self, prog=f'biqbin_qubo.py', description='Biqbin QUBO solver'):
-        super().__init__(prog=prog, description=description)
-        # self.add_argument('--qplib', action='store_true',
-        #                   help='Use .qplib file format')
-
-
-class ArgParserDWaveHeuristic(ArgParserQubo):
-    def __init__(self):
-        super().__init__(prog='biqbin_heuristic.py',
-                         description='Biqbin QUBO solver with DWave heuristic')
-        self.add_argument('-d', '--debug', action='store_true',
-                          help='enable debug logs')
-        self.add_argument('-i', '--info', action='store_true',
-                          help='enable info logs')

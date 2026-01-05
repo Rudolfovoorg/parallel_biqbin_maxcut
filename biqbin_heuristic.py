@@ -1,8 +1,9 @@
 import numpy as np
 import sys
-from neal import SimulatedAnnealingSampler
-from biqbin_base import QUBOSolver, goemans_williamson_heuristic, ArgParserDWaveHeuristic, QuboToJson, get_rank
-from data_parsers import QuboFromJson
+from dwave.samplers import SimulatedAnnealingSampler
+from biqbin.biqbin_base import QUBOSolver, goemans_williamson_heuristic, get_rank
+from biqbin.data_parsers import QuboFromJson, QuboToJson
+from biqbin.argparsers import ArgParserDWaveHeuristic
 import logging
 from copy import deepcopy
 

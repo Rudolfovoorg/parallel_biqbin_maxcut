@@ -3,12 +3,13 @@ import scipy as sp
 import numpy as np
 import warnings
 
-from utils import convert_numpy_to_json_serializable
-from biqbin_base import ArgParserBase, MaxCutSolver, SolutionMaxCut, ProblemMaxCut, ToFile, get_rank
-from data_parsers import FromFile
+from biqbin.utils import convert_numpy_to_json_serializable
+from biqbin.biqbin_base import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank
+from biqbin.argparsers import ArgParserBase
+from biqbin.data_parsers import FromFile, ToFile
 
 # these functions are placeholder implementations!
-from bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_json, read_solution_bqp
+from biqbin.bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_json, read_solution_bqp
 
 
 class ParserBQP(ArgParserBase):

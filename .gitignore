@@ -1,6 +1,6 @@
 **/*.output*
 *.so
-__pycache__
+**/__pycache__
 biqbin_executable
 .vscode
 build

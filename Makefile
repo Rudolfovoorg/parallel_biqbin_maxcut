@@ -87,8 +87,8 @@ clean-output:
 clean: clean-output
 	rm -rf build/
 	rm -rf $(BIQBIN_BINARY)
-	rm -rf $(PYMODULE)
-	rm -rf $(BQPMODULE)
+	rm -rf biqbin/$(PYMODULE)
+	rm -rf biqbin/$(BQPMODULE)
 
 # Ensure output directories exist
 $(WRAPPER_BUILD_DIR) $(C_BUILD_DIR) $(BQP_BUILD_DIR):

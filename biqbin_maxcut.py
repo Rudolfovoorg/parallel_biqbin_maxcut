@@ -3,8 +3,9 @@ from biqbin.biqbin_base import MaxCutSolver, get_rank
 from biqbin.data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson, MaxCutToJson
 from biqbin.argparsers import ArgParserMaxCut
 
+    
 
-if __name__ == '__main__':
+def main():
     parser = ArgParserMaxCut()
     args = parser.parse_args()
 
@@ -43,3 +44,6 @@ if __name__ == '__main__':
         file_writer.write(output_path,
                           overwrite=args.overwrite,
                           with_metadata=True)
+
+if __name__ == '__main__':
+    main()

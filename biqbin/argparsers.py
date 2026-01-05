@@ -1,5 +1,7 @@
 from argparse import ArgumentParser, ArgumentTypeError
-
+from importlib.resources import files
+from pathlib import Path
+import shutil
 
 class ArgParserBase(ArgumentParser):
     def __init__(self, prog: str, description: str):
@@ -11,7 +13,7 @@ class ArgParserBase(ArgumentParser):
                           help='Path to the problem instance file')
 
         # Optional arguments
-        self.add_argument('-p', '--params', default='params',
+        self.add_argument('-p', '--params', default=self.get_params_path_str(),
                           help='custom parameters file path (default: "params")')
         self.add_argument('-w', '--overwrite',
                           action='store_true',
@@ -26,6 +28,21 @@ class ArgParserBase(ArgumentParser):
 
         self.add_argument('-v', '--verbose', action='store_true',
                           help='Verbose prints to terminal')
+        
+
+
+    def get_params_path_str(self) -> str:
+        # Choose a stable per-user cache location
+        cache_dir = Path.home() / ".cache" / "biqbin"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        dst = cache_dir / "params"
+        if not dst.exists():
+            src = files("biqbin") / "params"
+            shutil.copyfile(src, dst)
+
+        return str(dst)
+
 
     def parse_time_limit(self, s: str) -> int:
         """

@@ -122,9 +122,9 @@ $(BQPMOD_OUT): $(BQP_BUILD_DIR)/bqp_data_processing.o | $(BQP_BUILD_DIR)
 
 # Tests
 test-maxcut: clean-output
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_60.0 tests/rudy/g05_60.0-expected_output params
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_80.0 tests/rudy/g05_80.0-expected_output params
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output params
+	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_60.0 tests/rudy/g05_60.0-expected_output biqbin/params
+	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_80.0 tests/rudy/g05_80.0-expected_output biqbin/params
+	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output biqbin/params
 
 test-maxcut-python: clean-output
 	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_60.0.json tests/rudy/g05_60.0-expected_output

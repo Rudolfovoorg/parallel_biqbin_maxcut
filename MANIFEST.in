@@ -1,0 +1,6 @@
+include biqbin_maxcut.py
+include biqbin_qubo.py
+include biqbin_heuristic.py
+include README.md
+include LICENSE.txt
+recursive-exclude biqbin *.so *.pyd *.dll *.dylib

@@ -35,4 +35,7 @@
 - added tests for bqp version
 - added check for problem size before solving
 - refactored DataGetter class into FromFile and Problem classes, for seperate responsibilities
-- added a Solution and ToFile class for computed solution and saving it to disk 
+- added a Solution and ToFile class for computed solution and saving it to disk
+- moved python source code to biqbin folder, moved params file there as well
+- added pyproject.toml and MANIFEST.in for pypi package
+- deployed biqbin as a pip installable package

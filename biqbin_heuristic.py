@@ -74,8 +74,7 @@ class QuboDwaveSampler(QUBOSolver):
                 sol_val += L0[i][j] * sol[i] * sol[j]
         return sol_val
 
-
-if __name__ == '__main__':
+def main():
 
     # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
     logging.basicConfig()
@@ -118,3 +117,6 @@ if __name__ == '__main__':
         solution_writer.write(output_path,
                               overwrite=args.overwrite,
                               with_maxcut_solution=True)
+
+if __name__ == '__main__':
+    main()

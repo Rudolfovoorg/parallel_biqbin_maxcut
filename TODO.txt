@@ -1,4 +1,3 @@
-- Create an installable python package
 - Add additional converters and other utilities to utils.py
 - Change the way file parameters are read and set (config file)
 - Change the way tests are handled
@@ -7,4 +6,3 @@
 - Documentation QUBO upper triangular divisible by 2
 - Config files for NMAX and other useful parameters
 - Dense represantations of graphs
-- Add pyqplib source code to repository

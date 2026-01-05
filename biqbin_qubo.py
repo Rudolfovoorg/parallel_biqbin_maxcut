@@ -4,8 +4,7 @@ from biqbin.argparsers import ArgParserQubo
 """
     Default Qubo solver using Biqbin MaxCut wrapper
 """
-
-if __name__ == '__main__':
+def main():
     parser = ArgParserQubo()
     args = parser.parse_args()
 
@@ -39,3 +38,6 @@ if __name__ == '__main__':
                           overwrite=args.overwrite,
                           with_metadata=True,
                           with_maxcut_solution=True)
+
+if __name__ == '__main__':
+    main()

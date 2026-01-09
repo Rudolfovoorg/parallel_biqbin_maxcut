@@ -90,7 +90,10 @@ class QuboFromJson(FromFile):
             qubo_data = json.load(f)
 
         qubo = from_sparse(qubo_data["qubo"])
-        return ProblemQubo(Q=qubo, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
+        offset = 0
+        if 'offset' in qubo_data:
+            offset = qubo_data['offset']
+        return ProblemQubo(Q=qubo, offset=offset, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
 
 
 

@@ -63,7 +63,7 @@ class ProblemQubo(ProblemMaxCut):
     """Inherits from ProblemMaxCut, takes a qubo np.ndarray and constructs the biqbin input (maxcut adjacency matrix)
     """
 
-    def __init__(self, Q: np.ndarray, problem_name: str,  is_minimization: bool, optimize_input: bool = False):
+    def __init__(self, Q: np.ndarray, offset: float, problem_name: str,  is_minimization: bool, optimize_input: bool = False):
         """Initialize the ProblemQubo
 
         Args:
@@ -74,6 +74,7 @@ class ProblemQubo(ProblemMaxCut):
                                              Defaults to False.
         """
         self.Q: np.ndarray = Q
+        self.offset: float = offset
         self.is_minimization: bool = is_minimization
         if self.is_minimization:
             super().__init__(self.qubo2maxcut(Q), problem_name, optimize_input)
@@ -178,7 +179,7 @@ class SolutionQubo(SolutionMaxCut):
             self.solution_maxcut["solution"]
         )
 
-        computed_val = float(problem.Q.dot(qubo_x).dot(qubo_x))
+        computed_val = float(problem.Q.dot(qubo_x).dot(qubo_x)) + self.problem.offset
         return {'computed_val': computed_val,
                 'solution': qubo_solution,
                 'x': qubo_x,

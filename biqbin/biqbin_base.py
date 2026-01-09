@@ -105,6 +105,7 @@ class ProblemQubo(ProblemMaxCut):
     def __str__(self) -> str:
         return (f'Class: {type(self).__name__}\n'
                 f'Problem name = {self.problem_name}\n'
+                f'Offset = {self.offset}\n'
                 f'Minimizing = {self.is_minimization}\n'
                 f'Qubo {self.Q.shape} =\n{self.Q}\n')
 
@@ -181,6 +182,7 @@ class SolutionQubo(SolutionMaxCut):
 
         computed_val = float(problem.Q.dot(qubo_x).dot(qubo_x)) + self.problem.offset
         return {'computed_val': computed_val,
+                'offset': self.problem.offset,
                 'solution': qubo_solution,
                 'x': qubo_x,
                 'cardinality': float(sum(qubo_x)),

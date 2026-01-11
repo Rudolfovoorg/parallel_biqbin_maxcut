@@ -35,4 +35,5 @@
 - added tests for bqp version
 - added check for problem size before solving
 - refactored DataGetter class into FromFile and Problem classes, for seperate responsibilities
-- added a Solution and ToFile class for computed solution and saving it to disk 
+- added a Solution and ToFile class for computed solution and saving it to disk
+- added offset to qubos

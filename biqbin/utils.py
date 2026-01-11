@@ -40,12 +40,13 @@ def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float32]:
     ).todense().getA()
 
 
-def qubo_to_biqbin_representation(qubo) -> dict:
+def qubo_to_biqbin_representation(qubo, offset: float = 0.0, minimize: bool =  True) -> dict:
     """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable 
     dict with 'qubo' key and a sparse qubo represantation as value.
 
     Args:
-        qubo: 2D list or numpy array
+        qubo (np.ndarray): 2D list or numpy array
+        offset (float): an offset to be added to the solution value
 
     Returns:
         dict: json serializable dictionary that Biqbin can parse. Save to file and pass the path to DataGetterJson.
@@ -54,7 +55,8 @@ def qubo_to_biqbin_representation(qubo) -> dict:
         raise ValueError("All QUBO values need to be integers!")
 
     return {
-        'qubo': to_sparse(qubo)
+        'qubo': to_sparse(qubo),
+        'offset': offset,
     }
 
 

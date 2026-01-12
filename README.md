@@ -373,14 +373,15 @@ Qubo solver expects a json file with a "qubo" key that has a `scipy.coo_matrix` 
 {
     "qubo": {
         "shape": [2, 2],
-    "nnz": 4,
-    "row": [0, 0, 1, 1],
-    "col": [0, 1, 0, 1],
-    "data": [-1, 3, 3, -1]
-  }
+        "nnz": 4,
+        "row": [0, 0, 1, 1],
+        "col": [0, 1, 0, 1],
+        "data": [-1, 3, 3, -1]
+  },
+    "offset": 0.0
 }
 ```
-
+An optional "offset" key can be added to add to the final solution.
 Other key, value pairs can be added per users discretion.
 
 #### BQP input example

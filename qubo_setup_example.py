@@ -11,6 +11,7 @@ qubo = np.array(
         ])
 
 # Make a dictionary with the key "qubo" and to_sparse return value as value
+offset = 10
 qubo_dict = qubo_to_biqbin_representation(qubo)
 
 # Save to disk, to be read as input instance file

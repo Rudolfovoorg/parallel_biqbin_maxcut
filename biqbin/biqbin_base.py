@@ -1,12 +1,13 @@
+import time
 __version__ = '2.0.5'
 
 import numpy.typing as npt
 import argparse
 import numpy as np
 
-from biqbin.utils import check_matrix_validity_wrap,  divide_matrix_by_gcd
+from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_data_collector
 from biqbin.biqbin_module import (run, set_heuristic, init_mpi,
-                                  goemans_williamson_heuristic, get_rank)
+                                  goemans_williamson_heuristic, get_rank, set_initial_solution)
 
 
 class PrettyPrint:
@@ -180,7 +181,8 @@ class SolutionQubo(SolutionMaxCut):
             self.solution_maxcut["solution"]
         )
 
-        computed_val = float(problem.Q.dot(qubo_x).dot(qubo_x)) + self.problem.offset
+        computed_val = float(problem.Q.dot(
+            qubo_x).dot(qubo_x)) + self.problem.offset
         return {'computed_val': computed_val,
                 'offset': self.problem.offset,
                 'solution': qubo_solution,
@@ -244,7 +246,12 @@ class MaxCutSolver(PrettyPrint):
     """
     solver_name = f'PyBiqBin-MaxCut {__version__}'
 
-    def __init__(self, problem: ProblemMaxCut, params: str, time_limit: int = 0):
+    def __init__(self,
+                 problem: ProblemMaxCut,
+                 params: str,
+                 time_limit: int = 0,
+                 initial_solution: np.ndarray | None = None,
+                 collect_heuristic_data: bool = True):
         """Initialize the solver
 
         Args:
@@ -256,10 +263,17 @@ class MaxCutSolver(PrettyPrint):
         self.time_limit: int = time_limit
         set_heuristic(self.heuristic)
 
+        if initial_solution is not None:
+            self._check_initial_solution_validity(initial_solution, problem.maxcut_adjacency_matrix.shape[0])
+        self.initial_solution = initial_solution
+        self.collect_heuristic_data: bool = collect_heuristic_data
+        self.heuristic_data = []
+
     @property
     def problem(self) -> ProblemMaxCut:
         return self.__problem
 
+    @heur_data_collector(enabled_flag='collect_heuristic_data')
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
         """Default GW heuristic (heuristic_unpacked in heuristic.c)
 
@@ -273,6 +287,7 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             float: value of the solution array "x" found by the heuristic function
         """
+
         return goemans_williamson_heuristic(L0, L, xfixed, sol_X, x)
 
     def _run_solver(self) -> dict | None:
@@ -288,6 +303,9 @@ class MaxCutSolver(PrettyPrint):
             raise ValueError("Problem instance not set!")
 
         size, rank = init_mpi()
+        
+        if self.initial_solution is not None:
+            set_initial_solution(self.initial_solution)
 
         if rank == 0:
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
@@ -312,6 +330,8 @@ class MaxCutSolver(PrettyPrint):
                 'optimized': self.problem.optimize_mc_adj_matrix,
                 'gcd': self.problem.gcd
             }
+            if self.collect_heuristic_data:
+                biqbin_result['meta_data']['heuristic_data'] = self.heuristic_data
             return biqbin_result
 
     def compute(self) -> SolutionMaxCut | None:
@@ -329,6 +349,14 @@ class MaxCutSolver(PrettyPrint):
         else:
             return None
 
+    def _check_initial_solution_validity(self, initial_solution: np.ndarray, problem_size):
+        if initial_solution.ndim == 1 or initial_solution.shape[0] != problem_size:
+            raise ValueError(
+                f"Initial solution must be a 1D vector of size {problem_size - 1}, but got shape {initial_solution.shape}!")
+        
+        if not np.all(initial_solution == 1 or initial_solution == 0):
+            raise ValueError(f"Initial solution must be a binary vector!")
+
     def __str__(self) -> str:
         return (f'{super().__str__()}'
                 f'    Problem = {self.problem.problem_name}'
@@ -339,8 +367,13 @@ class MaxCutSolver(PrettyPrint):
 class QUBOSolver(MaxCutSolver):
     solver_name = f'PyBiqBin-QUBO {__version__}'
 
-    def __init__(self, problem: ProblemQubo, params: str, time_limit: int = 0):
-        super().__init__(problem, params, time_limit)
+    def __init__(self,
+                 problem: ProblemQubo,
+                 params: str,
+                 time_limit: int = 0,
+                 initial_solution: np.ndarray | None = None):
+
+        super().__init__(problem, params, time_limit, initial_solution)
         self.__problem: ProblemQubo = problem
 
     @property

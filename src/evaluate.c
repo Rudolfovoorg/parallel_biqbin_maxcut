@@ -27,14 +27,19 @@ double Evaluate(BabNode *node, Problem *SP, Problem *PP, int rank) {
  * Computes the subproblem removing the rows and the columns of the 
  * fixed variables upper left corner of SP->L
  * 
- * SP is the original problem
- * PP is the subproblem (some variables are fixed)
+ * SP is 
+ * PP 
  *
  * PP is made from SP
  * Function prepares objective matrix L for model in -1,1 variables:
  * 
  * max x'LX, s.t. x in {-1,1}^(PP->n)
  */
+
+/// @brief Writes subproblem to PP. Computes the subproblem removing the rows and the columns of the fixed variables upper left corner of SP->L
+/// @param node current branch & bound node
+/// @param SP the original problem
+/// @param PP the subproblem (some variables are fixed)
 void createSubproblem(BabNode *node, Problem *SP, Problem *PP) {
 
     // Subproblem size is the number of non-fixed variables in the node
@@ -69,7 +74,7 @@ void createSubproblem(BabNode *node, Problem *SP, Problem *PP) {
 
     for (int i = 0; i < BabPbSize; ++i) {
         for (int j = 0; j < BabPbSize; ++j) {
-            if (!node->xfixed[i] && !node->xfixed[j]) {     // delete rows and cols of SP->L
+            if (!node->xfixed[i] && !node->xfixed[j]) { // delete rows and cols of SP->L
                 PP->L[index] = SP->L[j + i*N];
                 row_sum += PP->L[index];
                 ++index;               

@@ -19,6 +19,9 @@ extern Problem *PP;
 extern BabSolution *BabSol;
 extern int BabPbSize;
 
+std::vector<int> initial_bab_solution;
+bool initial_bab_solution_set = false;
+
 /* final solution */
 std::vector<int> selected_nodes;
 std::vector<int> solution_x;
@@ -165,12 +168,50 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     return result_dict;
 }
 
+/// @brief Copy the innitial solution to the BabSolution at start
+/// @param bs
+/// @return Objective value of the inputed solution
+double get_initial_bab_solution(BabSolution *bs)
+{
+    if (initial_bab_solution_set)
+    {
+        for (int i = 0; i < BabPbSize; ++i)
+        {
+            bs->X[i] = initial_bab_solution[i];
+        }
+
+        return evaluateSolution(bs->X);
+    }
+    else
+    {
+        for (int i = 0; i < BabPbSize; ++i)
+        {
+            bs->X[i] = 0;
+        }
+        return 0;
+    }
+}
+
+void set_initial_bab_solution(py::array_t<int> x)
+{
+    const auto n = static_cast<size_t>(x.shape(0));
+    initial_bab_solution.resize(n);
+
+    auto r = x.unchecked<1>(); // index as a 1D array
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        initial_bab_solution[i] = static_cast<int>(r(i));
+    }
+    initial_bab_solution_set = true;
+}
+
 /// @brief Default GW heuristic
 /// @param P0_L_array       Main Problem L: SP->L
 /// @param P_L_array        Subproblem L: PP->L
 /// @param xfixed_array     Fixed variables in solution x
 /// @param node_sol_X_array Solution stored in current babnode
-/// @param x_array          Heuristic solution x
+/// @param x_array          Heuristic solution x this
 /// @return                 Lower bound of heuristic solution
 double run_heuristic_python(
     py::array_t<double> P0_L_array,
@@ -282,4 +323,5 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
     m.def("run", &run_py, "Run the solver");
     m.def("goemans_williamson_heuristic", &run_heuristic_python, "Default C-implemented GW heuristic");
     m.def("get_rank", &get_rank, "Get the mpi rank");
+    m.def("set_initial_solution", &set_initial_bab_solution);
 }

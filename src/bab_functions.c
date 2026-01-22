@@ -22,16 +22,23 @@ extern int stopped;
 extern int num_workers_used;
 
 
+
 /* initialize global lower bound to 0 and global solution vector to zero */
 void initializeBabSolution() { 
 
     BabSolution bs;
 
+    #ifdef PURE_C
     for (int i = 0; i < BabPbSize; ++i) {
         bs.X[i] = 0;
     }
 
-    Bab_LBInit(0, &bs);
+    double obj_value = 0;
+    #else
+    double obj_value = get_initial_bab_solution(&bs);
+    #endif
+
+    Bab_LBInit(obj_value, &bs);
 }
 
 
@@ -50,7 +57,7 @@ int Init_PQ(void) {
     // Evaluate root node: compute upper and lower bound 
     root_bound = Evaluate(BabRoot, SP, PP, 0);
     printf("Root node bound: %.2f\n", root_bound);
-
+    fflush(stdout);
     // save upper bound
     BabRoot->upper_bound = root_bound;
 

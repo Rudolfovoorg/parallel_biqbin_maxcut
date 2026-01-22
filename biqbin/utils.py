@@ -1,3 +1,5 @@
+import warnings
+import time
 from functools import wraps
 from typing import Tuple
 import scipy as sp
@@ -40,7 +42,7 @@ def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float32]:
     ).todense().getA()
 
 
-def qubo_to_biqbin_representation(qubo, offset: float = 0.0, minimize: bool =  True) -> dict:
+def qubo_to_biqbin_representation(qubo, offset: float = 0.0, minimize: bool = True) -> dict:
     """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable 
     dict with 'qubo' key and a sparse qubo represantation as value.
 
@@ -85,6 +87,7 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
 
     return input_matrix
 
+
 def check_matrix_validity_wrap(func):
     @wraps(func)
     def wrapper(*args, **kwargs) -> npt.NDArray[np.float64]:
@@ -92,6 +95,27 @@ def check_matrix_validity_wrap(func):
         return check_matrix_validity(matrix_to_validate)
 
     return wrapper
+
+
+def heur_data_collector(enabled_flag="collect_heuristics", data_box="heuristic_data"):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            if not getattr(self, enabled_flag, False):
+                return fn(self, *args, **kwargs)
+
+            if getattr(self, data_box, None) is None:
+                self.data_box = []
+
+            start = time.perf_counter()
+            result = fn(self, *args, **kwargs)
+            getattr(self, data_box).append({
+                "time": time.perf_counter() - start,
+                "value": result,
+            })
+            return result
+        return wrapper
+    return decorator
 
 
 def convert_numpy_to_json_serializable(obj):

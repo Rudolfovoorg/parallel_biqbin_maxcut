@@ -3,4 +3,3 @@
 numpy==2.3.3
 pybind11
 scipy
-dwave-samplers

@@ -281,7 +281,6 @@ class MaxCutSolver(PrettyPrint):
         return self.__problem
 
     def _heuristic_disabled(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
-        print('disabled')
         return self._initial_heur_value
     
     # @heur_data_collector(enabled_flag='collect_heuristic_data')
@@ -298,7 +297,6 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             float: value of the solution array "x" found by the heuristic function
         """
-        print('goemans')
         return goemans_williamson_heuristic(L0, L, xfixed, sol_X, x)
 
     def _run_solver(self) -> dict | None:

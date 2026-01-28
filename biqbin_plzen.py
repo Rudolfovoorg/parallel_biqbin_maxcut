@@ -17,8 +17,8 @@ if __name__ == '__main__':
 
     solution = None
     if rank == 0:
-        with open(args.problem_instance[:-len('.json')] + '_solution.json') as f:
-            solution = np.array(json.load(f)['x'])
+        with open(args.problem_instance) as f:
+            solution = np.array(json.load(f)['solution'])
             print(f'{solution = }')
     # Read the file and get the problem
     problem = file_reader.read()
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # Initialize QUBOSolver class which takes a path to parameters file and time limit
     solver = QUBOSolver(problem=problem, 
                         params=args.params,
-                        time_limit=args.time,
+                        time_limit=170000,
                         initial_solution=solution)
 
     # Run biqbin solver to solve the qubo, passing in the problem

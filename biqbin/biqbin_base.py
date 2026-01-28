@@ -263,9 +263,8 @@ class MaxCutSolver(PrettyPrint):
         self.time_limit: int = time_limit
 
         self._initial_heur_value = 0
-        
         if initial_solution is not None:
-            self._check_initial_solution_validity(initial_solution, problem.maxcut_adjacency_matrix.shape[0])
+            # self._check_initial_solution_validity(initial_solution, problem.maxcut_adjacency_matrix.shape[0])
             if get_rank() == 0:
                 self.heuristic = self._heuristic_disabled
             
@@ -281,6 +280,7 @@ class MaxCutSolver(PrettyPrint):
         return self.__problem
 
     def _heuristic_disabled(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
+        print(f'Heuristic disabled: sending {self._initial_heur_value}')
         return self._initial_heur_value
     
     # @heur_data_collector(enabled_flag='collect_heuristic_data')
@@ -356,12 +356,12 @@ class MaxCutSolver(PrettyPrint):
         else:
             return None
 
-    def _check_initial_solution_validity(self, initial_solution: np.ndarray, problem_size):
-        if initial_solution.ndim != 1 or initial_solution.shape[0] != problem_size - 1:
-            raise ValueError(
-                f"Initial solution must be a 1D vector of size {problem_size - 1}, but got shape {initial_solution.shape}!")
-        if not np.isin(initial_solution, [0, 1]).all():
-            raise ValueError(f"Initial solution must be a binary vector!")
+    # def _check_initial_solution_validity(self, initial_solution: np.ndarray, problem_size):
+    #     if initial_solution.ndim != 1 or initial_solution.shape[0] != problem_size - 1:
+    #         raise ValueError(
+    #             f"Initial solution must be a 1D vector of size {problem_size - 1}, but got shape {initial_solution.shape}!")
+    #     if not np.isin(initial_solution, [0, 1]).all():
+    #         raise ValueError(f"Initial solution must be a binary vector!")
 
     def __str__(self) -> str:
         return (f'{super().__str__()}'
@@ -384,7 +384,9 @@ class QUBOSolver(MaxCutSolver):
         self.initial_heur_value = None
         
         if self.initial_solution is not None:
-            self.initial_heur_value = self.initial_solution @ self.problem.Q @ self.initial_solution
+            self._initial_heur_value = self.initial_solution @ self.problem.Q @ self.initial_solution
+            if self.problem.is_minimization:
+                self._initial_heur_value = -self._initial_heur_value
         
     @property
     def problem(self) -> ProblemQubo:

@@ -120,7 +120,7 @@ class ToFile(ABC):
         """
         out_file = out_file[:-5] if out_file.endswith('.json') else out_file
         if overwrite:
-            return out_file
+            return out_file + '.json'
 
         file_count = len(glob(f'{out_file}*.json'))
         if file_count > 0:
@@ -145,7 +145,7 @@ class MaxCutToJson(ToFile):
 
         # Check if output filename exists if we are not overriding and replace with filename_N.json
         output_path = self.get_output_path(filename, overwrite)
-
+        print(output_path)
         save_output = {
             'maxcut': self.solution.solution
         }

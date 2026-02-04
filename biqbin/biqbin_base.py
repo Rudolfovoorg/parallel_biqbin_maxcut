@@ -10,6 +10,10 @@ from biqbin.biqbin_module import (run, set_heuristic, init_mpi,
                                   goemans_williamson_heuristic, get_rank, set_initial_solution)
 
 
+# Initialize MPI at start
+init_mpi()
+
+
 class PrettyPrint:
     def __str__(self) -> str:
         return (f'class: {type(self).__name__}')
@@ -261,13 +265,20 @@ class MaxCutSolver(PrettyPrint):
         self.__problem: ProblemMaxCut = problem
         self.params: str = params
         self.time_limit: int = time_limit
-        set_heuristic(self.heuristic)
 
         if initial_solution is not None:
-            self._check_initial_solution_validity(initial_solution, problem.maxcut_adjacency_matrix.shape[0])
+            self._check_initial_solution_validity(
+                initial_solution, problem.maxcut_adjacency_matrix.shape[0])
+            if get_rank() == 0:
+                self.heuristic = self._disabled_heuristic
+
         self.initial_solution = initial_solution
+
+        # Heuristic data collection
         self.collect_heuristic_data: bool = collect_heuristic_data
         self.heuristic_data = []
+
+        set_heuristic(self.heuristic)
 
     @property
     def problem(self) -> ProblemMaxCut:
@@ -290,6 +301,11 @@ class MaxCutSolver(PrettyPrint):
 
         return goemans_williamson_heuristic(L0, L, xfixed, sol_X, x)
 
+    def _disabled_heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
+        """ Biqbin does not use the heuristic value, it calculates the solution objective value from the vector x itself
+        """
+        return 0
+
     def _run_solver(self) -> dict | None:
         """Runs Biqbin C/C++ implementation
 
@@ -302,24 +318,22 @@ class MaxCutSolver(PrettyPrint):
         if self.problem is None:
             raise ValueError("Problem instance not set!")
 
-        size, rank = init_mpi()
-        
-        if self.initial_solution is not None:
-            set_initial_solution(self.initial_solution)
-
-        if rank == 0:
+        if get_rank() == 0:
+            if self.initial_solution is not None:
+                set_initial_solution(self.initial_solution)
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
             print(f'Solving {self.problem}')
         else:
             input_matrix = None
+
         biqbin_result = run(self.solver_name,
                             self.problem.problem_name,
                             input_matrix,
                             self.params,
                             self.time_limit)
 
-        if rank == 0:
+        if get_rank() == 0:
             if biqbin_result is None:
                 raise ValueError(
                     'Result from BiqBin is None, computation failed!')
@@ -350,11 +364,11 @@ class MaxCutSolver(PrettyPrint):
             return None
 
     def _check_initial_solution_validity(self, initial_solution: np.ndarray, problem_size):
-        if initial_solution.ndim == 1 or initial_solution.shape[0] != problem_size:
+        if initial_solution.ndim != 1 or initial_solution.shape[0] != problem_size:
             raise ValueError(
-                f"Initial solution must be a 1D vector of size {problem_size - 1}, but got shape {initial_solution.shape}!")
-        
-        if not np.all(initial_solution == 1 or initial_solution == 0):
+                f"Initial solution must be a 1D vector of size {problem_size}, but got shape {initial_solution.shape}!")
+
+        if not ((initial_solution == 0) | (initial_solution == 1)).all():
             raise ValueError(f"Initial solution must be a binary vector!")
 
     def __str__(self) -> str:
@@ -373,7 +387,14 @@ class QUBOSolver(MaxCutSolver):
                  time_limit: int = 0,
                  initial_solution: np.ndarray | None = None):
 
-        super().__init__(problem, params, time_limit, initial_solution)
+        mc_initial_solution = None
+        if initial_solution is not None:
+            self._check_initial_solution_validity(
+                initial_solution, problem.Q.shape[0])
+            mc_initial_solution = np.append(initial_solution, 0)
+
+        super().__init__(problem, params, time_limit, mc_initial_solution)
+
         self.__problem: ProblemQubo = problem
 
     @property

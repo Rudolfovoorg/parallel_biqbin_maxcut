@@ -92,6 +92,7 @@ if __name__ == '__main__':
 
     reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
     problem = reader.read()
+    
     solver = QuboDwaveSampler(problem=problem,
                               params=args.params,
                               time_limit=args.time,

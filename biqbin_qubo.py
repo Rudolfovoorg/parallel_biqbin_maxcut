@@ -2,6 +2,8 @@ from biqbin.biqbin_base import QUBOSolver, get_rank
 from biqbin.data_parsers import QuboFromJson, QuboToJson
 from biqbin.argparsers import ArgParserQubo
 import numpy as np
+import json
+
 """
     Default Qubo solver using Biqbin MaxCut wrapper
 """
@@ -14,10 +16,19 @@ if __name__ == '__main__':
 
     # Read the file and get the problem
     problem = file_reader.read()
+
+    if args.solution:
+        with open(args.solution, 'r') as f:
+            initial_solution = np.array(json.load(f)['x'])
+    else:
+        initial_solution = None
+            
     # Initialize QUBOSolver class which takes a path to parameters file and time limit
     solver = QUBOSolver(problem=problem, 
                         params=args.params,
-                        time_limit=args.time)
+                        time_limit=args.time,
+                        initial_solution=initial_solution
+                        )
 
     # Run biqbin solver to solve the qubo, passing in the problem
     solution = solver.compute()

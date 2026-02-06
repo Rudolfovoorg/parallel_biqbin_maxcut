@@ -11,8 +11,11 @@ class ArgParserBase(ArgumentParser):
                           help='Path to the problem instance file')
 
         # Optional arguments
+        self.add_argument('-s', '--solution', help='file path to an initial solution')
+        
         self.add_argument('-p', '--params', default='params',
                           help='custom parameters file path (default: "params")')
+
         self.add_argument('-w', '--overwrite',
                           action='store_true',
                           help='overwrite output.json instead of labeling with _NUMBER'
@@ -26,6 +29,7 @@ class ArgParserBase(ArgumentParser):
 
         self.add_argument('-v', '--verbose', action='store_true',
                           help='Verbose prints to terminal')
+        
 
     def parse_time_limit(self, s: str) -> int:
         """

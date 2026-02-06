@@ -20,7 +20,6 @@ extern BabSolution *BabSol;
 extern int BabPbSize;
 
 std::vector<int> initial_bab_solution;
-bool initial_bab_solution_set = false;
 
 /* final solution */
 std::vector<int> selected_nodes;
@@ -173,7 +172,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
 /// @return Objective value of the inputed solution
 double get_initial_bab_solution(BabSolution *bs)
 {
-    if (initial_bab_solution_set)
+    if (initial_bab_solution.size() > 0)
     {
         for (int i = 0; i < BabPbSize; ++i)
         {
@@ -203,7 +202,6 @@ void set_initial_bab_solution(py::array_t<int> x)
     {
         initial_bab_solution[i] = static_cast<int>(r(i));
     }
-    initial_bab_solution_set = true;
 }
 
 /// @brief Default GW heuristic

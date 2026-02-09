@@ -12,22 +12,24 @@ if __name__ == '__main__':
     parser = ArgParserQubo()
     args = parser.parse_args()
 
-    file_reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
+    file_reader = QuboFromJson(
+        args.problem_instance, optimize_input=args.optimize)
 
     # Read the file and get the problem
     problem = file_reader.read()
 
-    if args.solution:
+    if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
             initial_solution = np.array(json.load(f)['x'])
     else:
         initial_solution = None
-            
+
     # Initialize QUBOSolver class which takes a path to parameters file and time limit
-    solver = QUBOSolver(problem=problem, 
+    solver = QUBOSolver(problem=problem,
                         params=args.params,
                         time_limit=args.time,
-                        initial_solution=initial_solution
+                        initial_solution=initial_solution,
+                        collect_heur_data=args.collect_heur_data
                         )
 
     # Run biqbin solver to solve the qubo, passing in the problem

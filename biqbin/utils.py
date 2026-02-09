@@ -97,11 +97,11 @@ def check_matrix_validity_wrap(func):
     return wrapper
 
 
-def heur_data_collector(enabled_flag="collect_heuristic_data", data_box="heuristic_data"):
+def heur_root_data_collector(enabled_flag="collect_heuristic_data", data_box="heuristic_data"):
     def decorator(fn):
         @wraps(fn)
         def wrapper(self, *args, **kwargs):
-            if not getattr(self, enabled_flag, False):
+            if self.rank != 0 or not getattr(self, enabled_flag, False):
                 return fn(self, *args, **kwargs)
 
             if getattr(self, data_box, None) is None:

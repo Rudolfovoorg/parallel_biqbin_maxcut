@@ -1,10 +1,10 @@
 import numpy as np
-import sys
 from dwave.samplers import SimulatedAnnealingSampler
 from biqbin.biqbin_base import QUBOSolver, goemans_williamson_heuristic, get_rank
 from biqbin.data_parsers import QuboFromJson, QuboToJson
 from biqbin.argparsers import ArgParserDWaveHeuristic
 import logging
+import json
 from copy import deepcopy
 
 
@@ -12,8 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 class QuboDwaveSampler(QUBOSolver):
-    def __init__(self, problem, params: str, time_limit: int, sampler, **sampler_kwargs):
-        super().__init__(problem, params, time_limit)
+    def __init__(self, problem, 
+                 params: str, 
+                 time_limit: int, 
+                 initial_solution: np.ndarray | None, 
+                 collect_heuristic_data: bool,
+                 sampler, **sampler_kwargs):
+        super().__init__(problem, params, time_limit, initial_solution, collect_heuristic_data)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
         self.heuristic_counter = 0
@@ -92,10 +97,16 @@ if __name__ == '__main__':
 
     reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
     problem = reader.read()
-    
+    if get_rank() == 0 and args.solution:
+        with open(args.solution, 'r') as f:
+            initial_solution = np.array(json.load(f)['x'])
+    else:
+        initial_solution = None
     solver = QuboDwaveSampler(problem=problem,
                               params=args.params,
                               time_limit=args.time,
+                              initial_solution=initial_solution,
+                              collect_heuristic_data=args.collect_heur_data,
                               sampler=SimulatedAnnealingSampler(),
                               num_reads=10)
 

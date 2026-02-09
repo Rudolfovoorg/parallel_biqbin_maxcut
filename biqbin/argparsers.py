@@ -11,6 +11,7 @@ class ArgParserBase(ArgumentParser):
                           help='Path to the problem instance file')
 
         # Optional arguments
+        self.add_argument('-c', '--collect-heur-data', action='store_true', help='collect heuristic data on root node (time taken and value)')
         self.add_argument('-s', '--solution', help='file path to an initial solution')
         
         self.add_argument('-p', '--params', default='params',

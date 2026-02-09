@@ -128,9 +128,9 @@ test-maxcut: clean-output
 	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output params
 
 test-maxcut-python: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_60.0.json >/dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_80.0.json >/dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_100.4.json >/dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_60.0.json -c >/dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_80.0.json -c >/dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_100.4.json -c >/dev/null
 
 	pytest -v -s --no-header --instances \
 		tests/rudy/g05_60.0.json \
@@ -138,15 +138,15 @@ test-maxcut-python: clean-output
 		tests/rudy/g05_100.4.json
 
 test-qubo-python: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json >/dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json >/dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c >/dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c >/dev/null
 	pytest -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json
 
 test-qubo-python-heuristic: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
-							 --output tests/heuristic/kcluster40_025_10_1.json.output.json >/dev/null
+							 --output tests/heuristic/kcluster40_025_10_1.json.output.json -c >/dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
-							 --output tests/heuristic/kcluster80_025_20_1.json.output.json >/dev/null
+							 --output tests/heuristic/kcluster80_025_20_1.json.output.json -c >/dev/null
 	
 	pytest -v -s --no-header --without-sol-vector --instances tests/heuristic/kcluster80_025_20_1.json tests/heuristic/kcluster80_025_20_1.json
 

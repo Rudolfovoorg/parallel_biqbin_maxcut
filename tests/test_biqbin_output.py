@@ -19,7 +19,7 @@ def test_biqbin_output(problem_instance, request):
         expected_result = json.load(f)
 
     without_sol_vec = request.config.getoption('--without-sol-vector')
-    
+
     # Meta data
     bab_nodes_diff = expected_result['meta_data']['eval_bab_nodes'] - \
         result['meta_data']['eval_bab_nodes']
@@ -27,7 +27,7 @@ def test_biqbin_output(problem_instance, request):
         result['meta_data']['time']
 
     print(f'Bab nodes diff = {bab_nodes_diff} Time diff = {time_diff:.3f}')
-    
+
     # Check if non-branching instances branched
     if expected_result['meta_data']['eval_bab_nodes'] == 1:
         assert bab_nodes_diff == 0, (
@@ -35,7 +35,7 @@ def test_biqbin_output(problem_instance, request):
             f'Got:      {result['meta_data']['eval_bab_nodes']}\n'
             f'Expected: {expected_result['meta_data']['eval_bab_nodes']}\n'
         )
-    
+
     # --- Check maxcut ---
     assert expected_result['maxcut']['computed_val'] == result['maxcut']['computed_val'], (
         f'maxcut mismatch!\n'
@@ -84,4 +84,11 @@ def test_biqbin_output(problem_instance, request):
             f'bqp mismatch!\n'
             f'Got: {result['bqp']}\n'
             f'Expected: {expected_result['bqp']}'
+        )
+
+    if 'heuristic_data' in expected_result['meta_data']:
+        assert len(result['meta_data']['heuristic_data']) == len(expected_result['meta_data']['heuristic_data']), (
+            f'root len(heuristic data) mismatch!'
+            f'Got:      {len(result['meta_data']['heuristic_data'])}\n'
+            f'Expected: {len(expected_result['meta_data']['heuristic_data'])}'
         )

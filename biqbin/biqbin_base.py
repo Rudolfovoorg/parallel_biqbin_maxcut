@@ -3,7 +3,7 @@ __version__ = '2.0.5'
 import numpy.typing as npt
 import numpy as np
 
-from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_data_collector
+from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_root_data_collector
 from biqbin.biqbin_module import (run, set_heuristic, init_mpi,
                                   goemans_williamson_heuristic, get_rank, set_initial_solution)
 
@@ -265,7 +265,8 @@ class MaxCutSolver(PrettyPrint):
         self.time_limit: int = time_limit
         self.initial_solution = None
 
-        if get_rank() == 0 and initial_solution is not None:
+        self.rank: int = get_rank()
+        if self.rank == 0 and initial_solution is not None:
             self._check_initial_solution_validity(
             initial_solution, problem.maxcut_adjacency_matrix.shape[0])
             self.initial_solution = initial_solution
@@ -285,7 +286,7 @@ class MaxCutSolver(PrettyPrint):
     def problem(self) -> ProblemMaxCut:
         return self.__problem
 
-    @heur_data_collector()
+    @heur_root_data_collector()
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
         """Default GW heuristic (heuristic_unpacked in heuristic.c)
 
@@ -319,7 +320,7 @@ class MaxCutSolver(PrettyPrint):
         if self.problem is None:
             raise ValueError("Problem instance not set!")
 
-        if get_rank() == 0:
+        if self.rank == 0:
             if self.initial_solution is not None:
                 set_initial_solution(self.initial_solution)
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
@@ -334,7 +335,7 @@ class MaxCutSolver(PrettyPrint):
                             self.params,
                             self.time_limit)
 
-        if get_rank() == 0:
+        if self.rank == 0:
             if biqbin_result is None:
                 raise ValueError(
                     'Result from BiqBin is None, computation failed!')
@@ -386,7 +387,8 @@ class QUBOSolver(MaxCutSolver):
                  problem: ProblemQubo,
                  params: str,
                  time_limit: int = 0,
-                 initial_solution: np.ndarray | None = None):
+                 initial_solution: np.ndarray | None = None,
+                 collect_heur_data: bool = False):
 
         mc_initial_solution = None
         if get_rank() == 0 and initial_solution is not None:
@@ -394,7 +396,7 @@ class QUBOSolver(MaxCutSolver):
                 initial_solution, problem.Q.shape[0])
             mc_initial_solution = np.append(initial_solution, 0)
 
-        super().__init__(problem, params, time_limit, mc_initial_solution)
+        super().__init__(problem, params, time_limit, mc_initial_solution, collect_heur_data)
 
         self.__problem: ProblemQubo = problem
 

@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # Read the file
     problem = file_reader.read()
 
-    if args.solution:
+    if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
             initial_solution = np.array(json.load(f)['x'])
     else:
@@ -31,7 +31,8 @@ if __name__ == '__main__':
         problem=problem,
         params=args.params,
         time_limit=args.time,
-        initial_solution=initial_solution)
+        initial_solution=initial_solution,
+        collect_heuristic_data=args.collect_heur_data)
     
     # Compute the solution for the given problem
     solution = solver.compute()

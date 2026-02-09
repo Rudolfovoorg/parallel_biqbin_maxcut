@@ -1,67 +1,87 @@
 import sys
 import json
 import warnings
-
+import pytest
 """
     Compares Biqbin output with expected output for all Python versions
 """
 
-if __name__ == '__main__':
-    test_failed = False
-    _, problem_instance = sys.argv
 
-    with open(problem_instance + ".output.json",  "r") as f:
+def test_biqbin_output(problem_instance, request):
+    """
+    Compare Biqbin output with expected output for one instance.
+    """
+
+    with open(problem_instance + '.output.json', 'r') as f:
         result = json.load(f)
 
-    with open(problem_instance + '-expected_output.json',  "r") as f:
+    with open(problem_instance + '-expected_output.json', 'r') as f:
         expected_result = json.load(f)
 
-    # Check maxcut result
-    if not expected_result['maxcut'] == result['maxcut']:
-        warnings.warn(f'maxcut result != expected result!')
-        warnings.warn(f'{result['maxcut']=}\n{expected_result['maxcut']=}')
-        test_failed = True
-
-    # If qubo check qubo result
-    if "qubo" in expected_result:
-        if not expected_result['qubo'] == result['qubo']:
-            warnings.warn(f'qubo result != expected result!')
-            warnings.warn(f'{result['qubo']=}\n{expected_result['qubo']=}')
-            test_failed = True
+    without_sol_vec = request.config.getoption('--without-sol-vector')
     
-    # if bqp check bqp
-    if "bqp" in expected_result:
-        if not expected_result['bqp'] == result['bqp']:
-            warnings.warn(f'bqp result != expected result!')
-            warnings.warn(f'{result['bqp']=}\n{expected_result['bqp']=}')
-            test_failed = True
-
-    # Check metadata for result
+    # Meta data
     bab_nodes_diff = expected_result['meta_data']['eval_bab_nodes'] - \
         result['meta_data']['eval_bab_nodes']
-    workers_used_diff = expected_result['meta_data']['num_workers_used'] - \
-        result['meta_data']['num_workers_used']
-
-    # if bab_nodes_diff != 0:
-    #     warnings.warn(
-    #         f'{result['meta_data']['eval_bab_nodes']=} != {expected_result['meta_data']['eval_bab_nodes']=}')
-    #     test_failed = True
-
-    # if workers_used_diff != 0:
-    #     warnings.warn(
-    #         f'{result['meta_data']['num_workers_used']=} != {expected_result['meta_data']['num_workers_used']=}')
-    #     test_failed = True
-
     time_diff = expected_result['meta_data']['time'] - \
         result['meta_data']['time']
 
-    if not test_failed:
-        print(
-            f'OK! - {problem_instance}; Bab nodes diff = {bab_nodes_diff}; Time diff = {time_diff}'
+    print(f'Bab nodes diff = {bab_nodes_diff} Time diff = {time_diff:.3f}')
+    
+    # Check if non-branching instances branched
+    if expected_result['meta_data']['eval_bab_nodes'] == 1:
+        assert bab_nodes_diff == 0, (
+            f'Bab nodes mismatch!\n',
+            f'Got:      {result['meta_data']['eval_bab_nodes']}\n'
+            f'Expected: {expected_result['meta_data']['eval_bab_nodes']}\n'
         )
-        exit(0)
-    else:
-        print(
-            f'FAILED! - {problem_instance}; Bab nodes diff = {bab_nodes_diff}; Time diff = {time_diff}'
+    
+    # --- Check maxcut ---
+    assert expected_result['maxcut']['computed_val'] == result['maxcut']['computed_val'], (
+        f'maxcut mismatch!\n'
+        f'Got:      {result['maxcut']['computed_val']}\n'
+        f'Expected: {expected_result['maxcut']['computed_val']}\n'
+        f'Got:      {result['maxcut']['x']}\n'
+        f'Expected: {expected_result['maxcut']['x']}'
+    )
+
+    if not without_sol_vec:
+        assert expected_result['maxcut']['x'] == result['maxcut']['x'], (
+            f'maxcut mismatch!\n'
+            f'Got:      {result['maxcut']['x']}\n'
+            f'Expected: {expected_result['maxcut']['x']}'
         )
-        exit(1)
+        assert expected_result['maxcut']['solution'] == result['maxcut']['solution'], (
+            f'maxcut mismatch!\n'
+            f'Got:      {result['maxcut']['solution']}\n'
+            f'Expected: {expected_result['maxcut']['solution']}'
+        )
+
+    # --- Check qubo if present ---
+    if 'qubo' in expected_result:
+        assert expected_result['qubo']['computed_val'] == result['qubo']['computed_val'], (
+            f'qubo mismatch!\n'
+            f'Got solution: {result['qubo']['computed_val']}\n'
+            f'Expected solution: {expected_result['qubo']['computed_val']}\n'
+            f'Got solution: {result['qubo']['x']}\n'
+            f'Expected solution: {expected_result['qubo']['x']}'
+        )
+        if not without_sol_vec:
+            assert expected_result['qubo']['x'] == result['qubo']['x'], (
+                f'qubo mismatch!\n'
+                f'Got solution: {result['qubo']['x']}\n'
+                f'Expected solution: {expected_result['qubo']['x']}'
+            )
+            assert expected_result['qubo']['solution'] == result['qubo']['solution'], (
+                f'qubo mismatch!\n'
+                f'Got solution: {result['qubo']['solution']}\n'
+                f'Expected solution: {expected_result['qubo']['solution']}'
+            )
+
+    # --- Check bqp if present ---
+    if 'bqp' in expected_result:
+        assert expected_result['bqp'] == result['bqp'], (
+            f'bqp mismatch!\n'
+            f'Got: {result['bqp']}\n'
+            f'Expected: {expected_result['bqp']}'
+        )

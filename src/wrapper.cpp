@@ -30,6 +30,10 @@ extern int num_workers_used;
 extern int time_limit_reached;
 extern int heuristic_counter;
 extern int heuristic_sum;
+/* root meta_data */
+extern double root_upper_bound;
+extern double root_lower_bound;
+extern double root_eval_time;
 
 /* MPI data */
 extern int rank;
@@ -152,12 +156,19 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     py::dict result_dict;
     py::dict solution_info;
     py::dict meta_data;
+    py::dict root_sol;
 
     meta_data["time"] = running_time;
     meta_data["time_limit_reached"] = (time_limit_reached) ? true : false;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
     meta_data["heuristic_run_count"] = heuristic_sum;
     meta_data["num_workers_used"] = num_workers_used;
+
+    root_sol["time"] = root_eval_time;
+    root_sol["obj_value"] = root_lower_bound;
+    root_sol["sdp_value"] = root_upper_bound;
+    meta_data["root"] = root_sol;
+
     solution_info["computed_val"] = Bab_LBGet();
     solution_info["solution"] = py::cast(selected_nodes); // we converted it from numpy to regular list immidiately in python so might as well do it here.
     solution_info["x"] = py::cast(solution_x);

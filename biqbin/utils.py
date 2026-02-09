@@ -97,7 +97,7 @@ def check_matrix_validity_wrap(func):
     return wrapper
 
 
-def heur_data_collector(enabled_flag="collect_heuristics", data_box="heuristic_data"):
+def heur_data_collector(enabled_flag="collect_heuristic_data", data_box="heuristic_data"):
     def decorator(fn):
         @wraps(fn)
         def wrapper(self, *args, **kwargs):

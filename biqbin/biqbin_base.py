@@ -1,8 +1,6 @@
-import time
 __version__ = '2.0.5'
 
 import numpy.typing as npt
-import argparse
 import numpy as np
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_data_collector
@@ -255,7 +253,7 @@ class MaxCutSolver(PrettyPrint):
                  params: str,
                  time_limit: int = 0,
                  initial_solution: np.ndarray | None = None,
-                 collect_heuristic_data: bool = True):
+                 collect_heuristic_data: bool = False):
         """Initialize the solver
 
         Args:
@@ -265,14 +263,17 @@ class MaxCutSolver(PrettyPrint):
         self.__problem: ProblemMaxCut = problem
         self.params: str = params
         self.time_limit: int = time_limit
+        self.initial_solution = None
 
-        if initial_solution is not None:
+        if get_rank() == 0 and initial_solution is not None:
             self._check_initial_solution_validity(
-                initial_solution, problem.maxcut_adjacency_matrix.shape[0])
-            if get_rank() == 0:
-                self.heuristic = self._disabled_heuristic
-
-        self.initial_solution = initial_solution
+            initial_solution, problem.maxcut_adjacency_matrix.shape[0])
+            self.initial_solution = initial_solution
+            
+            # Calculate the maxcut value of the initial solution
+            diff = np.bitwise_xor(initial_solution[:, None], initial_solution[None, :])
+            self.initial_obj_value: float = 0.5 * float(np.sum(problem.maxcut_adjacency_matrix * diff))
+            self.heuristic = self.initial_obj_value_on_root
 
         # Heuristic data collection
         self.collect_heuristic_data: bool = collect_heuristic_data
@@ -284,7 +285,7 @@ class MaxCutSolver(PrettyPrint):
     def problem(self) -> ProblemMaxCut:
         return self.__problem
 
-    @heur_data_collector(enabled_flag='collect_heuristic_data')
+    @heur_data_collector()
     def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
         """Default GW heuristic (heuristic_unpacked in heuristic.c)
 
@@ -301,10 +302,10 @@ class MaxCutSolver(PrettyPrint):
 
         return goemans_williamson_heuristic(L0, L, xfixed, sol_X, x)
 
-    def _disabled_heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
-        """ Biqbin does not use the heuristic value, it calculates the solution objective value from the vector x itself
+    def initial_obj_value_on_root(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
+        """ Sends the initial objective value estimate on the heuristic call
         """
-        return 0
+        return self.initial_obj_value
 
     def _run_solver(self) -> dict | None:
         """Runs Biqbin C/C++ implementation
@@ -388,7 +389,7 @@ class QUBOSolver(MaxCutSolver):
                  initial_solution: np.ndarray | None = None):
 
         mc_initial_solution = None
-        if initial_solution is not None:
+        if get_rank() == 0 and initial_solution is not None:
             self._check_initial_solution_validity(
                 initial_solution, problem.Q.shape[0])
             mc_initial_solution = np.append(initial_solution, 0)

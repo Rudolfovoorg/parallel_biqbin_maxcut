@@ -48,8 +48,9 @@ class SolutionBQP(SolutionMaxCut):
 class BQPSolver(MaxCutSolver):
     solver_name = f'PyBiqBin-BQP-PLACEHOLDER'
 
-    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0):
-        super().__init__(problem, params, time_limit)
+    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_solution=None, collect_heuristic_data=False):
+        super().__init__(problem=problem, params=params, time_limit=time_limit,
+                         initial_solution=initial_solution, collect_heuristic_data=collect_heuristic_data)
         self.__problem: ProblemBQP = problem
 
     @property
@@ -169,7 +170,14 @@ if __name__ == '__main__':
             args.problem_instance, optimize_input=args.optimize)
 
     problem = problem_reader.read()
-    solver = BQPSolver(problem, args.params, args.time)
+    
+    if args.solution:
+        with open(args.solution, 'r') as f:
+            initial_solution = np.array(json.load(f)['x'])
+    else:
+        initial_solution = None
+    
+    solver = BQPSolver(problem, args.params, args.time, initial_solution)
 
     solution = solver.compute()  # run the solver
 

@@ -155,12 +155,12 @@ test-input-solution: clean-output
 						     tests/rudy/g05_60.0.json \
 							 --output tests/w_solution/g05_60.0.json.output.json \
 							 -s tests/w_solution/g05_60.0.json_initial_solution.json \
- 							 >/dev/null
+ 							 -c >/dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py \
 							 tests/qubos/40/kcluster40_025_10_1.json \
 							 --output tests/w_solution/kcluster40_025_10_1.json.output.json \
 							 -s tests/w_solution/kcluster40_025_10_1.json_initial_solution.json \
-							 >/dev/null
+							 -c >/dev/null
 	pytest -v -s --no-header --instances tests/w_solution/g05_60.0.json tests/w_solution/kcluster40_025_10_1.json
 
 # test-qubo-qplib: clean-output

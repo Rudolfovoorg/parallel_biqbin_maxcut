@@ -303,6 +303,7 @@ class MaxCutSolver(PrettyPrint):
 
         return goemans_williamson_heuristic(L0, L, xfixed, sol_X, x)
 
+    @heur_root_data_collector()
     def initial_obj_value_on_root(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
         """ Sends the initial objective value estimate on the heuristic call
         """
@@ -347,7 +348,8 @@ class MaxCutSolver(PrettyPrint):
                 'gcd': self.problem.gcd
             }
             if self.collect_heuristic_data:
-                biqbin_result['meta_data']['heuristic_data'] = self.heuristic_data
+                biqbin_result['meta_data']['root_node']['total_heur_time'] = sum(d['time'] for d in self.heuristic_data)
+                biqbin_result['meta_data']['root_node']['heuristic_data'] = self.heuristic_data
             return biqbin_result
 
     def compute(self) -> SolutionMaxCut | None:

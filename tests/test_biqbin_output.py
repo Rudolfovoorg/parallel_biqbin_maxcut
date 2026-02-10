@@ -87,7 +87,7 @@ def test_biqbin_output(problem_instance, request):
         )
 
     if 'heuristic_data' in expected_result['meta_data']:
-        assert len(result['meta_data']['heuristic_data']) == len(expected_result['meta_data']['heuristic_data']), (
+        assert len(result['meta_data']['root_node']['heuristic_data']) == len(expected_result['meta_data']['heuristic_data']), (
             f'root len(heuristic data) mismatch!'
             f'Got:      {len(result['meta_data']['heuristic_data'])}\n'
             f'Expected: {len(expected_result['meta_data']['heuristic_data'])}'

@@ -100,18 +100,19 @@ def check_matrix_validity_wrap(func):
 def heur_root_data_collector(enabled_flag="collect_heuristic_data", data_box="heuristic_data"):
     def decorator(fn):
         @wraps(fn)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray):
             if self.rank != 0 or not getattr(self, enabled_flag, False):
-                return fn(self, *args, **kwargs)
+                return fn(self, L0, L, xfixed, sol_X, x)
 
             if getattr(self, data_box, None) is None:
                 self.data_box = []
 
             start = time.perf_counter()
-            result = fn(self, *args, **kwargs)
+            result = fn(self, L0, L, xfixed, sol_X, x)
             getattr(self, data_box).append({
                 "time": time.perf_counter() - start,
                 "value": result,
+                "x": x.tolist()
             })
             return result
         return wrapper

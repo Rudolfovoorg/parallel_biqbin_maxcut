@@ -307,7 +307,7 @@ class MaxCutSolver(PrettyPrint):
     def initial_obj_value_on_root(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
         """ heuristic call on root node if initial estimate solution is passed in
         """
-        
+
         if self.initial_estimate_solution is None:
             raise ValueError("self.initial_estimate_solution is None!")
         if L0.shape != L.shape:
@@ -327,13 +327,9 @@ class MaxCutSolver(PrettyPrint):
             her_value = goemans_williamson_heuristic(
                 L0, L, xfixed, sol_X, deepcopy(x))
 
-        j = 0
-        for i in range(len(x)):
-            if xfixed[i] == 0:
-                x[i] = self.initial_estimate_solution[j]
-                j += 1
-            else:
-                x[i] = sol_X[i]
+        free_mask = (xfixed == 0)
+        np.copyto(x, sol_X)
+        x[free_mask] = self.initial_estimate_solution[:-1]
 
         sol_value = self._evaluate_solution(L0, x)
 
@@ -353,11 +349,17 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             float: value of the solution
         """
-        sol_val = 0
-        for i in range(len(sol)):
-            for j in range(len(sol)):
-                sol_val += L0[i][j] * sol[i] * sol[j]
-        return sol_val
+        sol_val = sol @ L0[:-1, :-1] @ sol
+        
+        if logger.isEnabledFor(logging.DEBUG):
+            sol_val_org = 0
+            for i in range(len(sol)):
+                for j in range(len(sol)):
+                    sol_val_org += L0[i][j] * sol[i] * sol[j]
+            if sol_val != sol_val_org:
+                raise ValueError(f'{sol_val=} == {sol_val_org} sol_val_org; {sol_val_org == sol_val}')
+            
+        return float(sol_val)
 
     def _run_solver(self) -> dict | None:
         """Runs Biqbin C/C++ implementation

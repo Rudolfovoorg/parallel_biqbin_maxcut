@@ -42,24 +42,31 @@ class QuboDwaveSampler(QUBOSolver):
                  **self.sampler_kwargs).first.sample.values()),
             dtype=np.int32
         )
-
-        _x = np.hstack([_x, [0]])  # simplification for above
-
-        j = 0
-        for i in range(len(x)):
-            if xfixed[i] == 0:
-                x[i] = _x[j]
-                j += 1
-            else:
-                x[i] = sol_X[i]
+        
+        free_mask = (xfixed == 0)
+        np.copyto(x, sol_X)
+        x[free_mask] = _x
 
         sol_value = self._evaluate_solution(L0, x)
 
         if logger.isEnabledFor(logging.DEBUG):
+            j = 0
+            x_copy = np.zeros(x.size)
+            for i in range(len(x)):
+                if xfixed[i] == 0:
+                    x_copy[i] = _x[j]
+                    j += 1
+                else:
+                    x_copy[i] = sol_X[i]
+                    
+            vectorized_equal_to_org = np.array_equal(x, x_copy)
+            if not vectorized_equal_to_org:
+                raise ValueError(f'x mismatch!:\n{x =}\n{x_copy = }')
+            
             her_value = goemans_williamson_heuristic(
                 L0, L, xfixed, sol_X, deepcopy(x))
             logger.debug(
-                f'Custom heuristic: {sol_value}, default heuristic: {her_value}')
+                f'Custom heuristic: {sol_value}, default heuristic: {her_value}, {vectorized_equal_to_org}')
 
         return sol_value
 

@@ -41,4 +41,5 @@
 - data collection on root node for heuristic times and values
 - sdp value, heuristic value and heuristic solution for the root node is now saved along with all the timings
 - some heuristic implementations have been changed to use numpy vectorized functions
-- updated tests to check the new data saved into the output file 
+- python requirements split between a minimal requirements.txt and full requirements-dev.txt versions
+- updated tests to check the new data saved into the output file

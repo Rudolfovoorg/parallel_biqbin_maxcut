@@ -53,7 +53,7 @@ class QuboDwaveSampler(QUBOSolver):
             else:
                 x[i] = sol_X[i]
 
-        sol_value = self.evaluate_solution(L0, x)
+        sol_value = self._evaluate_solution(L0, x)
 
         if logger.isEnabledFor(logging.DEBUG):
             her_value = goemans_williamson_heuristic(
@@ -62,23 +62,6 @@ class QuboDwaveSampler(QUBOSolver):
                 f'Custom heuristic: {sol_value}, default heuristic: {her_value}')
 
         return sol_value
-
-    def evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
-        """Calculate the lowerbound value of heuristic solution
-
-        Args:
-            L0 (np.ndarray): main Problem *SP->L matrix
-            sol (np.ndarray): current solution
-
-        Returns:
-            float: value of the solution
-        """
-        sol_val = 0
-        for i in range(len(sol)):
-            for j in range(len(sol)):
-                sol_val += L0[i][j] * sol[i] * sol[j]
-        return sol_val
-
 
 if __name__ == '__main__':
 

@@ -93,7 +93,9 @@ int wrapped_main(int argc, char **argv)
 
         root_lower_bound = Bab_LBGet();
         printf("Initial lower bound: %.0lf\n", root_lower_bound);
-        
+#ifndef PURE_C
+        copy_root_solution();
+#endif
         // broadcast diff
         if (params.use_diff)
             MPI_Bcast(&diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);

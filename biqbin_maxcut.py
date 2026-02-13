@@ -22,16 +22,16 @@ if __name__ == '__main__':
 
     if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
-            initial_solution = np.array(json.load(f)['x'])
+            initial_estimate = np.array(json.load(f)['initial_estimate'])
     else:
-        initial_solution = None
+        initial_estimate = None
 
     # Create an instance of the MaxCutSolver passing in path to params file and time limit
     solver = MaxCutSolver(
         problem=problem,
         params=args.params,
         time_limit=args.time,
-        initial_solution=initial_solution,
+        initial_estimate=initial_estimate,
         collect_heuristic_data=args.collect_heur_data)
     
     # Compute the solution for the given problem

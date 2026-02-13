@@ -19,8 +19,6 @@ extern Problem *PP;
 extern BabSolution *BabSol;
 extern int BabPbSize;
 
-std::vector<int> initial_bab_solution;
-
 /* final solution */
 std::vector<int> selected_nodes;
 std::vector<int> solution_x;
@@ -34,6 +32,7 @@ extern int heuristic_sum;
 extern double root_upper_bound;
 extern double root_lower_bound;
 extern double root_eval_time;
+std::vector<int> root_sol_x;
 
 /* MPI data */
 extern int rank;
@@ -168,6 +167,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     root_node_dict["heuristic_value"] = root_lower_bound;
     root_node_dict["heuristic_run_count"] = heuristic_counter;
     root_node_dict["sdp_value"] = root_upper_bound;
+    root_node_dict["root_solution"] = py::cast(root_sol_x);
     meta_data["root_node"] = root_node_dict;
 
     solution_info["computed_val"] = Bab_LBGet();
@@ -177,43 +177,6 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     result_dict["maxcut"] = solution_info;
 
     return result_dict;
-}
-
-/// @brief Copy the innitial solution to the BabSolution at start
-/// @param bs
-/// @return Objective value of the inputed solution
-double get_initial_bab_solution(BabSolution *bs)
-{
-    if (initial_bab_solution.size() > 0)
-    {
-        for (int i = 0; i < BabPbSize; ++i)
-        {
-            bs->X[i] = initial_bab_solution[i];
-        }
-
-        return evaluateSolution(bs->X);
-    }
-    else
-    {
-        for (int i = 0; i < BabPbSize; ++i)
-        {
-            bs->X[i] = 0;
-        }
-        return 0;
-    }
-}
-
-void set_initial_bab_solution(py::array_t<int> x)
-{
-    const auto n = static_cast<size_t>(x.shape(0));
-    initial_bab_solution.resize(n);
-
-    auto r = x.unchecked<1>(); // index as a 1D array
-
-    for (size_t i = 0; i < n; ++i)
-    {
-        initial_bab_solution[i] = static_cast<int>(r(i));
-    }
 }
 
 /// @brief Default GW heuristic
@@ -312,6 +275,16 @@ void copy_solution()
     solution_x.push_back(0); // .. solution is one more than BabPbSize
 }
 
+/// @brief Copy the solution before memory is freed, so it can be retrieved in Python
+void copy_root_solution()
+{
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        root_sol_x.push_back(BabSol->X[i]); // binary solution vec x
+    }
+    root_sol_x.push_back(0); // .. solution is one more than BabPbSize
+}
+
 /// @brief record time at the end
 /// @param time
 void record_time(double time) { running_time = time; }
@@ -333,5 +306,4 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
     m.def("run", &run_py, "Run the solver");
     m.def("goemans_williamson_heuristic", &run_heuristic_python, "Default C-implemented GW heuristic");
     m.def("get_rank", &get_rank, "Get the mpi rank");
-    m.def("set_initial_solution", &set_initial_bab_solution);
 }

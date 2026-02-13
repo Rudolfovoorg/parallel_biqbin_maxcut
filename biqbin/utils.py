@@ -1,7 +1,6 @@
-import warnings
+import json
 import time
 from functools import wraps
-from typing import Tuple
 import scipy as sp
 import numpy as np
 from numpy import typing as npt
@@ -97,7 +96,13 @@ def check_matrix_validity_wrap(func):
     return wrapper
 
 
-def heur_root_data_collector(enabled_flag="collect_heuristic_data", data_box="heuristic_data"):
+def heur_root_data_collector(enabled_flag="collect_heuristic_root_data", data_box="heuristic_root_data"):
+    """Collects heuristic data on root node if enabled
+
+    Args:
+        enabled_flag (str, optional): Name of the class attribute with a boolean value for enabling data collection. Defaults to "collect_heuristic_data".
+        data_box (str, optional): Name of the class attribute where to store the collected data. Defaults to "heuristic_data".
+    """
     def decorator(fn):
         @wraps(fn)
         def wrapper(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray):
@@ -112,7 +117,6 @@ def heur_root_data_collector(enabled_flag="collect_heuristic_data", data_box="he
             getattr(self, data_box).append({
                 "time": time.perf_counter() - start,
                 "value": result,
-                "x": x.tolist()
             })
             return result
         return wrapper
@@ -128,8 +132,47 @@ def convert_numpy_to_json_serializable(obj):
 
 
 def divide_matrix_by_gcd(matrix: np.ndarray) -> int:
+    """Takes in a ndarray matrix, finds the greatest common divisor and divides the values by it
+
+    Args:
+        matrix (np.ndarray): matrix to be divided in place
+
+    Returns:
+        int: greatest common divisor found
+    """
     greatest_common_divisor = np.gcd.reduce(matrix.astype(int).flatten())
     if greatest_common_divisor > 1:
         matrix /= greatest_common_divisor
 
     return int(greatest_common_divisor)
+
+
+def flatten_dict(d: dict, prefix='', level=0):
+    """Recursively flatten a dictionary, to create a pandas df from nested dicts
+
+    Args:
+        d (dict): data
+
+    Yields:
+        dict: flattened dictionary
+    """
+    for i, j in d.items():
+        if isinstance(j, dict):
+            yield from flatten_dict(j, f'{prefix}{i}_', level+1)
+        else:
+            yield f'{prefix}{i}', j
+
+
+def data_reader_pd(filelist):
+    """Load a list of filenames into a pandas dataframe.
+    Usage: pd.DataFrame(data_reader_pd(filelist))
+
+    Args:
+        filelist (iterable): a list or equivalent of filepaths
+
+    Yields:
+        dict: flattenened dictionary
+    """
+    for filename in filelist:
+        with open(filename) as f:
+            yield dict(flatten_dict(json.load(f)))

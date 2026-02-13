@@ -2,14 +2,19 @@ __version__ = '2.0.5'
 
 import numpy.typing as npt
 import numpy as np
+import logging
+from copy import deepcopy
+import sys
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_root_data_collector
 from biqbin.biqbin_module import (run, set_heuristic, init_mpi,
-                                  goemans_williamson_heuristic, get_rank, set_initial_solution)
+                                  goemans_williamson_heuristic, get_rank)
 
 
 # Initialize MPI at start
 init_mpi()
+logging.basicConfig(stream=sys.stdout, level=logging.WARNING)
+logger = logging.getLogger(__name__)
 
 
 class PrettyPrint:
@@ -252,7 +257,7 @@ class MaxCutSolver(PrettyPrint):
                  problem: ProblemMaxCut,
                  params: str,
                  time_limit: int = 0,
-                 initial_solution: np.ndarray | None = None,
+                 initial_estimate: np.ndarray | None = None,
                  collect_heuristic_data: bool = False):
         """Initialize the solver
 
@@ -263,22 +268,18 @@ class MaxCutSolver(PrettyPrint):
         self.__problem: ProblemMaxCut = problem
         self.params: str = params
         self.time_limit: int = time_limit
-        self.initial_solution = None
+        self.initial_estimate_solution = None
 
         self.rank: int = get_rank()
-        if self.rank == 0 and initial_solution is not None:
+        if self.rank == 0 and initial_estimate is not None:
             self._check_initial_solution_validity(
-            initial_solution, problem.maxcut_adjacency_matrix.shape[0])
-            self.initial_solution = initial_solution
-            
-            # Calculate the maxcut value of the initial solution
-            diff = np.bitwise_xor(initial_solution[:, None], initial_solution[None, :])
-            self.initial_obj_value: float = 0.5 * float(np.sum(problem.maxcut_adjacency_matrix * diff))
+                initial_estimate, problem.maxcut_adjacency_matrix.shape[0])
+            self.initial_estimate_solution = initial_estimate
             self.heuristic = self.initial_obj_value_on_root
 
         # Heuristic data collection
-        self.collect_heuristic_data: bool = collect_heuristic_data
-        self.heuristic_data = []
+        self.collect_heuristic_root_data: bool = collect_heuristic_data
+        self.heuristic_root_data = []
 
         set_heuristic(self.heuristic)
 
@@ -300,14 +301,63 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             float: value of the solution array "x" found by the heuristic function
         """
-
         return goemans_williamson_heuristic(L0, L, xfixed, sol_X, x)
 
     @heur_root_data_collector()
     def initial_obj_value_on_root(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
-        """ Sends the initial objective value estimate on the heuristic call
+        """ heuristic call on root node if initial estimate solution is passed in
         """
-        return self.initial_obj_value
+        
+        if self.initial_estimate_solution is None:
+            raise ValueError("self.initial_estimate_solution is None!")
+        if L0.shape != L.shape:
+            raise ValueError(
+                f"Main problem shape {L0.shape} != Subproblem shape {L.shape}!")
+        if L0.shape != self.problem.maxcut_adjacency_matrix.shape:
+            raise ValueError(
+                f"Main problem shape {L0.shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
+        if np.any(xfixed):
+            raise ValueError("xfixed is nonzero!")
+
+        her_value = None
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f'{x=}')
+            logger.debug(f'{xfixed=}')
+            logger.debug(f'{sol_X=}')
+            her_value = goemans_williamson_heuristic(
+                L0, L, xfixed, sol_X, deepcopy(x))
+
+        j = 0
+        for i in range(len(x)):
+            if xfixed[i] == 0:
+                x[i] = self.initial_estimate_solution[j]
+                j += 1
+            else:
+                x[i] = sol_X[i]
+
+        sol_value = self._evaluate_solution(L0, x)
+
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                f'Custom heuristic: {sol_value}, default heuristic: {her_value}')
+
+        return sol_value
+
+    def _evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
+        """Calculate the lowerbound value of heuristic solution
+
+        Args:
+            L0 (np.ndarray): main Problem *SP->L matrix
+            sol (np.ndarray): current solution
+
+        Returns:
+            float: value of the solution
+        """
+        sol_val = 0
+        for i in range(len(sol)):
+            for j in range(len(sol)):
+                sol_val += L0[i][j] * sol[i] * sol[j]
+        return sol_val
 
     def _run_solver(self) -> dict | None:
         """Runs Biqbin C/C++ implementation
@@ -322,8 +372,6 @@ class MaxCutSolver(PrettyPrint):
             raise ValueError("Problem instance not set!")
 
         if self.rank == 0:
-            if self.initial_solution is not None:
-                set_initial_solution(self.initial_solution)
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
             print(f'Solving {self.problem}')
@@ -341,15 +389,17 @@ class MaxCutSolver(PrettyPrint):
                 raise ValueError(
                     'Result from BiqBin is None, computation failed!')
 
+            biqbin_result['meta_data']['solver'] = self.solver_name
             biqbin_result['meta_data']['instance'] = self.problem.problem_name
             biqbin_result['meta_data']['parameters'] = {
                 'time_limit': self.time_limit if self.time_limit > 0 else None,
                 'optimized': self.problem.optimize_mc_adj_matrix,
                 'gcd': self.problem.gcd
             }
-            if self.collect_heuristic_data:
-                biqbin_result['meta_data']['root_node']['total_heur_time'] = sum(d['time'] for d in self.heuristic_data)
-                biqbin_result['meta_data']['root_node']['heuristic_data'] = self.heuristic_data
+            if self.collect_heuristic_root_data:
+                biqbin_result['meta_data']['root_node']['total_heur_time'] = sum(
+                    d['time'] for d in self.heuristic_root_data)
+                biqbin_result['meta_data']['root_node']['heuristic_data'] = self.heuristic_root_data
             return biqbin_result
 
     def compute(self) -> SolutionMaxCut | None:
@@ -389,16 +439,17 @@ class QUBOSolver(MaxCutSolver):
                  problem: ProblemQubo,
                  params: str,
                  time_limit: int = 0,
-                 initial_solution: np.ndarray | None = None,
+                 initial_estimate: np.ndarray | None = None,
                  collect_heur_data: bool = False):
 
         mc_initial_solution = None
-        if get_rank() == 0 and initial_solution is not None:
+        if get_rank() == 0 and initial_estimate is not None:
             self._check_initial_solution_validity(
-                initial_solution, problem.Q.shape[0])
-            mc_initial_solution = np.append(initial_solution, 0)
+                initial_estimate, problem.Q.shape[0])
+            mc_initial_solution = np.append(initial_estimate, 0)
 
-        super().__init__(problem, params, time_limit, mc_initial_solution, collect_heur_data)
+        super().__init__(problem, params, time_limit,
+                         mc_initial_solution, collect_heur_data)
 
         self.__problem: ProblemQubo = problem
 

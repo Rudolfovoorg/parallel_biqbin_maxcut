@@ -1,4 +1,4 @@
-from biqbin.biqbin_base import QUBOSolver, get_rank
+from biqbin.biqbin_base import QUBOSolver, get_rank, logger
 from biqbin.data_parsers import QuboFromJson, QuboToJson
 from biqbin.argparsers import ArgParserQubo
 import numpy as np
@@ -17,18 +17,18 @@ if __name__ == '__main__':
 
     # Read the file and get the problem
     problem = file_reader.read()
-
+    
     if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
-            initial_solution = np.array(json.load(f)['x'])
+            initial_estimate = np.array(json.load(f)['initial_estimate'])
     else:
-        initial_solution = None
+        initial_estimate = None
 
     # Initialize QUBOSolver class which takes a path to parameters file and time limit
     solver = QUBOSolver(problem=problem,
                         params=args.params,
                         time_limit=args.time,
-                        initial_solution=initial_solution,
+                        initial_estimate=initial_estimate,
                         collect_heur_data=args.collect_heur_data
                         )
 

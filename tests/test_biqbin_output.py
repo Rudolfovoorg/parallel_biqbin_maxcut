@@ -131,9 +131,9 @@ def test_biqbin_output(problem_instance, request, subtests):
 
     if 'heuristic_data' in expected_root:
         with subtests.test('Root node heuristic data collection'):
-            if len(computed_root["heuristic_data"]) != len(expected_root["heuristic_data"]), 
-            pytest.xfail(
-                f'root len(heuristic data) mismatch!'
-                f'Got:      {len(computed_root["heuristic_data"])}\n'
-                f'Expected: {len(expected_root["heuristic_data"])}'
-            )
+            if len(computed_root["heuristic_data"]) != len(expected_root["heuristic_data"]):
+                pytest.xfail(
+                    f'root len(heuristic data) mismatch!'
+                    f'Got:      {len(computed_root["heuristic_data"])}\n'
+                    f'Expected: {len(expected_root["heuristic_data"])}'
+                )

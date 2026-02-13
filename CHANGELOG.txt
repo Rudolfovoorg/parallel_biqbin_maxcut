@@ -37,3 +37,8 @@
 - refactored DataGetter class into FromFile and Problem classes, for seperate responsibilities
 - added a Solution and ToFile class for computed solution and saving it to disk
 - added offset to qubos
+- added ability to use a precomputed estimate solution on root
+- data collection on root node for heuristic times and values
+- sdp value, heuristic value and heuristic solution for the root node is now saved along with all the timings
+- some heuristic implementations have been changed to use numpy vectorized functions
+- updated tests to check the new data saved into the output file 

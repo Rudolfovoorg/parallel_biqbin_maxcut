@@ -17,7 +17,7 @@ RUN pip install numpy
 WORKDIR /solver
 COPY . .
 
-RUN pip install -r requirements.txt 
+RUN pip install -r requirements-dev.txt 
 
 ENV OPENBLAS_NUM_THREADS=1 
 ENV GOTO_NUM_THREADS=1 

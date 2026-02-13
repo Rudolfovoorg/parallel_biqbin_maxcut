@@ -8,3 +8,4 @@
 - Config files for NMAX and other useful parameters
 - Dense represantations of graphs
 - heuristic change in python to have it return the solution
+- figure out the sdp value difference tolerance for tests

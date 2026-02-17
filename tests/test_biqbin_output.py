@@ -34,7 +34,7 @@ def test_biqbin_output(problem_instance, request, subtests):
     if expected_result["meta_data"]["eval_bab_nodes"] == 1:
         with subtests.test('Non-branching instances did not branch'):
             assert bab_nodes_diff == 0, (
-                f'Bab nodes mismatch!\n',
+                'Bab nodes mismatch!\n',
                 f'Got:      {result["meta_data"]["eval_bab_nodes"]}\n'
                 f'Expected: {expected_result["meta_data"]["eval_bab_nodes"]}\n'
             )
@@ -101,10 +101,10 @@ def test_biqbin_output(problem_instance, request, subtests):
     with subtests.test('Root node sdp_value'):
         if abs(expected_root["sdp_value"] - computed_root["sdp_value"]) > 1:
             pytest.xfail(
-            f'root sdp_value mismatch!'
-            f'Got:      {computed_root["sdp_value"]}\n'
-            f'Expected: {expected_root["sdp_value"]}'
-        )
+                f'root sdp_value mismatch!'
+                f'Got:      {computed_root["sdp_value"]}\n'
+                f'Expected: {expected_root["sdp_value"]}'
+            )
 
     with subtests.test('Root node heuristic_value'):
         assert expected_root["heuristic_value"] == computed_root["heuristic_value"], (
@@ -112,14 +112,14 @@ def test_biqbin_output(problem_instance, request, subtests):
             f'Got:      {computed_root["heuristic_value"]}\n'
             f'Expected: {expected_root["heuristic_value"]}'
         )
-        
+
     with subtests.test('Root node heuristic_run_count'):
-        if expected_root["heuristic_run_count"] != computed_root["heuristic_run_count"]: 
+        if expected_root["heuristic_run_count"] != computed_root["heuristic_run_count"]:
             pytest.xfail(
-            f'root heuristic_run_count mismatch!'
-            f'Got:      {computed_root["heuristic_run_count"]}\n'
-            f'Expected: {expected_root["heuristic_run_count"]}'
-        )
+                f'root heuristic_run_count mismatch!'
+                f'Got:      {computed_root["heuristic_run_count"]}\n'
+                f'Expected: {expected_root["heuristic_run_count"]}'
+            )
 
     if not without_sol_vec:
         with subtests.test('Root node solution'):

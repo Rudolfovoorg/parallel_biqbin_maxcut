@@ -144,9 +144,9 @@ test-qubo-python: clean-output
 
 test-qubo-python-heuristic: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
-							 --output tests/heuristic/kcluster40_025_10_1.json.output.json -c -d > /dev/null
+							 --output tests/heuristic/kcluster40_025_10_1.json.output.json > /dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
-							 --output tests/heuristic/kcluster80_025_20_1.json.output.json -c -d > /dev/null
+							 --output tests/heuristic/kcluster80_025_20_1.json.output.json > /dev/null
 	
 	python -m pytest -v -s --no-header --without-sol-vector --instances tests/heuristic/kcluster40_025_10_1.json tests/heuristic/kcluster80_025_20_1.json
 

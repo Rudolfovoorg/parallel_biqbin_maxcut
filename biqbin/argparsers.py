@@ -11,9 +11,11 @@ class ArgParserBase(ArgumentParser):
                           help='Path to the problem instance file')
 
         # Optional arguments
-        self.add_argument('-c', '--collect-heur-data', action='store_true', help='collect heuristic data on root node (time taken and value)')
-        self.add_argument('-s', '--solution', help='file path to an initial solution')
-        
+        self.add_argument('-c', '--collect-heur-data', action='store_true',
+                          help='collect heuristic data on root node (time taken and value)')
+        self.add_argument('-s', '--solution',
+                          help='file path to an initial solution')
+
         self.add_argument('-p', '--params', default='params',
                           help='custom parameters file path (default: "params")')
 
@@ -30,7 +32,8 @@ class ArgParserBase(ArgumentParser):
 
         self.add_argument('-v', '--verbose', action='store_true',
                           help='Verbose prints to terminal')
-        
+        self.add_argument('-d', '--debug', action='store_true',
+                          help='Set Python logger to logging.DEBUG')
 
     def parse_time_limit(self, s: str) -> int:
         """
@@ -60,19 +63,19 @@ class ArgParserBase(ArgumentParser):
         else:
             raise ArgumentTypeError(f"Invalid time format: {s}")
 
-        total_seconds = days*86400 + hours*3600 + minutes*60 + seconds
+        total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
         return int(total_seconds)
 
 
 class ArgParserMaxCut(ArgParserBase):
     def __init__(self):
-        super().__init__(prog=f'biqbin_maxcut.py', description='Biqbin Maxcut solver')
+        super().__init__(prog='biqbin_maxcut.py', description='Biqbin Maxcut solver')
         self.add_argument('-e', '--edge_weight',
                           action='store_true', help='use edge weight input file')
 
 
 class ArgParserQubo(ArgParserBase):
-    def __init__(self, prog=f'biqbin_qubo.py', description='Biqbin QUBO solver'):
+    def __init__(self, prog='biqbin_qubo.py', description='Biqbin QUBO solver'):
         super().__init__(prog=prog, description=description)
         # self.add_argument('--qplib', action='store_true',
         #                   help='Use .qplib file format')
@@ -82,7 +85,5 @@ class ArgParserDWaveHeuristic(ArgParserQubo):
     def __init__(self):
         super().__init__(prog='biqbin_heuristic.py',
                          description='Biqbin QUBO solver with DWave heuristic')
-        self.add_argument('-d', '--debug', action='store_true',
-                          help='enable debug logs')
         self.add_argument('-i', '--info', action='store_true',
                           help='enable info logs')

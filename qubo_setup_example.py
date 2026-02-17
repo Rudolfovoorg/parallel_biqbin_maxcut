@@ -1,22 +1,18 @@
 import json
 import numpy as np
-import scipy as sp
 from biqbin.utils import qubo_to_biqbin_representation
-    
-# # Some "qubo" 2D matrix, all values must be integers
-# qubo = np.array(
-#     [
-#         [-1, 3],
-#         [3, -1]
-#         ])
 
-# # Make a dictionary with the key "qubo" and to_sparse return value as value
-# offset = 10
-# qubo_dict = qubo_to_biqbin_representation(qubo)
+# Some "qubo" 2D matrix, all values must be integers
+qubo = np.array(
+    [
+        [-1, 3],
+        [3, -1]
+    ])
 
-# # Save to disk, to be read as input instance file
-# with open("example_qubo.json", "w") as f:
-#     json.dump(qubo_dict, f)
+# Make a dictionary with the key "qubo" and to_sparse return value as value
+offset = 10
+qubo_dict = qubo_to_biqbin_representation(qubo)
 
-
-print([1 for _ in range(60)])
+# Save to disk, to be read as input instance file
+with open("example_qubo.json", "w") as f:
+    json.dump(qubo_dict, f)

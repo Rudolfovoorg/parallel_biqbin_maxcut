@@ -9,7 +9,7 @@ from biqbin.utils import from_sparse, convert_numpy_to_json_serializable
 
 class FromFile(ABC):
     """Interface for all file loader classes, subclasses must implement a `read` method,
-    that takes a filename and returns a ProblemMaxCut or it's subclass (i.e. ProblemQubo) 
+    that takes a filename and returns a ProblemMaxCut or it's subclass (i.e. ProblemQubo)
     """
 
     def __init__(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> None:
@@ -46,7 +46,7 @@ class MaxCutFromEdgeWeights(FromFile):
         """Read MaxCut edge weight file and return the MaxCutProblem.
 
         Args:
-            filename (str): path to edge weight file. 
+            filename (str): path to edge weight file.
             problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
             optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
 
@@ -79,7 +79,7 @@ class QuboFromJson(FromFile):
         """Read from the given filename and return the ProblemQubo used by the QuboSolver.
 
         Args:
-            filename (str): path to json file containing 'qubo' key and sparse matrix presentation as value. 
+            filename (str): path to json file containing 'qubo' key and sparse matrix presentation as value.
             problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
             optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
 
@@ -96,9 +96,8 @@ class QuboFromJson(FromFile):
         return ProblemQubo(Q=qubo, offset=offset, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
 
 
-
 class ToFile(ABC):
-    """Base abstract class for saving the solution to disk. All subclasses must implenent the 
+    """Base abstract class for saving the solution to disk. All subclasses must implenent the
     `write` method that takes a solution and saves it as file.
     """
 
@@ -108,7 +107,7 @@ class ToFile(ABC):
 
     def get_output_path(self, out_file: str, overwrite: bool) -> str:
         """Get the proper output path in case it already exists and we do not wish to overwrite.
-        Attaches _N where N is the number of the next free output file. Adds .json if not already in the 
+        Attaches _N where N is the number of the next free output file. Adds .json if not already in the
         out_file's name.
 
         Args:

@@ -42,7 +42,7 @@ def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float32]:
 
 
 def qubo_to_biqbin_representation(qubo, offset: float = 0.0, minimize: bool = True) -> dict:
-    """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable 
+    """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable
     dict with 'qubo' key and a sparse qubo represantation as value.
 
     Args:
@@ -100,8 +100,10 @@ def heur_root_data_collector(enabled_flag="collect_heuristic_root_data", data_bo
     """Collects heuristic data on root node if enabled
 
     Args:
-        enabled_flag (str, optional): Name of the class attribute with a boolean value for enabling data collection. Defaults to "collect_heuristic_data".
-        data_box (str, optional): Name of the class attribute where to store the collected data. Defaults to "heuristic_data".
+        enabled_flag (str, optional): Name of the class attribute with a boolean value for enabling data collection.
+        Defaults to "collect_heuristic_data".
+        data_box (str, optional): Name of the class attribute where to store the collected data.
+        Defaults to "heuristic_data".
     """
     def decorator(fn):
         @wraps(fn)
@@ -158,7 +160,7 @@ def flatten_dict(d: dict, prefix='', level=0):
     """
     for i, j in d.items():
         if isinstance(j, dict):
-            yield from flatten_dict(j, f'{prefix}{i}_', level+1)
+            yield from flatten_dict(j, f'{prefix}{i}_', level + 1)
         else:
             yield f'{prefix}{i}', j
 

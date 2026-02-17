@@ -14,7 +14,7 @@ from biqbin.bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_
 
 class ParserBQP(ArgParserBase):
     def __init__(self):
-        super().__init__(prog=f'biqbin_bqp.py', description='Biqbin BQP solver')
+        super().__init__(prog='biqbin_bqp.py', description='Biqbin BQP solver')
         self.add_argument('-j', '--json', action='store_true',
                           help='use json input file')
 
@@ -46,7 +46,7 @@ class SolutionBQP(SolutionMaxCut):
 
 
 class BQPSolver(MaxCutSolver):
-    solver_name = f'PyBiqBin-BQP-PLACEHOLDER'
+    solver_name = 'PyBiqBin-BQP-PLACEHOLDER'
 
     def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_data=False):
         super().__init__(problem=problem,

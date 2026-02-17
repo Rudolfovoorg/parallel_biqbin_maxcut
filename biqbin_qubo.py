@@ -1,3 +1,4 @@
+import logging
 from biqbin.biqbin_base import QUBOSolver, get_rank, logger
 from biqbin.data_parsers import QuboFromJson, QuboToJson
 from biqbin.argparsers import ArgParserQubo
@@ -12,12 +13,15 @@ if __name__ == '__main__':
     parser = ArgParserQubo()
     args = parser.parse_args()
 
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+
     file_reader = QuboFromJson(
         args.problem_instance, optimize_input=args.optimize)
 
     # Read the file and get the problem
     problem = file_reader.read()
-    
+
     if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
             initial_estimate = np.array(json.load(f)['initial_estimate'])

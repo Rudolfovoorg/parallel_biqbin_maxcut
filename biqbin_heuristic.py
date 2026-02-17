@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import typing as npt
 from dwave.samplers import SimulatedAnnealingSampler
 from biqbin.biqbin_base import QUBOSolver, get_rank, logger
 from biqbin.data_parsers import QuboFromJson, QuboToJson
@@ -20,14 +21,14 @@ class QuboDwaveSampler(QUBOSolver):
         self.sampler_kwargs = sampler_kwargs
         self.heuristic_counter = 0
 
-    def heuristic(self, L: np.ndarray, **kwargs):
+    def heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
         """Heuristc with D-Waves simulated annealing sampler
 
         Args:
             L (np.ndarray): Subproblem Laplacean matrix
 
         Returns:
-            np.ndarray: solution nodes provided by the heuristc, should be in 0, 1 form (1 node is chosen, 0 it is not chosen)
+            np.ndarray: Solution [0, 1] binary vector of size L.shape[0] - 1
         """
         x = np.array(
             list(self.sampler.sample_qubo(-L[:-1, :-1],

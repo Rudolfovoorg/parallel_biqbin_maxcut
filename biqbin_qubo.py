@@ -1,5 +1,5 @@
 import logging
-from biqbin.biqbin_base import QUBOSolver, get_rank, logger
+from biqbin.biqbin_base import QUBOSolver, get_rank
 from biqbin.data_parsers import QuboFromJson, QuboToJson
 from biqbin.argparsers import ArgParserQubo
 import numpy as np
@@ -12,9 +12,6 @@ import json
 if __name__ == '__main__':
     parser = ArgParserQubo()
     args = parser.parse_args()
-
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
 
     file_reader = QuboFromJson(
         args.problem_instance, optimize_input=args.optimize)

@@ -290,7 +290,7 @@ class MaxCutSolver(PrettyPrint):
     def _call_heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
 
         # Call heuristic function get the solution vector
-        heur_sol = self.heuristic(L, L0=L0, xfixed=xfixed, sol_X=sol_X, x=x)
+        heur_sol = self.heuristic(L, L0=L0, xfixed=xfixed, sol_X=sol_X)
 
         # Check if the solution is in valid format
         if not isinstance(heur_sol, np.ndarray):

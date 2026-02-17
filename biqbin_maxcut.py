@@ -1,5 +1,5 @@
 import logging
-from biqbin.biqbin_base import MaxCutSolver, get_rank, logger
+from biqbin.biqbin_base import MaxCutSolver, get_rank
 from biqbin.data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson, MaxCutToJson
 from biqbin.argparsers import ArgParserMaxCut
 import numpy as np
@@ -8,9 +8,6 @@ import json
 if __name__ == '__main__':
     parser = ArgParserMaxCut()
     args = parser.parse_args()
-
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
 
     # Select the file reader based on the file format
     if args.edge_weight:

@@ -28,6 +28,11 @@ extern int num_workers_used;
 extern int time_limit_reached;
 extern int heuristic_counter;
 extern int heuristic_sum;
+/* root meta_data */
+extern double root_upper_bound;
+extern double root_lower_bound;
+extern double root_eval_time;
+std::vector<int> root_sol_x;
 
 /* MPI data */
 extern int rank;
@@ -150,12 +155,21 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     py::dict result_dict;
     py::dict solution_info;
     py::dict meta_data;
+    py::dict root_node_dict;
 
     meta_data["time"] = running_time;
     meta_data["time_limit_reached"] = (time_limit_reached) ? true : false;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
     meta_data["heuristic_run_count"] = heuristic_sum;
     meta_data["num_workers_used"] = num_workers_used;
+
+    root_node_dict["time"] = root_eval_time;
+    root_node_dict["heuristic_value"] = root_lower_bound;
+    root_node_dict["heuristic_run_count"] = heuristic_counter;
+    root_node_dict["sdp_value"] = root_upper_bound;
+    root_node_dict["root_solution"] = py::cast(root_sol_x);
+    meta_data["root_node"] = root_node_dict;
+
     solution_info["computed_val"] = Bab_LBGet();
     solution_info["solution"] = py::cast(selected_nodes); // we converted it from numpy to regular list immidiately in python so might as well do it here.
     solution_info["x"] = py::cast(solution_x);
@@ -170,7 +184,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
 /// @param P_L_array        Subproblem L: PP->L
 /// @param xfixed_array     Fixed variables in solution x
 /// @param node_sol_X_array Solution stored in current babnode
-/// @param x_array          Heuristic solution x
+/// @param x_array          Heuristic solution x this
 /// @return                 Lower bound of heuristic solution
 double run_heuristic_python(
     py::array_t<double> P0_L_array,
@@ -259,6 +273,16 @@ void copy_solution()
         }
     }
     solution_x.push_back(0); // .. solution is one more than BabPbSize
+}
+
+/// @brief Copy the solution before memory is freed, so it can be retrieved in Python
+void copy_root_solution()
+{
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        root_sol_x.push_back(BabSol->X[i]); // binary solution vec x
+    }
+    root_sol_x.push_back(0); // .. solution is one more than BabPbSize
 }
 
 /// @brief record time at the end

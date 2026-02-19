@@ -1,5 +1,6 @@
+import json
+import time
 from functools import wraps
-from typing import Tuple
 import scipy as sp
 import numpy as np
 from numpy import typing as npt
@@ -40,8 +41,8 @@ def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float32]:
     ).todense().getA()
 
 
-def qubo_to_biqbin_representation(qubo, offset: float = 0.0, minimize: bool =  True) -> dict:
-    """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable 
+def qubo_to_biqbin_representation(qubo, offset: float = 0.0, minimize: bool = True) -> dict:
+    """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable
     dict with 'qubo' key and a sparse qubo represantation as value.
 
     Args:
@@ -85,6 +86,7 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
 
     return input_matrix
 
+
 def check_matrix_validity_wrap(func):
     @wraps(func)
     def wrapper(*args, **kwargs) -> npt.NDArray[np.float64]:
@@ -92,6 +94,35 @@ def check_matrix_validity_wrap(func):
         return check_matrix_validity(matrix_to_validate)
 
     return wrapper
+
+
+def heur_root_data_collector(enabled_flag="collect_heuristic_root_data", data_box="heuristic_root_data"):
+    """Collects heuristic data on root node if enabled
+
+    Args:
+        enabled_flag (str, optional): Name of the class attribute with a boolean value for enabling data collection.
+        Defaults to "collect_heuristic_data".
+        data_box (str, optional): Name of the class attribute where to store the collected data.
+        Defaults to "heuristic_data".
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray):
+            if self.rank != 0 or not getattr(self, enabled_flag, False):
+                return fn(self, L0, L, xfixed, sol_X, x)
+
+            if getattr(self, data_box, None) is None:
+                self.data_box = []
+
+            start = time.perf_counter()
+            result = fn(self, L0, L, xfixed, sol_X, x)
+            getattr(self, data_box).append({
+                "time": time.perf_counter() - start,
+                "value": result,
+            })
+            return result
+        return wrapper
+    return decorator
 
 
 def convert_numpy_to_json_serializable(obj):
@@ -103,8 +134,47 @@ def convert_numpy_to_json_serializable(obj):
 
 
 def divide_matrix_by_gcd(matrix: np.ndarray) -> int:
+    """Takes in a ndarray matrix, finds the greatest common divisor and divides the values by it
+
+    Args:
+        matrix (np.ndarray): matrix to be divided in place
+
+    Returns:
+        int: greatest common divisor found
+    """
     greatest_common_divisor = np.gcd.reduce(matrix.astype(int).flatten())
     if greatest_common_divisor > 1:
         matrix /= greatest_common_divisor
 
     return int(greatest_common_divisor)
+
+
+def flatten_dict(d: dict, prefix='', level=0):
+    """Recursively flatten a dictionary, to create a pandas df from nested dicts
+
+    Args:
+        d (dict): data
+
+    Yields:
+        dict: flattened dictionary
+    """
+    for i, j in d.items():
+        if isinstance(j, dict):
+            yield from flatten_dict(j, f'{prefix}{i}_', level + 1)
+        else:
+            yield f'{prefix}{i}', j
+
+
+def data_reader_pd(filelist):
+    """Load a list of filenames into a pandas dataframe.
+    Usage: pd.DataFrame(data_reader_pd(filelist))
+
+    Args:
+        filelist (iterable): a list or equivalent of filepaths
+
+    Yields:
+        dict: flattenened dictionary
+    """
+    for filename in filelist:
+        with open(filename) as f:
+            yield dict(flatten_dict(json.load(f)))

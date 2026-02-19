@@ -1,8 +1,9 @@
-import argparse
+import logging
 from biqbin.biqbin_base import MaxCutSolver, get_rank
 from biqbin.data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson, MaxCutToJson
 from biqbin.argparsers import ArgParserMaxCut
-
+import numpy as np
+import json
 
 if __name__ == '__main__':
     parser = ArgParserMaxCut()
@@ -19,11 +20,20 @@ if __name__ == '__main__':
     # Read the file
     problem = file_reader.read()
 
+    if get_rank() == 0 and args.solution:
+        with open(args.solution, 'r') as f:
+            initial_estimate = np.array(json.load(f)['initial_estimate'])
+    else:
+        initial_estimate = None
+
     # Create an instance of the MaxCutSolver passing in path to params file and time limit
     solver = MaxCutSolver(
         problem=problem,
         params=args.params,
-        time_limit=args.time)
+        time_limit=args.time,
+        initial_estimate=initial_estimate,
+        collect_heuristic_data=args.collect_heur_data)
+
     # Compute the solution for the given problem
     solution = solver.compute()
     # Get rank to only save the results on the master rank

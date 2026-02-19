@@ -7,4 +7,5 @@
 - Documentation QUBO upper triangular divisible by 2
 - Config files for NMAX and other useful parameters
 - Dense represantations of graphs
-- Add pyqplib source code to repository
+- heuristic change in python to have it return the solution
+- figure out the sdp value difference tolerance for tests

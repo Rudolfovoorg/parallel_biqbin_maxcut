@@ -211,6 +211,7 @@ mpirun -n N python3 biqbin_maxcut.py problem_instance [-p PARAMS] [-w] [-o OUTPU
 - `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
 - `problem_instance`: A `JSON` serializable sparse coo adjacency matrix.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
+- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-e`, `--edge_weight`: Optional command to use edge weight `problem_instance` that C-only solver uses.
@@ -237,6 +238,7 @@ mpirun -n N python3 biqbin_qubo.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 - `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
 - `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
+- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-O`, `--optimize`: Divide QUBO values by their GCD.
@@ -266,6 +268,7 @@ mpirun -n N python3 biqbin_heuristic.py problem_instance [-p PARAMS] [-w] [-o OU
 - `N`: Number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
 - `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
+- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-O`, `--optimize`: Divides the final input matrix values by their GCD
@@ -293,6 +296,7 @@ mpirun -n N python3 biqbin_bqp.py problem_instance [-p PARAMS] [-w] [-o OUTPUT]
 - `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
 - `problem_instance`: .
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
+- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
 - `-O`, `--optimize`: Divide QUBO values by their GCD.

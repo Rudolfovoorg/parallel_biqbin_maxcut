@@ -15,11 +15,12 @@ extern BiqBinParameters params;
 extern Problem *SP;
 extern Problem *PP;
 
-extern double root_bound;
 extern double TIME;
 extern int stopped;
 
 extern int num_workers_used;
+extern double root_upper_bound;
+extern double root_eval_time;
 
 
 /* initialize global lower bound to 0 and global solution vector to zero */
@@ -27,6 +28,7 @@ void initializeBabSolution() {
 
     BabSolution bs;
 
+    // #ifdef PURE_C
     for (int i = 0; i < BabPbSize; ++i) {
         bs.X[i] = 0;
     }
@@ -46,13 +48,14 @@ int Init_PQ(void) {
 
     // increase number of evaluated nodes
     Bab_incEvalNodes();
-
+    double t0 = MPI_Wtime();
     // Evaluate root node: compute upper and lower bound 
-    root_bound = Evaluate(BabRoot, SP, PP, 0);
-    printf("Root node bound: %.2f\n", root_bound);
+    root_upper_bound = Evaluate(BabRoot, SP, PP, 0);
+    root_eval_time = MPI_Wtime() - t0;
+    printf("Root node bound: %.2f\n", root_upper_bound);
 
     // save upper bound
-    BabRoot->upper_bound = root_bound;
+    BabRoot->upper_bound = root_upper_bound;
 
     /* insert node into the priority queue or prune */
     // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
@@ -357,12 +360,12 @@ void printFinalOutput(FILE *file, int num_nodes) {
     
     // normal termination
     if (!stopped) {
-        fprintf(file, "Root node bound = %.2lf\n", root_bound);
+        fprintf(file, "Root node bound = %.2lf\n", root_upper_bound);
         fprintf(file, "Maximum value = %.0lf\n", best_sol);
         
     } else { // B&B stopped early
         fprintf(file, "TIME LIMIT REACHED.\n");
-        fprintf(file, "Root node bound = %.2lf\n", root_bound); 
+        fprintf(file, "Root node bound = %.2lf\n", root_upper_bound); 
         fprintf(file, "Best value = %.0lf\n", best_sol);
     }
 

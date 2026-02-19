@@ -8,7 +8,9 @@ FILE *output;                       // output file
 Problem *SP;                        // original problem instance
 Problem *PP;                        // subproblem instance
 int stopped = 0;                    // true if the algorithm stopped at root node or after a time limit
-double root_bound;                  // SDP upper bound at root node
+double root_upper_bound;                  // SDP upper bound at root node
+double root_lower_bound;
+double root_eval_time;
 double TIME;                        // CPU time
 double diff;			            // difference between basic SDP relaxation and bound with added cutting planes  	
 /********************************************************/

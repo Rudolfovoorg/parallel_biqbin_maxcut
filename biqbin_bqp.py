@@ -14,7 +14,7 @@ from biqbin.bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_
 
 class ParserBQP(ArgParserBase):
     def __init__(self):
-        super().__init__(prog=f'biqbin_bqp.py', description='Biqbin BQP solver')
+        super().__init__(prog='biqbin_bqp.py', description='Biqbin BQP solver')
         self.add_argument('-j', '--json', action='store_true',
                           help='use json input file')
 
@@ -46,10 +46,14 @@ class SolutionBQP(SolutionMaxCut):
 
 
 class BQPSolver(MaxCutSolver):
-    solver_name = f'PyBiqBin-BQP-PLACEHOLDER'
+    solver_name = 'PyBiqBin-BQP-PLACEHOLDER'
 
-    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0):
-        super().__init__(problem, params, time_limit)
+    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_data=False):
+        super().__init__(problem=problem,
+                         params=params,
+                         time_limit=time_limit,
+                         initial_estimate=initial_estimate,
+                         collect_heuristic_data=collect_heuristic_data)
         self.__problem: ProblemBQP = problem
 
     @property
@@ -169,7 +173,14 @@ if __name__ == '__main__':
             args.problem_instance, optimize_input=args.optimize)
 
     problem = problem_reader.read()
-    solver = BQPSolver(problem, args.params, args.time)
+
+    if args.solution:
+        with open(args.solution, 'r') as f:
+            initial_estimate = np.array(json.load(f)['initial_estimate'])
+    else:
+        initial_estimate = None
+
+    solver = BQPSolver(problem, args.params, args.time, initial_estimate, collect_heuristic_data=args.collect_heur_data)
 
     solution = solver.compute()  # run the solver
 

@@ -158,7 +158,8 @@ def read_cons(f, num_vars, num_cons, cons_type):
     # linear terms
     (rows, cols, entries) = read_matrix(f, num_cons, num_vars)
 
-    jac = scipy.sparse.coo_matrix((entries, (rows, cols)), shape=(num_cons, num_vars))
+    jac = scipy.sparse.coo_matrix(
+        (entries, (rows, cols)), shape=(num_cons, num_vars))
 
     inf = read_inf(f)
 
@@ -304,12 +305,12 @@ def read_initial_values(f, num_vars, num_cons):
     return InitialValues(primal, cons_dual, var_dual)
 
 
-def read_description(filename):
-    return _read_from(filename, read_problem=False)
+def read_description(filename) -> ProblemDescription:
+    return _read_from(filename, read_problem=False) # pyright: ignore[reportReturnType]
 
 
-def read_problem(filename):
-    return _read_from(filename, read_problem=True)
+def read_problem(filename) -> Problem:
+    return _read_from(filename, read_problem=True) # pyright: ignore[reportReturnType]
 
 
 def open_file(filename):

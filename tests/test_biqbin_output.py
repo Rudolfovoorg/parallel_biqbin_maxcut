@@ -5,7 +5,6 @@ import pytest
     Compares Biqbin output with expected output for all Python versions
 """
 
-
 def test_biqbin_output(problem_instance, request, subtests):
     """
     Compare Biqbin output with expected output for one instance.

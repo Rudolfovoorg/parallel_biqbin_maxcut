@@ -1,21 +1,21 @@
 import logging
 from biqbin.biqbin_base import MaxCutSolver, get_rank
-from biqbin.data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson, MaxCutToJson
+from biqbin.data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson, MaxCutFromMatrixMarket, MaxCutToJson
 from biqbin.argparsers import ArgParserMaxCut
 import numpy as np
 import json
+
+
 
 if __name__ == '__main__':
     parser = ArgParserMaxCut()
     args = parser.parse_args()
 
     # Select the file reader based on the file format
-    if args.edge_weight:
-        file_reader = MaxCutFromEdgeWeights(
-            args.problem_instance, optimize_input=args.optimize)
-    else:
-        file_reader = MaxCutFromJson(
-            args.problem_instance, optimize_input=args.optimize)
+    parser_class = args.format
+    file_reader = parser_class(
+        args.problem_instance,
+        optimize_input=args.optimize)
 
     # Read the file
     problem = file_reader.read()

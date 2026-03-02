@@ -1,8 +1,10 @@
 import json
 import numpy as np
+import scipy as sp
 from abc import ABC, abstractmethod
 from glob import glob
 
+import biqbin.external.pyqplib as pyqplib
 from biqbin.biqbin_base import ProblemMaxCut, ProblemQubo, SolutionMaxCut, SolutionQubo
 from biqbin.utils import from_sparse, convert_numpy_to_json_serializable
 
@@ -13,6 +15,12 @@ class FromFile(ABC):
     """
 
     def __init__(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> None:
+        """
+        Args:
+            filename (str): Path to problem instance file.
+            problem_name (str | None, optional): Name of the problem instance. Defaults to filename.
+            optimize_input (bool, optional): Divide the MaxCut adjacency matrix values by their greatest common divisor. Defaults to False.
+        """
         self.filename = filename
         self.problem_name = problem_name if problem_name is not None else filename
         self.optimize_input = optimize_input
@@ -23,16 +31,14 @@ class FromFile(ABC):
 
 
 class MaxCutFromJson(FromFile):
-    def read(self) -> ProblemMaxCut:
-        """Read MaxCut json file that contains the adjacency matrix in sparse format.
+    """MaxCut data parser for a JSON file containing a 'maxcut' key and scipy sparse.coo_matrix as value.
+    """
 
-        Args:
-            filename (str): Path to json file containing 'maxcut' key and sparse adjacency matrix as value.
-            problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
-            optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
+    def read(self) -> ProblemMaxCut:
+        """Read MaxCut json file that contains the adjacency matrix in scipy sparse.coo_matrix format.
 
         Returns:
-            ProblemMaxCut: _description_
+            ProblemMaxCut: instance for MaxCutSolver.
         """
         with open(self.filename, "r") as f:
             mc_data = json.load(f)
@@ -41,17 +47,30 @@ class MaxCutFromJson(FromFile):
         return ProblemMaxCut(adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input)
 
 
-class MaxCutFromEdgeWeights(FromFile):
+class MaxCutFromMatrixMarket(FromFile):
     def read(self) -> ProblemMaxCut:
-        """Read MaxCut edge weight file and return the MaxCutProblem.
-
-        Args:
-            filename (str): path to edge weight file.
-            problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
-            optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
+        """Read a Max-Cut instance from MatrixMarket format.
 
         Returns:
-            ProblemMaxCut: Problem that can be passed into MaxCutSolver.compute.
+            ProblemMaxCut: Problem instance for MaxCutSolver.
+        """
+        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.io.mmread.html
+        adj_matrix = sp.io.mmread(self.filename)
+        if sp.sparse.issparse(adj_matrix):
+            adj_matrix = adj_matrix.toarray()
+        return ProblemMaxCut(adj_matrix, self.problem_name, self.optimize_input)
+
+
+class MaxCutFromEdgeWeights(FromFile):
+    """MaxCut edge weigth data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/
+    """
+
+    def read(self) -> ProblemMaxCut:
+        """Read MaxCut edge weight file (Stanford GSet format: https://web.stanford.edu/~yyye/yyye/Gset/) 
+        and return the MaxCutProblem instance.
+
+        Returns:
+            ProblemMaxCut: Problem instance for MaxCutSolver.
         """
         with open(self.filename, 'r') as f:
             # Read number of vertices and edges
@@ -59,32 +78,27 @@ class MaxCutFromEdgeWeights(FromFile):
             adj_matrix = np.zeros(
                 (num_vertices, num_vertices), dtype=np.float64)
 
-            for _ in range(num_edges):
-                i, j, weight = f.readline().split()
-                i, j = int(i) - 1, int(j) - 1  # Convert to zero-based indexing
-                weight = float(weight)
+            edges = np.loadtxt(f, max_rows=num_edges)
 
-                adj_matrix[i, j] = weight
-                adj_matrix[j, i] = weight
+            i = edges[:, 0].astype(int) - 1
+            j = edges[:, 1].astype(int) - 1
+            w = edges[:, 2]
+
+            adj_matrix[i, j] = w
+            adj_matrix[j, i] = w
 
         return ProblemMaxCut(adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input)
 
 
 class QuboFromJson(FromFile):
-    """Reads qubo instance file, should be a json dictionary with "qubo" key
-    and a COO sparse matrix with data, row and col.
+    """QUBO data parser for scipy sparse coo matrix in JSON format. Json must have a 'qubo' key and a scipy sparse.coo_matrix as value.
     """
 
     def read(self) -> ProblemQubo:
         """Read from the given filename and return the ProblemQubo used by the QuboSolver.
-
-        Args:
-            filename (str): path to json file containing 'qubo' key and sparse matrix presentation as value.
-            problem_name (str | None, optional): Name of the problem instance if it is different than filename. Defaults to None.
-            optimize_input (bool, optional): Divide the biqbin input matrix by its greatest common divisor. Defaults to False.
-
+.
         Returns:
-            ProblemQubo: Qubo Problem class that can be passed into QuboSolver.compute method.
+            ProblemQubo: Qubo problem instance for QuboSolver.
         """
         with open(self.filename, "r") as f:
             qubo_data = json.load(f)
@@ -94,6 +108,99 @@ class QuboFromJson(FromFile):
         if 'offset' in qubo_data:
             offset = qubo_data['offset']
         return ProblemQubo(Q=qubo, offset=offset, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
+
+
+class QuboFromMatrixMarket(FromFile):
+    """QUBO data parser for MatrixMarket file format. Supports sparse and dense matrix formats.
+    """
+
+    def read(self) -> ProblemQubo:
+        """Read a QUBO instance from MatrixMarket format.
+
+        Returns:
+            ProblemQubo: Problem instance for QUBOSolver.
+        """
+        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.io.mmread.html
+        Q = sp.io.mmread(self.filename)
+        if sp.sparse.issparse(Q):
+            Q = Q.toarray()
+        return ProblemQubo(Q=Q, offset=0.0, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
+
+
+class QuboFromEdgeWeights(FromFile):
+    """Qubo data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/
+    """
+
+    def read(self) -> ProblemQubo:
+        """Read Qubo edge weight file (Stanford GSet format: https://web.stanford.edu/~yyye/yyye/Gset/) and return the QuboProblem instance.
+
+        Returns:
+            ProblemQubo: Problem instance for QUBOSolver.
+        """
+        with open(self.filename, 'r') as f:
+            # Read number of vertices and edges
+            num_vertices, num_edges = map(int, f.readline().split())
+            Q = np.zeros(
+                (num_vertices, num_vertices), dtype=np.float64)
+
+            edges = np.loadtxt(f, max_rows=num_edges)
+
+            i = edges[:, 0].astype(int) - 1
+            j = edges[:, 1].astype(int) - 1
+            w = edges[:, 2]
+
+            Q[i, j] = w
+
+        return ProblemQubo(Q=Q,
+                           offset=0.0,
+                           problem_name=self.problem_name,
+                           is_minimization=False,
+                           optimize_input=self.optimize_input)
+
+
+class QuboFromQPLIB(FromFile):
+    """File reader for QPLIB instances https://qplib.zib.de/, 
+    only unconstrained binary problems are allowed.
+    """
+
+    def read(self) -> ProblemQubo:
+        """Reads qplib input file and constructs a QUBO problem.
+
+        Raises:
+            ValueError: Only unconstrained problems are valid
+            ValueError: Only binary problems are valid
+
+        Returns:
+            ProblemQubo: Qubo Problem class that can be passed into QuboSolver.
+        """
+                
+        problem = pyqplib.read_problem(self.filename)
+        objective = problem.obj
+        cons_type = problem.description.cons_type
+        obj_type = problem.description.obj_type
+        sense = problem.obj.sense == pyqplib.types.Sense.MINIMIZE
+
+        # Check if the problem fits the solver
+        if cons_type != pyqplib.ProblemConsType.UNCONSTRAINED:
+            raise ValueError("Biqbin can only handle unconstrained problems!")
+        if problem.description.var_type != pyqplib.ProblemVarType.BINARY:
+            raise ValueError("Problem is not binary!")
+
+        def to_coo_matrix(mat):
+            return sp.sparse.coo_matrix(
+                (mat.subdiag_vals, (mat.subdiag_rows, mat.subdiag_cols)),
+                shape=mat.shape
+            )
+
+        if obj_type in [pyqplib.ProblemObjType.CONVEX, pyqplib.ProblemObjType.GENERAL]:
+            Q: np.ndarray = to_coo_matrix(problem.obj.mat).toarray() # pyright: ignore[reportAttributeAccessIssue]
+        else:
+            Q = np.zeros(problem.description.num_vars)
+
+        Q /= 2
+        np.fill_diagonal(Q, objective.lin) # pyright: ignore[reportAttributeAccessIssue]
+
+        return ProblemQubo(Q=Q, offset=objective.offset, problem_name=self.problem_name, is_minimization=sense, optimize_input=self.optimize_input) # pyright: ignore[reportAttributeAccessIssue]
 
 
 class ToFile(ABC):

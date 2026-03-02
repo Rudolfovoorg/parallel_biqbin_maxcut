@@ -347,7 +347,7 @@ class MaxCutSolver(PrettyPrint):
         if np.any(kwargs['xfixed']):
             raise ValueError("xfixed is nonzero!")
 
-        return self.initial_estimate_solution[:-1]
+        return self.initial_estimate_solution[:-1] # pyright: ignore[reportOptionalSubscript]
 
     def _evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
         """Calculate the Max-Cut lower bound value of the heuristic solution

@@ -13,7 +13,7 @@ if __name__ == '__main__':
     parser = ArgParserQubo()
     args = parser.parse_args()
 
-    file_reader = QuboFromJson(
+    file_reader = args.format(
         args.problem_instance, optimize_input=args.optimize)
 
     # Read the file and get the problem

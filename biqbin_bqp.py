@@ -4,7 +4,7 @@ import numpy as np
 import warnings
 
 from biqbin.utils import convert_numpy_to_json_serializable
-from biqbin.biqbin_base import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank
+from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank
 from biqbin.argparsers import ArgParserBase
 from biqbin.data_parsers import FromFile, ToFile
 

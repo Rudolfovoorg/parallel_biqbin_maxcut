@@ -1,6 +1,4 @@
-import logging
-from biqbin.biqbin_base import QUBOSolver, get_rank
-from biqbin.data_parsers import QuboFromJson, QuboToJson
+from biqbin import QUBOSolver, get_rank, QuboSolutionToJson
 from biqbin.argparsers import ArgParserQubo
 import numpy as np
 import json
@@ -13,7 +11,8 @@ if __name__ == '__main__':
     parser = ArgParserQubo()
     args = parser.parse_args()
 
-    file_reader = args.format(
+    parser_class = args.format
+    file_reader = parser_class(
         args.problem_instance, optimize_input=args.optimize)
 
     # Read the file and get the problem
@@ -44,7 +43,7 @@ if __name__ == '__main__':
 
         solution.print_computed_solution(args.verbose)
         # Save output path
-        file_writer = QuboToJson(solution)
+        file_writer = QuboSolutionToJson(solution)
 
         if isinstance(args.output, str):
             output_path = args.output

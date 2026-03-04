@@ -1,10 +1,8 @@
 import logging
-from biqbin.biqbin_base import MaxCutSolver, get_rank
-from biqbin.data_parsers import MaxCutFromEdgeWeights, MaxCutFromJson, MaxCutFromMatrixMarket, MaxCutToJson
+from biqbin import MaxCutSolver, get_rank, MaxCutSolutionToJson
 from biqbin.argparsers import ArgParserMaxCut
 import numpy as np
 import json
-
 
 
 if __name__ == '__main__':
@@ -49,7 +47,7 @@ if __name__ == '__main__':
         else:
             output_path = args.problem_instance + '.output'
 
-        file_writer = MaxCutToJson(solution)
+        file_writer = MaxCutSolutionToJson(solution)
         file_writer.write(output_path,
                           overwrite=args.overwrite,
                           with_metadata=True)

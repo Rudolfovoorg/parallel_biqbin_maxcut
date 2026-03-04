@@ -4,8 +4,8 @@ import scipy as sp
 from abc import ABC, abstractmethod
 from glob import glob
 
-import biqbin.external.pyqplib as pyqplib
 from biqbin.biqbin_base import ProblemMaxCut, ProblemQubo, SolutionMaxCut, SolutionQubo
+import biqbin.external.pyqplib as pyqplib
 from biqbin.utils import from_sparse, convert_numpy_to_json_serializable
 
 
@@ -107,7 +107,14 @@ class QuboFromJson(FromFile):
         offset = 0
         if 'offset' in qubo_data:
             offset = qubo_data['offset']
-        return ProblemQubo(Q=qubo, offset=offset, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
+        minimization = True
+        if 'is_minimization' in qubo_data:
+            minimization = qubo_data['is_minimization']
+        return ProblemQubo(Q=qubo,
+                           offset=offset,
+                           problem_name=self.problem_name,
+                           is_minimization=minimization,
+                           optimize_input=self.optimize_input)
 
 
 class QuboFromMatrixMarket(FromFile):
@@ -173,7 +180,7 @@ class QuboFromQPLIB(FromFile):
         Returns:
             ProblemQubo: Qubo Problem class that can be passed into QuboSolver.
         """
-                
+
         problem = pyqplib.read_problem(self.filename)
         objective = problem.obj
         cons_type = problem.description.cons_type
@@ -234,7 +241,7 @@ class ToFile(ABC):
         return out_file + '.json'
 
 
-class MaxCutToJson(ToFile):
+class MaxCutSolutionToJson(ToFile):
     """Helper class to save the SolutionMaxCut as a json file.
     """
 
@@ -263,7 +270,7 @@ class MaxCutToJson(ToFile):
                       default=convert_numpy_to_json_serializable)
 
 
-class QuboToJson(ToFile):
+class QuboSolutionToJson(ToFile):
     """Helper class to save QUBO solution as json file.
     """
 

@@ -41,13 +41,14 @@ def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float32]:
     ).todense().getA()
 
 
-def qubo_to_biqbin_representation(qubo, offset: float = 0.0, minimize: bool = True) -> dict:
+def qubo_to_biqbin_representation(qubo: npt.ArrayLike, offset: float = 0.0, minimization: bool = True) -> dict:
     """Converts a dense qubo represantation 2D array to the expected biqbin format of a json serializable
     dict with 'qubo' key and a sparse qubo represantation as value.
 
     Args:
         qubo (np.ndarray): 2D list or numpy array
         offset (float): an offset to be added to the solution value
+        minimization (bool): objective sense
 
     Returns:
         dict: json serializable dictionary that Biqbin can parse. Save to file and pass the path to DataGetterJson.
@@ -58,6 +59,7 @@ def qubo_to_biqbin_representation(qubo, offset: float = 0.0, minimize: bool = Tr
     return {
         'qubo': to_sparse(qubo),
         'offset': offset,
+        'is_minimization': minimization
     }
 
 
@@ -178,3 +180,74 @@ def data_reader_pd(filelist):
     for filename in filelist:
         with open(filename) as f:
             yield dict(flatten_dict(json.load(f)))
+
+
+def qubo_to_qplib_str(qubo: np.ndarray, offset: float, minimize: bool, problem_name: str):
+    """Converts a dense qubo representation 2D np array into the qplib format string
+
+    Args:
+        qubo (np.ndarray): 2D list or numpy array
+        problem_name (str): Saves the name of the problem inside the qplib format
+
+    Returns:
+        str: qplib format that can be saved directly to .qplib file or used elsewhere
+    """
+    # QPLIB expects a lower triangular matrix
+    diag = np.diag(qubo)
+    if np.allclose(qubo, qubo.T):
+        qubo = np.tril(qubo * 2)
+    else:
+        qubo = np.tril(qubo + qubo.T)
+
+    np.fill_diagonal(qubo, diag)
+
+    yield problem_name + '\n'
+
+    num_vars = qubo.shape[0]
+
+    linear_terms = qubo.diagonal()
+    num_linear = np.count_nonzero(linear_terms)
+    quadratic_terms = sp.sparse.coo_matrix(qubo)
+    num_quadratic = quadratic_terms.nnz - num_linear
+
+    min_max = 'minimize\n' if minimize else 'maximize\n'
+    # qubo's are always QBN (Quadratic, Binary, No-constraints), minimization problems, as per qplib specification
+    yield ('QBN\n'
+           f'{min_max}'
+           f'{num_vars} # number of variables\n'
+           f'{num_quadratic} # number of quadratic terms in the objective\n')
+
+    for i, j, v in zip(quadratic_terms.row, quadratic_terms.col, quadratic_terms.data):
+        if v != 0 and i != j:
+            yield f'{i + 1} {j + 1} {v * 2}\n'
+
+    yield (f'0.0 # default value of linear coefficients in objective\n'
+           f'{num_linear} # number of non-default linear coefficients in objective\n')
+
+    for i, v in enumerate(linear_terms):
+        if v != 0:
+            yield f'{i + 1} {v}\n'
+
+    yield f'{offset} # objective constant\n'
+
+    yield ('1.79769313486232E+308 # value for infinity\n'
+           '0.0 # default variable primal value in starting point\n'
+           '0 # number of non-default variable primal values in starting point\n'
+           '0.0 # default variable bound dual value in starting point\n'
+           '0 # number of non-default variable bound dual values in starting point\n'
+           '0 # number of non-default variable names\n'
+           '0 # number of non-default constraint names\n')
+
+
+def save_qubo_problem_as_qplib(filename: str, problem):
+    with open(filename, 'w') as f:
+        f.writelines(qubo_to_qplib_str(problem.Q,
+                                       problem.offset,
+                                       problem.is_minimization,
+                                       problem.problem_name))
+
+
+def save_qubo_problem_as_json(filename: str, problem):
+    with open(filename, 'w') as f:
+        json.dump(qubo_to_biqbin_representation(problem.Q, problem.offset,
+                                                problem.is_minimization), f)

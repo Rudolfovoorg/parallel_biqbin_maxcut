@@ -254,7 +254,7 @@ class MaxCutSolver(PrettyPrint):
 
     def __init__(self,
                  problem: ProblemMaxCut,
-                 params: str,
+                 params: str = 'params',
                  time_limit: int = 0,
                  initial_estimate: np.ndarray | None = None,
                  collect_heuristic_data: bool = False):
@@ -441,7 +441,7 @@ class QUBOSolver(MaxCutSolver):
 
     def __init__(self,
                  problem: ProblemQubo,
-                 params: str,
+                 params: str = 'params',
                  time_limit: int = 0,
                  initial_estimate: np.ndarray | None = None,
                  collect_heur_data: bool = False):

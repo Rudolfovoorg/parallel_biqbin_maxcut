@@ -122,10 +122,9 @@ class ArgParserQubo(ArgParserBase):
         super().__init__(prog=prog, description=description)
         self.add_argument(
             '--format',
-            choices=self.FORMAT_CHOICES.values(),
             default=self.FORMAT_CHOICES["json"],
             type=self.parse_format,
-            help='QUBO problem instance file format. mm is MatrixMarket, ew is edge-weight Stanford GSet style')
+            help=f'QUBO problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}')
 
     def parse_format(self, fmt: str) -> FromFile:
         fmt = fmt.lower()

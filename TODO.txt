@@ -9,3 +9,4 @@
 - Dense represantations of graphs
 - heuristic change in python to have it return the solution
 - figure out the sdp value difference tolerance for tests
+- remove '.output' file created by C from the Python version

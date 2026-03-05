@@ -43,3 +43,7 @@
 - some heuristic implementations have been changed to use numpy vectorized functions
 - python requirements split between a minimal requirements.txt and full requirements-dev.txt versions
 - updated tests to check the new data saved into the output file
+- added data parsers MatrixMarket and QPLIB format, added Edge-Weight list format for QUBOs
+- added writing the ProblemQubo to a qplib file in biqbin/utils.py
+- added tests for data parsers and qplib writer with Pytest
+- added doc folder for documentations, split between different .md files, removed most details from README.md

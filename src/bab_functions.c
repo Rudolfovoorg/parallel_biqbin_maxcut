@@ -339,7 +339,6 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
 
 /* print solution 0-1 vector */
 void printSolution(FILE *file) {
-
     fprintf(file, "Solution = ( ");
     for (int i = 0; i < BabPbSize; ++i) {
         if (BabSol->X[i] == 1) {
@@ -352,7 +351,6 @@ void printSolution(FILE *file) {
 
 /* print final output */
 void printFinalOutput(FILE *file, int num_nodes) {
-
     // Best solution found
     double best_sol = Bab_LBGet();
 
@@ -388,7 +386,6 @@ void Bab_End(void) {
  * node: the current node of the branch-and-bound search tree
  */
 int getBranchingVariable(BabNode *node) {
-
     int ic = -1;  // x[ic] is the variable to branch on
     double maxValue, minValue;
 
@@ -425,7 +422,7 @@ int getBranchingVariable(BabNode *node) {
 
 
 /* Count the number of fixed variables */
-int countFixedVariables(BabNode *node) {
+int countFixedVariables(const BabNode *node) {
     
     int numFixedVariables = 0;
 

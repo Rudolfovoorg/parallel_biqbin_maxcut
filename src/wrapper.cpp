@@ -222,7 +222,7 @@ py::array_t<T> wrapped_array(T *data, ssize_t size)
 }
 
 template <typename T>
-py::array_t<T> wrapped_matrix(T *data, ssize_t rows, ssize_t cols)
+py::array_t<T> wrapped_matrix(const T *data, const ssize_t rows, const ssize_t cols)
 {
     return py::array_t<T>(
         {rows, cols},                  // shape
@@ -237,7 +237,7 @@ py::array_t<T> wrapped_matrix(T *data, ssize_t rows, ssize_t cols)
 /// @param node current branch and bound node
 /// @param x stores the best solution nodes found the by the heuristic function
 /// @return best lower bound of the current subproblem found by the heuristic used
-double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x)
+double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x)
 {
     heuristic_counter++;
     // Wrap matrices

@@ -6,7 +6,6 @@
 extern BabSolution *BabSol;     // global solution of B&B algorithm defined in heap.c
 
 void allocMemory(void) {
-
     /* 
      * SP, SP->n, SP->L, PP, PP->n and PP->L 
      * are all allocated and defined in readData (process_input.c),
@@ -43,9 +42,6 @@ void allocMemory(void) {
 
 
 void freeMemory(void) {
-//    #ifndef PURE_C
-//    clean_python_references();
-//    #endif
     free(SP->L);
     free(SP);
     free(PP->L);

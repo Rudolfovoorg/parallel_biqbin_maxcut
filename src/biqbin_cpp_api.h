@@ -65,9 +65,9 @@ EXTERN_C double runHeuristic_unpacked(const double *P0_L, const int P0_N, const 
 EXTERN_C int wrapped_main(int argc, char **argv);
 EXTERN_C double Bab_LBGet(void); // returns global lower bound
 EXTERN_C int update_best(int *xbest, int *xnew, double *best, int P0_N);
-EXTERN_C double evaluateSolution(int *sol);
+EXTERN_C double evaluateSolution(const int *sol);
 EXTERN_C void abort_alloc_fail(int abort_code);
-EXTERN_C int process_adj_matrix(double *Adj, int Adj_N);
+EXTERN_C int process_adj_matrix(const double *Adj, const int Adj_N);
 EXTERN_C int Bab_numEvalNodes(void); // returns number of evaluated nodes
-EXTERN_C void ipm_mc_pk(double *L, int n, double *X, double *phi, int print);
+EXTERN_C void ipm_mc_pk(const double *L, const int n, double *X, double *phi, const int print);
 #endif

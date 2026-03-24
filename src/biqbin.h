@@ -130,7 +130,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
 void printSolution(FILE *file);
 void printFinalOutput(FILE *file, int num_nodes);
 void Bab_End(void);
-int getBranchingVariable(BabNode *node);
+int getBranchingVariable(const BabNode *node);
 int countFixedVariables(const BabNode *node);
 
 /* bounding.c */
@@ -169,7 +169,6 @@ Heap *Init_Heap(const int size);                                 // allocates sp
 /* heuristic.c */
 double runHeuristic(const Problem *P0, Problem *P, BabNode *node, int *x);
 double GW_heuristic(const double *P0_L, const int P0_N, const double *P_L, const int P_N, int *node_xfixed, int *node_sol_X, int *x, const int num); // RK
-// RK double mc_1opt(int *x, Problem *P0);
 double mc_1opt(int *x, const double *P_L, const int P_N);
 
 /* operators.c */

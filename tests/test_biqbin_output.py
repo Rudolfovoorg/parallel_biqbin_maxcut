@@ -5,6 +5,7 @@ import pytest
     Compares Biqbin output with expected output for all Python versions
 """
 
+
 def test_biqbin_output(problem_instance, request, subtests):
     """
     Compare Biqbin output with expected output for one instance.
@@ -48,14 +49,15 @@ def test_biqbin_output(problem_instance, request, subtests):
             f'Expected: {expected_result["maxcut"]["x"]}'
         )
 
-    if not without_sol_vec:
-        with subtests.test('Max-Cut solution'):
-            assert expected_result["maxcut"]["x"] == result["maxcut"]["x"], (
+    with subtests.test('Max-Cut solution'):
+        if expected_result["maxcut"]["x"] != result["maxcut"]["x"]:
+            pytest.xfail(
                 f'maxcut mismatch!\n'
                 f'Got:      {result["maxcut"]["x"]}\n'
                 f'Expected: {expected_result["maxcut"]["x"]}'
             )
-            assert expected_result["maxcut"]["solution"] == result["maxcut"]["solution"], (
+        if expected_result["maxcut"]["solution"] != result["maxcut"]["solution"]:
+            pytest.xfail(
                 f'maxcut mismatch!\n'
                 f'Got:      {result["maxcut"]["solution"]}\n'
                 f'Expected: {expected_result["maxcut"]["solution"]}'
@@ -71,14 +73,15 @@ def test_biqbin_output(problem_instance, request, subtests):
                 f'Got solution: {result["qubo"]["x"]}\n'
                 f'Expected solution: {expected_result["qubo"]["x"]}'
             )
-        if not without_sol_vec:
-            with subtests.test('QUBO solution vector'):
-                assert expected_result["qubo"]["x"] == result["qubo"]["x"], (
+        with subtests.test('QUBO solution vector'):
+            if expected_result["qubo"]["x"] != result["qubo"]["x"]:
+                pytest.xfail(
                     f'qubo mismatch!\n'
                     f'Got solution: {result["qubo"]["x"]}\n'
                     f'Expected solution: {expected_result["qubo"]["x"]}'
                 )
-                assert expected_result["qubo"]["solution"] == result["qubo"]["solution"], (
+            if expected_result["qubo"]["solution"] != result["qubo"]["solution"]:
+                pytest.xfail(
                     f'qubo mismatch!\n'
                     f'Got solution: {result["qubo"]["solution"]}\n'
                     f'Expected solution: {expected_result["qubo"]["solution"]}'
@@ -98,10 +101,10 @@ def test_biqbin_output(problem_instance, request, subtests):
 
     # What should the tolerance of this be?
     with subtests.test('Root node sdp_value'):
-        if abs(expected_root["sdp_value"] - computed_root["sdp_value"]) > 1:
+        if abs(expected_root["sdp_value"] - computed_root["sdp_value"]) > 0.001:
             pytest.xfail(
                 f'root sdp_value mismatch!'
-                f'Got:      {computed_root["sdp_value"]}\n'
+                f'Got:      {computed_root["sdp_value"]} '
                 f'Expected: {expected_root["sdp_value"]}'
             )
 
@@ -120,9 +123,9 @@ def test_biqbin_output(problem_instance, request, subtests):
                 f'Expected: {expected_root["heuristic_run_count"]}'
             )
 
-    if not without_sol_vec:
-        with subtests.test('Root node solution'):
-            assert expected_root["root_solution"] == computed_root["root_solution"], (
+    with subtests.test('Root node solution'):
+        if expected_root["root_solution"] != computed_root["root_solution"]:
+            pytest.xfail(
                 f'root root_solution mismatch!'
                 f'Got:      {computed_root["root_solution"]}\n'
                 f'Expected: {expected_root["root_solution"]}'

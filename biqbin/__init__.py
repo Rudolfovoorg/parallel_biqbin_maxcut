@@ -17,6 +17,7 @@ from biqbin.data_parsers import (MaxCutSolutionToJson,
                                  QuboFromEdgeWeights,
                                  QuboFromQPLIB)
 
+from biqbin.parameters import BiqbinParameters
 
 __all__ = [
     'ProblemMaxCut',
@@ -35,5 +36,6 @@ __all__ = [
     'QuboFromJson',
     'QuboFromMatrixMarket',
     'QuboFromEdgeWeights',
-    'QuboFromQPLIB'
+    'QuboFromQPLIB',
+    'BiqbinParameters'
 ]

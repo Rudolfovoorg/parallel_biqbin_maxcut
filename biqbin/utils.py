@@ -251,3 +251,11 @@ def save_qubo_problem_as_json(filename: str, problem):
     with open(filename, 'w') as f:
         json.dump(qubo_to_biqbin_representation(problem.Q, problem.offset,
                                                 problem.is_minimization), f)
+
+
+class PrettyPrint:
+    def __str__(self) -> str:
+        return (f'class: {type(self).__name__}')
+
+    def __repr__(self) -> str:
+        return str(self)

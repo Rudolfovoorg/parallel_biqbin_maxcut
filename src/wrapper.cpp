@@ -8,12 +8,15 @@
 
 #include "biqbin_cpp_api.h"
 #include "blas_laplack.h"
+#include "parameters.h"
+#include "wrapper_utils.h"
 
 #include "wrapper.h"
 
 namespace py = pybind11;
 
 /* biqbin's global variables from global_var.h */
+extern BiqBinParameters params;
 extern Problem *SP;
 extern Problem *PP;
 extern BabSolution *BabSol;
@@ -39,7 +42,6 @@ extern int rank;
 extern int num_workers;
 
 double running_time;
-int time_limit;
 
 // Python override functions
 py::object python_heuristic_override;
@@ -53,7 +55,6 @@ int adj_matrix_size;
 void set_heuristic_override(py::object func) { python_heuristic_override = func; }
 
 int get_rank() { return rank; }
-int get_time_limit() { return time_limit; }
 
 /// @brief TODO: find a better fix for conflicts with MPI
 void clean_python_references(void)
@@ -61,93 +62,27 @@ void clean_python_references(void)
     python_heuristic_override = py::object();
 }
 
-/// @brief Helper functions for better error messages
-/// @tparam T int or double
-/// @return string of type T
-template <typename T>
-const char *type_name();
-template <>
-const char *type_name<double>() { return "float64"; }
-template <>
-const char *type_name<int>() { return "int32"; }
-
-/// @brief Checks whether c++ is getting the correct format numpy array from Python, throws error
-/// @tparam T either a double or int
-/// @param np_in numpy array passed in
-/// @param dimensions checks the shape of the np array
-template <typename T>
-void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, const std::string &np_array_name)
-{
-    // Ensure the array has the correct dtype
-    if (!py::isinstance<py::array_t<T>>(np_in))
-    {
-        throw py::type_error(np_array_name + " must have dtype " + type_name<T>());
-    }
-
-    // Check number of dimensions
-    if (np_in.ndim() != expected_ndim)
-    {
-        throw py::type_error(np_array_name + " must have " + std::to_string(expected_ndim) +
-                             " dimensions, got " + std::to_string(np_in.ndim()));
-    }
-
-    // If 2D, check if square
-    if (expected_ndim == 2)
-    {
-        if (np_in.shape(0) != np_in.shape(1))
-        {
-            throw py::type_error(np_array_name + " must be square (shape[0] == shape[1]), got shape (" +
-                                 std::to_string(np_in.shape(0)) + ", " + std::to_string(np_in.shape(1)) + ")");
-        }
-    }
-
-    // Ensure the array is row-major (C-contiguous)
-    if (!(np_in.flags() & py::array::c_style))
-    {
-        throw py::type_error(np_array_name + " must be row-major (C-contiguous).");
-    }
-
-    // Ensure the array is writable
-    if (!np_in.writeable())
-    {
-        throw py::type_error(np_array_name + " must be writable.");
-    }
-}
-
-/// @brief Creates a numpy array of the solution, returned after biqbin is done solving
-/// @return np.ndarray(dtype = np.int32) of the final solution (node names in a np list)
-template <typename T>
-py::array_t<T> get_numpy_array_from_vec(std::vector<T> &in_vec)
-{
-    auto result = py::array_t<T>(in_vec.size());
-    auto buf = result.template mutable_unchecked<1>();
-    for (size_t i = 0; i < in_vec.size(); ++i)
-    {
-        buf(i) = in_vec[i];
-    }
-    return result;
-}
-
 /// @brief Run the solver, retrieve the solution
 /// @param prog_name argv[0] "biqbin_*.py"
 /// @param problem_instance_name argv[1] "problem_path_to_file"
 /// @param params_file_name argv[2] "path_to_params_file"
 /// @return biqbin maxcut result
-py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, char *params_file_name, int time_limit_in)
+py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, BiqBinParameters &params_in)
 {
-    time_limit = time_limit_in;
     heuristic_counter = 0;
-
+    params = params_in;
     if (rank == 0)
     {
         // One last safety check
-        check_np_array_validity<double>(adj_matrix_in, 2, "maxcut_adjacency_matrix");
+        check_np_array_validity<double>(adj_matrix_in, 2, true, "maxcut_adjacency_matrix");
         // Set the problem data, memory owned by Python
         adj_matrix_size = adj_matrix_in.shape(0);
         adj_matrix = static_cast<double *>(adj_matrix_in.mutable_data());
     }
 
-    char *argv[3] = {prog_name, problem_instance_name, params_file_name};
+    std::string third_argument = "jao";
+
+    char *argv[3] = {prog_name, problem_instance_name, third_argument.data()};
     wrapped_main(3, argv);
     clean_python_references();
 
@@ -194,41 +129,19 @@ double run_heuristic_python(
     py::array_t<int> x_array)
 {
     // Check if input is valid
-    check_np_array_validity<double>(P0_L_array, 2, "P0_L");
-    check_np_array_validity<double>(P_L_array, 2, "P_L");
-    check_np_array_validity<int>(xfixed_array, 1, "xfixed");
-    check_np_array_validity<int>(node_sol_X_array, 1, "node_sol_x");
-    check_np_array_validity<int>(x_array, 1, "x");
+    check_np_array_validity<double>(P0_L_array, 2, false, "P0_L");
+    check_np_array_validity<double>(P_L_array, 2, false, "P_L");
+    check_np_array_validity<int>(xfixed_array, 1, false, "xfixed");
+    check_np_array_validity<int>(node_sol_X_array, 1, false, "node_sol_x");
+    check_np_array_validity<int>(x_array, 1, true, "x");
 
-    const auto P0_L = P0_L_array.mutable_data();
-    const auto P_L = P_L_array.mutable_data();
-    const auto xfixed = xfixed_array.mutable_data();
-    const auto node_sol_X = node_sol_X_array.mutable_data();
-    const auto x = x_array.mutable_data(); // only x is modified
+    const auto P0_L = P0_L_array.data();             // const
+    const auto P_L = P_L_array.data();               // const
+    const auto xfixed = xfixed_array.data();         // const
+    const auto node_sol_X = node_sol_X_array.data(); // const
+    const auto x = x_array.mutable_data();           // mutable
 
     return runHeuristic_unpacked(P0_L, P0_L_array.shape(0), P_L, P_L_array.shape(0), xfixed, node_sol_X, x);
-}
-
-// Helper to wrap C++ arrays without letting Python own them
-template <typename T>
-py::array_t<T> wrapped_array(T *data, ssize_t size)
-{
-    return py::array_t<T>(
-        {size},           // shape
-        {sizeof(T)},      // stride
-        data,             // pointer to memory
-        py::cast(nullptr) // noop deleter, Python won't free memory
-    );
-}
-
-template <typename T>
-py::array_t<T> wrapped_matrix(const T *data, const ssize_t rows, const ssize_t cols)
-{
-    return py::array_t<T>(
-        {rows, cols},                  // shape
-        {sizeof(T) * cols, sizeof(T)}, // row-major strides
-        data,
-        py::cast(nullptr)); // noop deleter, Python won't free memory
 }
 
 /// @brief Called in runHeuristic in heuristic.c
@@ -241,17 +154,21 @@ double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *nod
 {
     heuristic_counter++;
     // Wrap matrices
-    py::array_t<double> P0_L_array = wrapped_matrix(P0->L, P0->n, P0->n);
-    py::array_t<double> P_L_array = wrapped_matrix(P->L, P->n, P->n);
+    py::array_t<double> P0_L_array = wrapped_matrix(P0->L, P0->n, P0->n, false);
+    py::array_t<double> P_L_array = wrapped_matrix(P->L, P->n, P->n, false);
 
     // Wrap vectors
-    py::array_t<int> xfixed_array = wrapped_array(node->xfixed, P0->n - 1);
-    py::array_t<int> sol_X_array = wrapped_array(node->sol.X, P0->n - 1);
-    py::array_t<int> x_array = wrapped_array(x, BabPbSize);
+    py::array_t<int> xfixed_array = wrapped_array(node->xfixed, P0->n - 1, false);
+    py::array_t<int> sol_X_array = wrapped_array(node->sol.X, P0->n - 1, false);
+    py::array_t<int> x_array = wrapped_array(x, BabPbSize, true);
 
     // Call Python override
     return python_heuristic_override(
-               P0_L_array, P_L_array, xfixed_array, sol_X_array, x_array)
+               P0_L_array,
+               P_L_array,
+               xfixed_array,
+               sol_X_array,
+               x_array)
         .cast<double>();
 }
 
@@ -289,6 +206,8 @@ void copy_root_solution()
 /// @param time
 void record_time(double time) { running_time = time; }
 
+/// @brief Expose MPI_Init to Python
+/// @return (size, rank) tuple
 py::tuple init_mpi_python()
 {
     // Initialize MPI without propagating CLI arguments
@@ -299,11 +218,26 @@ py::tuple init_mpi_python()
     return py::make_tuple(num_workers, rank);
 }
 
-PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
+PYBIND11_MODULE(biqbin_module, m)
 {
+    m.doc() = "Biqbin solver";
     m.def("init_mpi", &init_mpi_python, "Initialize MPI protocol");
     m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");
     m.def("run", &run_py, "Run the solver");
     m.def("goemans_williamson_heuristic", &run_heuristic_python, "Default C-implemented GW heuristic");
     m.def("get_rank", &get_rank, "Get the mpi rank");
+
+    py::class_<BiqBinParameters>(m, "_Parameters")
+        .def(py::init([]()
+                      {
+        BiqBinParameters p;
+#define P(type, name, format, def_value) p.name = def_value;
+        PARAM_FIELDS
+#undef P
+        return p; }))
+#define P(type, name, format, def_value) \
+    .def_readwrite(#name, &BiqBinParameters::name)
+            PARAM_FIELDS
+#undef P
+        ;
 }

@@ -26,7 +26,7 @@ class ArgParserBase(ArgumentParser):
         self.add_argument('-c', '--collect-heur-data', action='store_true',
                           help='collect heuristic data on root node (time taken and value)')
 
-        self.add_argument('-p', '--params', default='params',
+        self.add_argument('-p', '--params', default='biqbin.toml',
                           help='custom parameters file path (default: "params")')
 
         self.add_argument('-w', '--overwrite',
@@ -39,7 +39,7 @@ class ArgParserBase(ArgumentParser):
         # time limit format taken from SLURM docs https://slurm.schedmd.com/sbatch.html
         self.add_argument('-t', '--time', default='0', type=self.parse_time_limit,
                           help='set running time limit; acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"')
-
+        self.add_argument('--root', action='store_const', const=1, default=0, help='Run solver only on the root node')
         self.add_argument('-v', '--verbose', action='count', default=0,
                           help='Increases logging level from WARNING to -v for INFO or -vv for DEBUG')
 

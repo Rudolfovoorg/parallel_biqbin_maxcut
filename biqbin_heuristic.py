@@ -1,20 +1,22 @@
 import numpy as np
 from numpy import typing as npt
 from dwave.samplers import SimulatedAnnealingSampler
-from biqbin import QUBOSolver, get_rank, QuboSolutionToJson
+from biqbin import QUBOSolver, get_rank, QuboSolutionToJson, BiqbinParameters
 from biqbin.argparsers import ArgParserDWaveHeuristic
 import json
 
 
 class QuboDwaveSampler(QUBOSolver):
     def __init__(self, problem,
-                 params: str,
-                 time_limit: int,
+                 params: str | BiqbinParameters,
                  initial_solution: np.ndarray | None,
                  collect_heuristic_data: bool,
                  sampler, **sampler_kwargs):
-        super().__init__(problem, params, time_limit,
-                         initial_solution, collect_heuristic_data)
+
+        super().__init__(problem, params,
+                         initial_solution,
+                         collect_heuristic_data)
+        
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
         self.heuristic_counter = 0
@@ -48,8 +50,13 @@ if __name__ == '__main__':
     else:
         initial_solution = None
 
+    # Read params
+    params = BiqbinParameters.from_toml(args.params)
+    params.root = args.root
+    params.time_limit = args.time
+
     solver = QuboDwaveSampler(problem=problem,
-                              params=args.params,
+                              params=params,
                               time_limit=args.time,
                               initial_solution=initial_solution,
                               collect_heuristic_data=args.collect_heur_data,

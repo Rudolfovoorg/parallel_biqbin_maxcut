@@ -7,6 +7,7 @@
 
 #include "biqbin_cpp_api.h"
 #include "blas_laplack.h"
+#include "parameters.h"
 /************************************************************************************************************/
 
 // MESSAGES for MPI
@@ -40,42 +41,6 @@ typedef enum Tags
 
 /* Maximum size of bundle */
 #define MaxBundle 400
-
-/* Branching strategies */
-#define LEAST_FRACTIONAL 0
-#define MOST_FRACTIONAL 1
-
-// BiqBin parameters and default values
-#ifndef PARAM_FIELDS
-#define PARAM_FIELDS                         \
-    P(int, init_bundle_iter, "%d", 3)        \
-    P(int, max_bundle_iter, "%d", 15)        \
-    P(int, triag_iter, "%d", 5)              \
-    P(int, pent_iter, "%d", 5)               \
-    P(int, hept_iter, "%d", 5)               \
-    P(int, max_outer_iter, "%d", 20)         \
-    P(int, extra_iter, "%d", 10)             \
-    P(double, violated_TriIneq, "%lf", 1e-3) \
-    P(int, TriIneq, "%d", 5000)              \
-    P(int, adjust_TriIneq, "%d", 1)          \
-    P(int, PentIneq, "%d", 5000)             \
-    P(int, HeptaIneq, "%d", 5000)            \
-    P(int, Pent_Trials, "%d", 60)            \
-    P(int, Hepta_Trials, "%d", 50)           \
-    P(int, include_Pent, "%d", 1)            \
-    P(int, include_Hepta, "%d", 1)           \
-    P(int, root, "%d", 0)                    \
-    P(int, use_diff, "%d", 1)                \
-    P(int, time_limit, "%d", 0)              \
-    P(int, branchingStrategy, "%d", MOST_FRACTIONAL)
-#endif
-
-typedef struct BiqBinParameters
-{
-#define P(type, name, format, def_value) type name;
-    PARAM_FIELDS
-#undef P
-} BiqBinParameters;
 
 /* Structure for storing triangle inequalities */
 typedef struct Triangle_Inequality
@@ -142,7 +107,7 @@ void solve_lambda(const int k, const double *Q, const double *c, double *lambda)
 void lambda_eta(const Problem *PP, double *zeta, double *G, double *dual_gamma, double *dgamma, double *lambda, double *eta, double *t);
 void bundle_method(Problem *PP, double *t, int bdl_iter);
 
-/* cutting_planec.c */
+/* cutting_planes.c */
 double evaluateTriangleInequality(double *XX, int N, int type, int ii, int jj, int kk);
 double getViolated_TriangleInequalities(double *X, int N, Triangle_Inequality *List, int *ListSize);
 double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted);
@@ -168,7 +133,7 @@ Heap *Init_Heap(const int size);                                 // allocates sp
 
 /* heuristic.c */
 double runHeuristic(const Problem *P0, Problem *P, BabNode *node, int *x);
-double GW_heuristic(const double *P0_L, const int P0_N, const double *P_L, const int P_N, int *node_xfixed, int *node_sol_X, int *x, const int num); // RK
+double GW_heuristic(const double *P0_L, const int P0_N, const double *P_L, const int P_N, const int *node_xfixed, const int *node_sol_X, int *x, const int num); // RK
 double mc_1opt(int *x, const double *P_L, const int P_N);
 
 /* operators.c */

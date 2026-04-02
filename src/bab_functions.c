@@ -77,7 +77,6 @@ int Init_PQ(void)
 /* Bab function which initializes the problem and allocates the structures */
 int Bab_Init(int argc, char **argv, int rank)
 {
-
     int read_error = 0;
 
     // Process the command line arguments

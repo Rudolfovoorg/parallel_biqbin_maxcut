@@ -5,7 +5,6 @@ import pytest
     Compares Biqbin output with expected output for all Python versions
 """
 
-
 def test_biqbin_output(problem_instance, request, subtests):
     """
     Compare Biqbin output with expected output for one instance.
@@ -34,19 +33,15 @@ def test_biqbin_output(problem_instance, request, subtests):
     if expected_result["meta_data"]["eval_bab_nodes"] == 1:
         with subtests.test('Non-branching instances did not branch'):
             assert bab_nodes_diff == 0, (
-                'Bab nodes mismatch!\n',
-                f'Got:      {result["meta_data"]["eval_bab_nodes"]}\n'
-                f'Expected: {expected_result["meta_data"]["eval_bab_nodes"]}\n'
+                f'Got: {result["meta_data"]["eval_bab_nodes"]}\n'
+                f'Exp: {expected_result["meta_data"]["eval_bab_nodes"]}\n'
             )
 
     # --- Check maxcut ---
     with subtests.test('Max-Cut objective value'):
         assert expected_result["maxcut"]["computed_val"] == result["maxcut"]["computed_val"], (
-            f'maxcut mismatch!\n'
-            f'Got:      {result["maxcut"]["computed_val"]}\n'
-            f'Expected: {expected_result["maxcut"]["computed_val"]}\n'
-            f'Got:      {result["maxcut"]["x"]}\n'
-            f'Expected: {expected_result["maxcut"]["x"]}'
+            f'Got: {result["maxcut"]["computed_val"]} '
+            f'Exp: {expected_result["maxcut"]["computed_val"]} '
         )
 
     with subtests.test('Max-Cut solution'):
@@ -67,11 +62,8 @@ def test_biqbin_output(problem_instance, request, subtests):
     if 'qubo' in expected_result:
         with subtests.test('QUBO objective value'):
             assert expected_result["qubo"]["computed_val"] == result["qubo"]["computed_val"], (
-                f'qubo mismatch!\n'
-                f'Got solution: {result["qubo"]["computed_val"]}\n'
-                f'Expected solution: {expected_result["qubo"]["computed_val"]}\n'
-                f'Got solution: {result["qubo"]["x"]}\n'
-                f'Expected solution: {expected_result["qubo"]["x"]}'
+                f'Got: {result["qubo"]["computed_val"]} '
+                f'Exp: {expected_result["qubo"]["computed_val"]}'
             )
         with subtests.test('QUBO solution vector'):
             if expected_result["qubo"]["x"] != result["qubo"]["x"]:
@@ -91,9 +83,8 @@ def test_biqbin_output(problem_instance, request, subtests):
     if 'bqp' in expected_result:
         with subtests.test('BQP solution'):
             assert expected_result["bqp"] == result["bqp"], (
-                f'bqp mismatch!\n'
-                f'Got: {result["bqp"]}\n'
-                f'Expected: {expected_result["bqp"]}'
+                f'Got: {result["bqp"]} '
+                f'Exp: {expected_result["bqp"]}'
             )
 
     expected_root = expected_result["meta_data"]["root_node"]
@@ -106,21 +97,21 @@ def test_biqbin_output(problem_instance, request, subtests):
                 f'root sdp_value mismatch!'
                 f'Got:      {computed_root["sdp_value"]} '
                 f'Expected: {expected_root["sdp_value"]}'
+                f'Got: {computed_root["sdp_value"]} '
+                f'Exp: {expected_root["sdp_value"]}'
             )
 
     with subtests.test('Root node heuristic_value'):
         assert expected_root["heuristic_value"] == computed_root["heuristic_value"], (
-            f'root heuristic_value mismatch!'
-            f'Got:      {computed_root["heuristic_value"]}\n'
-            f'Expected: {expected_root["heuristic_value"]}'
+            f'Got: {computed_root["heuristic_value"]} '
+            f'Exp: {expected_root["heuristic_value"]}'
         )
 
     with subtests.test('Root node heuristic_run_count'):
         if expected_root["heuristic_run_count"] != computed_root["heuristic_run_count"]:
             pytest.xfail(
-                f'root heuristic_run_count mismatch!'
-                f'Got:      {computed_root["heuristic_run_count"]}\n'
-                f'Expected: {expected_root["heuristic_run_count"]}'
+                f'Got: {computed_root["heuristic_run_count"]} '
+                f'Exp: {expected_root["heuristic_run_count"]}'
             )
 
     with subtests.test('Root node solution'):
@@ -135,7 +126,6 @@ def test_biqbin_output(problem_instance, request, subtests):
         with subtests.test('Root node heuristic data collection'):
             if len(computed_root["heuristic_data"]) != len(expected_root["heuristic_data"]):
                 pytest.xfail(
-                    f'root len(heuristic data) mismatch!'
-                    f'Got:      {len(computed_root["heuristic_data"])}\n'
-                    f'Expected: {len(expected_root["heuristic_data"])}'
+                    f'Got: {len(computed_root["heuristic_data"])} '
+                    f'Exp: {len(expected_root["heuristic_data"])}'
                 )

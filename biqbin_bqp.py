@@ -4,7 +4,7 @@ import numpy as np
 import warnings
 
 from biqbin.utils import convert_numpy_to_json_serializable
-from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank
+from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank, BiqbinParameters
 from biqbin.argparsers import ArgParserBase
 from biqbin.data_parsers import FromFile, ToFile
 
@@ -48,10 +48,9 @@ class SolutionBQP(SolutionMaxCut):
 class BQPSolver(MaxCutSolver):
     solver_name = 'PyBiqBin-BQP-PLACEHOLDER'
 
-    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_data=False):
+    def __init__(self, problem: ProblemBQP, params: str | BiqbinParameters, initial_estimate=None, collect_heuristic_data=False):
         super().__init__(problem=problem,
                          params=params,
-                         time_limit=time_limit,
                          initial_estimate=initial_estimate,
                          collect_heuristic_data=collect_heuristic_data)
         self.__problem: ProblemBQP = problem
@@ -173,6 +172,10 @@ if __name__ == '__main__':
             args.problem_instance, optimize_input=args.optimize)
 
     problem = problem_reader.read()
+    # Read params
+    params = BiqbinParameters.from_toml(args.params)
+    params.root = args.root
+    params.time_limit = args.time
 
     if args.solution:
         with open(args.solution, 'r') as f:
@@ -180,7 +183,8 @@ if __name__ == '__main__':
     else:
         initial_estimate = None
 
-    solver = BQPSolver(problem, args.params, args.time, initial_estimate, collect_heuristic_data=args.collect_heur_data)
+    solver = BQPSolver(problem, args.params, initial_estimate,
+                       collect_heuristic_data=args.collect_heur_data)
 
     solution = solver.compute()  # run the solver
 

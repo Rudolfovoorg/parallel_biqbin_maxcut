@@ -7,6 +7,9 @@
 #define EXTERN_C
 #endif
 
+/* Maximum number of variables */
+#define NMAX 1024
+
 /* macros for allocating vectors and matrices */
 #define alloc_vector(var, size, type)                                                       \
     var = (type *)calloc((size), sizeof(type));                                             \
@@ -23,6 +26,7 @@
 
 /************************************************************************************************************/
 /* The main problem and any subproblems are stored using the following structure. */
+/************************************************************************************************************/
 typedef struct Problem
 {
     double *L;      // Objective matrix
@@ -32,9 +36,6 @@ typedef struct Problem
     int NHeptaIneq; // number of heptagonal inequalities
     int bundle;     // size of bundle
 } Problem;
-
-/* Maximum number of variables */
-#define NMAX 1024
 
 /* Solution of the problem */
 typedef struct BabSolution
@@ -61,7 +62,7 @@ typedef struct BabNode
                           // Used for determining the next node in priority queue.
 } BabNode;
 
-EXTERN_C double runHeuristic_unpacked(const double *P0_L, const int P0_N, const double *P_L, const int P_N, int *node_xfixed, int *node_sol_X, int *x);
+EXTERN_C double runHeuristic_unpacked(const double *P0_L, const int P0_N, const double *P_L, const int P_N, const int *node_xfixed, const int *node_sol_X, int *x);
 EXTERN_C int wrapped_main(int argc, char **argv);
 EXTERN_C double Bab_LBGet(void); // returns global lower bound
 EXTERN_C int update_best(int *xbest, int *xnew, double *best, int P0_N);

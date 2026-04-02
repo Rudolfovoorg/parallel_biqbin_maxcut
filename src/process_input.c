@@ -134,19 +134,13 @@ int processCommandLineArguments(int argc, char **argv, int rank)
         dcopy_(&N2, SP->L, &incx, PP->L, &incy);
     }
 
-    // Read the parameters from a user file
+// Read the parameters from a user file
+#ifdef PURE_C
     read_error = readParameters(argv[2], rank);
     if (read_error)
         return read_error;
-
     /* adjust parameters */
-    // change number of added cutting planes per iteration to n*10
-    if (params.adjust_TriIneq)
-        params.TriIneq = SP->n * 10;
-
-#ifndef PURE_C
-    params.time_limit = get_time_limit();
-#else
+    // change number of added cutting planes per iteration to n*10 TODO: Check why this is going on
 
     if (rank == 0)
     {
@@ -158,6 +152,8 @@ int processCommandLineArguments(int argc, char **argv, int rank)
 #undef P
     }
 #endif
+    if (params.adjust_TriIneq)
+        params.TriIneq = SP->n * 10;
 
     return read_error;
 }

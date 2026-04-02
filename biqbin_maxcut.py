@@ -1,5 +1,5 @@
 import logging
-from biqbin import MaxCutSolver, get_rank, MaxCutSolutionToJson
+from biqbin import MaxCutSolver, get_rank, MaxCutSolutionToJson, BiqbinParameters
 from biqbin.argparsers import ArgParserMaxCut
 import numpy as np
 import json
@@ -15,8 +15,12 @@ if __name__ == '__main__':
         args.problem_instance,
         optimize_input=args.optimize)
 
-    # Read the file
+    # Read the problem instance file
     problem = file_reader.read()
+    # Read params
+    params = BiqbinParameters.from_toml(args.params)
+    params.root = args.root
+    params.time_limit = args.time
 
     if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
@@ -27,8 +31,7 @@ if __name__ == '__main__':
     # Create an instance of the MaxCutSolver passing in path to params file and time limit
     solver = MaxCutSolver(
         problem=problem,
-        params=args.params,
-        time_limit=args.time,
+        params=params,
         initial_estimate=initial_estimate,
         collect_heuristic_data=args.collect_heur_data)
 

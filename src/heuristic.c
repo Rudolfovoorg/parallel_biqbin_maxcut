@@ -17,7 +17,13 @@ double runHeuristic(const Problem *P0, Problem *P, BabNode *node, int *x)
 #endif
 }
 
-double runHeuristic_unpacked(const double *P0_L, const int P0_N, const double *P_L, const int P_N, int *node_xfixed, int *node_sol_X, int *x)
+double runHeuristic_unpacked(const double *P0_L,
+                             const int P0_N,
+                             const double *P_L,
+                             const int P_N,
+                             const int *node_xfixed,
+                             const int *node_sol_X,
+                             int *x)
 {
 
     // Problem *P0 ... the original problem
@@ -123,7 +129,7 @@ double runHeuristic_unpacked(const double *P0_L, const int P0_N, const double *P
 }
 
 /* Goemans-Williamson random hyperplane heuristic */
-double GW_heuristic(const double *P0_L, const int P0_N, const double *P_L, const int P_N, int *node_xfixed, int *node_sol_X, int *x, const int num)
+double GW_heuristic(const double *P0_L, const int P0_N, const double *P_L, const int P_N, const int *node_xfixed, const int *node_sol_X, int *x, const int num)
 {
 
     // Problem *P0 ... the original problem

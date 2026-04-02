@@ -3,6 +3,8 @@ from biqbin.argparsers import ArgParserQubo
 import numpy as np
 import json
 
+from biqbin.parameters import BiqbinParameters
+
 """
     Default Qubo solver using Biqbin MaxCut wrapper
 """
@@ -24,10 +26,13 @@ if __name__ == '__main__':
     else:
         initial_estimate = None
 
+    params = BiqbinParameters.from_toml(args.params)
+    params.root = args.root
+    params.time_limit = args.time
+
     # Initialize QUBOSolver class which takes a path to parameters file and time limit
     solver = QUBOSolver(problem=problem,
-                        params=args.params,
-                        time_limit=args.time,
+                        params=params,
                         initial_estimate=initial_estimate,
                         collect_heur_data=args.collect_heur_data
                         )

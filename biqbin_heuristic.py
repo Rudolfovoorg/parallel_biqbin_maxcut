@@ -1,10 +1,8 @@
 import numpy as np
 from numpy import typing as npt
 from dwave.samplers import SimulatedAnnealingSampler
-from biqbin.biqbin_base import QUBOSolver, get_rank, logger
-from biqbin.data_parsers import QuboFromJson, QuboToJson
+from biqbin import QUBOSolver, get_rank, QuboSolutionToJson
 from biqbin.argparsers import ArgParserDWaveHeuristic
-import logging
 import json
 
 
@@ -42,15 +40,7 @@ if __name__ == '__main__':
     parser = ArgParserDWaveHeuristic()
     args = parser.parse_args()
 
-    logging_level = logging.WARNING
-    if args.info:
-        logging_level = logging.INFO
-    if args.debug:
-        logging_level = logging.DEBUG
-
-    logger.setLevel(logging_level)
-
-    reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
+    reader = args.format(args.problem_instance, optimize_input=args.optimize)
     problem = reader.read()
     if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
@@ -75,7 +65,7 @@ if __name__ == '__main__':
             raise ValueError(f'Solution to problem {problem} not found!')
 
         solution.print_computed_solution(args.verbose)
-        solution_writer = QuboToJson(solution)
+        solution_writer = QuboSolutionToJson(solution)
         if isinstance(args.output, str):
             output_path = args.output
         else:

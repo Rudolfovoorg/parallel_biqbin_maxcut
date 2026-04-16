@@ -1,6 +1,4 @@
-# in your biqbin Python package, e.g. biqbin/parameters.py
-
-from dataclasses import dataclass
+from pathlib import Path
 import tomllib
 from biqbin.biqbin_module import _Parameters
 
@@ -46,25 +44,13 @@ class BiqbinParameters(_Parameters):
         lines = [f"  {name}: {getattr(self, name)}" for name, _ in _FIELDS]
         return "Parameters(\n" + "\n".join(lines) + "\n)"
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, _Parameters):
-            return NotImplemented
-        return all(getattr(self, n) == getattr(other, n) for n, _ in _FIELDS)
-
-    def __copy__(self) -> "BiqbinParameters":
-        new = BiqbinParameters()
-        for name, _ in _FIELDS:
-            setattr(new, name, getattr(self, name))
-        return new
-
     @staticmethod
-    def from_toml(path: str) -> "BiqbinParameters":
-        params = BiqbinParameters()
+    def from_toml(path: str | Path) -> "BiqbinParameters":
         with open(path, "rb") as f:
-            data = tomllib.load(f)['BiqbinParameters']
-        valid = {name for name, _ in _FIELDS}
-        for key, value in data.items():
-            if key not in valid:
-                raise ValueError(f"Unknown parameter: '{key}'")
-            setattr(params, key, value)
+            data = tomllib.load(f).get('BiqbinParameters')
+
+        if data is None:
+            raise ValueError(
+                "TOML file must contain a [BiqbinParameters] section")
+        params = BiqbinParameters(**data)
         return params

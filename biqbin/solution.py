@@ -97,8 +97,6 @@ class SolutionQubo(SolutionMaxCut):
 
         _x_mc = np.array(maxcut_solution, dtype=int) - 1
         x_mc_sol = np.ones(n + 1)
-        xx = np.zeros(n + 1, dtype=int)
-        xx[_x_mc] = 1
 
         x_mc_sol[_x_mc] = -1
         x_mc_sol *= -x_mc_sol[-1]
@@ -113,7 +111,7 @@ class SolutionQubo(SolutionMaxCut):
         else:
             base_string = (f'class: {type(self).__name__}\n'
                            f'   Problem name = {self.meta_data['instance']}\n'
-                           f'   Compute time = {self.meta_data['time']:.2} seconds\n')
+                           f'   Compute time = {self.meta_data['time']:.2f} seconds\n')
         print(
             f'{base_string}'
             f'--- QUBO ---\n'

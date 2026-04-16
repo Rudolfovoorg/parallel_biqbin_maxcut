@@ -50,13 +50,49 @@ class MaxCutSolver(PrettyPrint):
 
         # Heuristic data collection
         self.collect_heuristic_root_data: bool = collect_heuristic_data
-        self.heuristic_root_data = []
+        self.heuristic_root_data: list = []
 
         set_heuristic(self._call_heuristic)
 
     @property
     def problem(self) -> ProblemMaxCut:
         return self.__problem
+
+    def compute(self) -> SolutionMaxCut | None:
+        """Compute the MaxCut solution using Biqbin
+
+        Args:
+            problem (ProblemMaxCut): problem to be solved.
+
+        Returns:
+            SolutionMaxCut | None: Returns the solution class on MPI rank 0 otherwise None.
+        """
+        biqbin_result = self._run_solver()
+        if biqbin_result is not None:
+            return SolutionMaxCut(biqbin_result, self.problem)
+        else:
+            return None
+
+    def heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
+        """Default GW heuristic (heuristic_unpacked in heuristic.c)
+
+        Args:
+            L (np.ndarray): Sub Problem Laplacean matrix
+
+        Returns:
+            float: value of the solution array "x" found by the heuristic function
+        """
+        L0 = kwargs['L0']
+        xfixed = kwargs['xfixed']
+        sol_X = kwargs['sol_X']
+        # biqbin gw expects a full solution vector
+        x = np.zeros(L0.shape[0] - 1, dtype=np.int32)
+
+        goemans_williamson_heuristic(
+            L0, L, xfixed, sol_X, x
+        )
+
+        return x[xfixed == 0]
 
     @heur_root_data_collector()
     def _call_heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
@@ -86,63 +122,11 @@ class MaxCutSolver(PrettyPrint):
 
         return heur_value
 
-    def heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
-        """Default GW heuristic (heuristic_unpacked in heuristic.c)
-
-        Args:
-            L (np.ndarray): Subproblem Problem Laplacean matrix
-
-        Returns:
-            float: value of the solution array "x" found by the heuristic function
-        """
-        L0 = kwargs['L0']
-        xfixed = kwargs['xfixed']
-        sol_X = kwargs['sol_X']
-        # biqbin gw expects a full solution vector
-        x = np.zeros(L0.shape[0] - 1, dtype=np.int32)
-
-        goemans_williamson_heuristic(
-            L0, L, xfixed, sol_X, x
-        )
-
-        return x[xfixed == 0]
-
-    def _use_initial_estimate_on_root(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
-        """ heuristic call on root node if initial estimate solution is passed in
-        """
-        if kwargs['L0'].shape != L.shape:
-            raise ValueError(
-                f"Main problem shape {kwargs['L0'].shape} != Subproblem shape {L.shape}!")
-        if kwargs['L0'].shape != self.problem.maxcut_adjacency_matrix.shape:
-            raise ValueError(
-                f"Main problem shape {kwargs['L0'].shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
-        if np.any(kwargs['xfixed']):
-            raise ValueError("xfixed is nonzero!")
-        
-        return self.initial_estimate_solution[:-1] # pyright: ignore[reportOptionalSubscript]
-
-    def _evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
-        """Calculate the Max-Cut lower bound value of the heuristic solution
-
-        Args:
-            L0 (np.ndarray): main Problem *SP->L matrix
-            sol (np.ndarray): current solution
-
-        Returns:
-            float: value of the solution
-        """
-        sol_val = sol @ L0[:-1, :-1] @ sol
-
-        return float(sol_val)
-
     def _run_solver(self) -> dict | None:
         """Runs Biqbin C/C++ implementation
 
-        Raises:
-            ValueError: If no result is retrieved on the master process.
-
         Returns:
-            dict | None: Solution python dict built by C++, or None on MPI rank != 0
+            dict | None: Solution Python dictionary built by C++ on MPI rank 0 otherwise None
         """
         if self.problem is None:
             raise ValueError("Problem instance not set!")
@@ -159,39 +143,53 @@ class MaxCutSolver(PrettyPrint):
                             self.problem.problem_name,
                             input_matrix,
                             self.params)
+        if self.rank != 0:
+            return None
 
-        if self.rank == 0:
-            if biqbin_result is None:
-                raise ValueError(
-                    'Result from BiqBin is None, computation failed!')
+        self._update_results_dict(biqbin_result)
+        return biqbin_result
 
-            biqbin_result['meta_data']['solver'] = self.solver_name
-            biqbin_result['meta_data']['instance'] = self.problem.problem_name
-            biqbin_result['meta_data']['parameters'] = {
-                'time_limit': self.params.time_limit if self.params.time_limit > 0 else None,
-                'optimized': self.problem.optimize_mc_adj_matrix,
-                'gcd': self.problem.gcd
-            }
-            if self.collect_heuristic_root_data:
-                biqbin_result['meta_data']['root_node']['total_heur_time'] = sum(
-                    d['time'] for d in self.heuristic_root_data)
-                biqbin_result['meta_data']['root_node']['heuristic_data'] = self.heuristic_root_data
-            return biqbin_result
+    def _use_initial_estimate_on_root(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
+        """Uses the provided initial estimate on the root node, then falls back to default."""
 
-    def compute(self) -> SolutionMaxCut | None:
-        """Compute the MaxCut solution using Biqbin
+        if kwargs['L0'].shape != L.shape:
+            raise ValueError(
+                f"Main problem shape {kwargs['L0'].shape} != Subproblem shape {L.shape}!")
+        if kwargs['L0'].shape != self.problem.maxcut_adjacency_matrix.shape:
+            raise ValueError(
+                f"Main problem shape {kwargs['L0'].shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
+        if np.any(kwargs['xfixed']):
+            raise ValueError("xfixed is nonzero!")
+
+        return self.initial_estimate_solution[:-1]  # pyright: ignore
+
+    def _evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
+        """Calculate the Max-Cut lower bound value of the heuristic solution
 
         Args:
-            problem (ProblemMaxCut): problem to be solved.
+            L0 (np.ndarray): main Problem *SP->L matrix
+            sol (np.ndarray): current solution
 
         Returns:
-            SolutionMaxCut | None: Returns the solution class on MPI rank == 0.
+            float: Objective value of the solution
         """
-        biqbin_result = self._run_solver()
-        if biqbin_result is not None:
-            return SolutionMaxCut(biqbin_result, self.problem)
-        else:
-            return None
+        """Compute the Max-Cut value of a solution vector."""
+
+        return float(sol @ L0[:-1, :-1] @ sol)
+
+    def _update_results_dict(self, result):
+        result['meta_data']['solver'] = self.solver_name
+        result['meta_data']['instance'] = self.problem.problem_name
+        result['meta_data']['parameters'] = {
+            'time_limit': self.params.time_limit if self.params.time_limit > 0 else None,
+            'optimized': self.problem.optimize_mc_adj_matrix,
+            'gcd': self.problem.gcd
+        }
+        if self.collect_heuristic_root_data:
+            result['meta_data']['root_node']['total_heur_time'] = sum(
+                d['time'] for d in self.heuristic_root_data
+            )
+            result['meta_data']['root_node']['heuristic_data'] = self.heuristic_root_data
 
     def _check_solution_validity(self, initial_solution: np.ndarray, problem_size):
         if initial_solution.ndim != 1 or initial_solution.shape[0] != problem_size:
@@ -203,8 +201,8 @@ class MaxCutSolver(PrettyPrint):
 
     def __str__(self) -> str:
         return (f'{super().__str__()}'
-                f'    Problem = {self.problem.problem_name}'
-                f'Params path = {self.params}')
+                f'Problem = {self.problem.problem_name}\n'
+                f' Params = {self.params}')
 
 
 class QUBOSolver(MaxCutSolver):

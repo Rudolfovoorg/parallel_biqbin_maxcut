@@ -318,12 +318,13 @@ double mc_1opt(int *x, const double *P_L, const int P_N)
     return cost;
 }
 
-/*
- * Given the current best solution, xbest, and a new solution, xnew, determines
- * the objective value of xnew, then replaces xbest with xnew if
- * xnew is better. Also updates the best objective value, best.
- */
-int update_best(int *xbest, int *xnew, double *best, int P0_N)
+/// @brief Update best solution if a better one was found.
+/// @param xbest current best solution, gets updated if xnew is better
+/// @param xnew  new solution vector found
+/// @param best  current best objective value of xbest, gets updated if xnew is better
+/// @param P0_N  size of the main problem SP
+/// @return      1 if solution was updated, 0 if not
+int update_best(int *xbest, const int *xnew, double *best, int P0_N)
 {
 
     int success = 0;

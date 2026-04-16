@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 
-from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, PrettyPrint
+from biqbin.utils import check_matrix_validity, divide_matrix_by_gcd, PrettyPrint
 
 
 class ProblemMaxCut(PrettyPrint):
@@ -16,7 +16,6 @@ class ProblemMaxCut(PrettyPrint):
         self.maxcut_adjacency_matrix = maxcut_adjacency_matrix
 
     @property
-    @check_matrix_validity_wrap
     def maxcut_adjacency_matrix(self) -> npt.NDArray[np.floating | np.integer]:
         """Returns the valid input which Biqbin can solve.
         Checks if the input is valid for Biqbin (if all values are integers).
@@ -36,7 +35,7 @@ class ProblemMaxCut(PrettyPrint):
         """
         if self.optimize_mc_adj_matrix:
             self.gcd = divide_matrix_by_gcd(value)
-        self._maxcut_adjacency_matrix = value
+        self._maxcut_adjacency_matrix = check_matrix_validity(value)
 
     def __str__(self) -> str:
         return (f'{super().__str__()}\n'
@@ -67,7 +66,6 @@ class ProblemQubo(ProblemMaxCut):
         else:
             super().__init__(self.qubo2maxcut(-Q), problem_name, optimize_input)
 
-    @check_matrix_validity_wrap
     def qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
         """Convert qubo to adjacency matrix that biqbin can read.
         Checks if the input qubo is valid (all values integers).
@@ -83,10 +81,10 @@ class ProblemQubo(ProblemMaxCut):
         Qe_plus_c = -np.array([(np.sum(q_sym, 1))])
         np.fill_diagonal(q_sym, 0)
 
-        return np.block([
+        return check_matrix_validity(np.block([
             [q_sym, Qe_plus_c.T],
             [Qe_plus_c, np.zeros((1, 1))]
-        ])
+        ]))
 
     def __str__(self) -> str:
         return (f'Class: {type(self).__name__}\n'

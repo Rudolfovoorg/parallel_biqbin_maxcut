@@ -31,6 +31,7 @@ extern int num_workers_used;
 extern int time_limit_reached;
 extern int heuristic_counter;
 extern int heuristic_sum;
+
 /* root meta_data */
 extern double root_upper_bound;
 extern double root_lower_bound;
@@ -46,8 +47,14 @@ double running_time;
 // Python override functions
 py::object python_heuristic_override;
 
+/// @brief RAII guard for the python_heuristic_override function, cleans up Python references after the solver is run.
+struct HeuristicGuard
+{
+    ~HeuristicGuard() { python_heuristic_override = py::object(); }
+};
+
 // Python received problem, memory is owned by Python
-double *adj_matrix;
+const double *adj_matrix;
 int adj_matrix_size;
 
 /// @brief set heuristic function from python
@@ -56,20 +63,16 @@ void set_heuristic_override(py::object func) { python_heuristic_override = func;
 
 int get_rank() { return rank; }
 
-/// @brief TODO: find a better fix for conflicts with MPI
-void clean_python_references(void)
-{
-    python_heuristic_override = py::object();
-}
-
 /// @brief Run the solver, retrieve the solution
 /// @param prog_name argv[0] "biqbin_*.py"
 /// @param problem_instance_name argv[1] "problem_path_to_file"
-/// @param params_file_name argv[2] "path_to_params_file"
+/// @param params_in BiqbinParameters instanced initialized in Python
 /// @return biqbin maxcut result
 py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, BiqBinParameters &params_in)
 {
-    heuristic_counter = 0;
+    // heuristic guard to clean Python references on exit
+    HeuristicGuard heuristic_guard;
+
     params = params_in;
     if (rank == 0)
     {
@@ -77,14 +80,18 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
         check_np_array_validity<double>(adj_matrix_in, 2, true, "maxcut_adjacency_matrix");
         // Set the problem data, memory owned by Python
         adj_matrix_size = adj_matrix_in.shape(0);
-        adj_matrix = static_cast<double *>(adj_matrix_in.mutable_data());
+        adj_matrix = static_cast<const double *>(adj_matrix_in.data());
     }
 
-    std::string third_argument = "jao";
-
-    char *argv[3] = {prog_name, problem_instance_name, third_argument.data()};
+    // wrapped main expects 3 arguments
+    char *argv[3] = {prog_name, problem_instance_name, "params"};
     wrapped_main(3, argv);
-    clean_python_references();
+
+    // If not master rank return empty dict
+    if (rank != 0)
+    {
+        return py::dict();
+    }
 
     // Save results
     py::dict result_dict;
@@ -106,7 +113,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     meta_data["root_node"] = root_node_dict;
 
     solution_info["computed_val"] = Bab_LBGet();
-    solution_info["solution"] = py::cast(selected_nodes); // we converted it from numpy to regular list immidiately in python so might as well do it here.
+    solution_info["solution"] = py::cast(selected_nodes);
     solution_info["x"] = py::cast(solution_x);
     result_dict["meta_data"] = meta_data;
     result_dict["maxcut"] = solution_info;
@@ -197,12 +204,12 @@ void copy_root_solution()
 {
     for (int i = 0; i < BabPbSize; ++i)
     {
-        root_sol_x.push_back(BabSol->X[i]); // binary solution vec x
+        root_sol_x.push_back(BabSol->X[i]); // binary solution vector x
     }
-    root_sol_x.push_back(0); // .. solution is one more than BabPbSize
+    root_sol_x.push_back(0); // NOTE: Solution is one more than BabPbSize
 }
 
-/// @brief record time at the end
+/// @brief Record solving time at the end
 /// @param time
 void record_time(double time) { running_time = time; }
 

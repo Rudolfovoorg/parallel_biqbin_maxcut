@@ -84,7 +84,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     }
 
     // wrapped main expects 3 arguments
-    char *argv[3] = {prog_name, problem_instance_name, "params"};
+    char *argv[3] = {prog_name, problem_instance_name, const_cast<char *>("params")};
     wrapped_main(3, argv);
 
     // If not master rank return empty dict

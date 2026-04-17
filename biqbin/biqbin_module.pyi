@@ -45,39 +45,5 @@ def init_mpi() -> Tuple[int, int]:
 
 
 class _Parameters:
-    # Bundle iterations
-    init_bundle_iter: int
-    max_bundle_iter: int
-
-    # Cutting plane iterations
-    triag_iter: int
-    pent_iter: int
-    hept_iter: int
-
-    # Outer loop
-    max_outer_iter: int
-    extra_iter: int
-
-    # Triangle inequalities
-    violated_TriIneq: float
-    TriIneq: int
-    adjust_TriIneq: int
-
-    # Pentagon inequalities
-    PentIneq: int
-    Pent_Trials: int
-    include_Pent: int
-
-    # Heptagon inequalities
-    HeptaIneq: int
-    Hepta_Trials: int
-    include_Hepta: int
-
-    # Solver behaviour
-    root: int
-    use_diff: int
-    time_limit: int
-    branchingStrategy: int
-
-    def __init__(self) -> None:
-        ...
+    """ C-struct located in [parameters.h](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/consts/src/parameters.h)
+    """

@@ -253,32 +253,9 @@ Python versions can use the `--format` optional parameter to choose one of the f
 For QUBOs we also support:
 - `qplib` for the [QPLIB file format](doc/PROBLEM_INSTANCE_FORMATS.md#qplib-format-for-qubos).
 
-## Explanation of Parameters
+## Biqbin Parameters
 
-| Parameter           | Description                                                                    |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `init_bundle_iter`  | Initial number of iterations for the **bundle method**                         |
-| `max_bundle_iter`   | Maximum number of iterations for the bundle method                             |
-| `triag_iter`        | Number of iterations for **triangle inequality separation**                    |
-| `pent_iter`         | Number of iterations for **pentagonal inequality separation**                  |
-| `hept_iter`         | Number of iterations for **heptagonal inequality separation**                  |
-| `max_outer_iter`    | Maximum number of **cutting plane algorithm** iterations                       |
-| `extra_iter`        | Additional iterations for refinement or fallback in cutting plane algorithm    |
-| `violated_TriIneq`  | Threshold for **triangle inequality violation**: `B(X) - 1 > violated_TriIneq` |
-| `TriIneq`           | Maximum number of **triangle inequalities** added during separation            |
-| `adjust_TriIneq`    | Whether to **adjust triangle inequalities dynamically** (0 or 1)               |
-| `PentIneq`          | Number of **pentagonal inequalities** to add (usually `3 * Pent_Trials`)       |
-| `HeptaIneq`         | Number of **heptagonal inequalities** to add (usually `4 * Hepta_Trials`)      |
-| `Pent_Trials`       | Number of **simulated annealing trials** for pentagonal inequalities           |
-| `Hepta_Trials`      | Number of **simulated annealing trials** for heptagonal inequalities           |
-| `include_Pent`      | Include **pentagonal inequalities** in SDP bound (0 or 1)                      |
-| `include_Hepta`     | Include **heptagonal inequalities** in SDP bound (0 or 1)                      |
-| `root`              | If `1`, compute only **SDP bound at the root node**                            |
-| `use_diff`          | If `1`, **only add cutting planes** when necessary to speed up B&B             |
-| `time_limit`        | Maximum runtime in **seconds**. If `0`, runs until optimal solution is found   |
-| `branchingStrategy` | Branching strategy:<br>`0 = LEAST_FRACTIONAL`<br>`1 = MOST_FRACTIONAL`         |
-
----
+Solvers parameters are loaded from the [bigbin.toml](biqbin.toml) file and are explained in [PARAMETERS.md](docs/PARAMETERS.md)
 
 ## Contact information
 

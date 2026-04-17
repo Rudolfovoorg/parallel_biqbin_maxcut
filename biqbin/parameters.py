@@ -9,7 +9,7 @@ class BiqbinParameters(_Parameters):
     def __init__(self, **kwargs):
         super().__init__()  # sets C defaults
         for key, value in kwargs.items():
-            if hasattr(self, key):
+            if not hasattr(self, key):
                 raise ValueError(f'Unknown parameter: "{key}"')
             setattr(self, key, value)
 
@@ -34,6 +34,7 @@ class BiqbinParameters(_Parameters):
         with open(path, "rb") as f:
             data = tomllib.load(f).get("BiqbinParameters")
         if data is None:
-            raise ValueError("TOML file must contain a [BiqbinParameters] section")
+            raise ValueError(
+                "TOML file must contain a [BiqbinParameters] section")
 
         return BiqbinParameters(**data)

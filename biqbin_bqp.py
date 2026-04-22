@@ -63,7 +63,6 @@ class BQPSolver(MaxCutSolver):
     def compute(self) -> SolutionBQP | None:
         result = self._run_solver()
         if result is not None:
-            print(result)
             return SolutionBQP(result, self.problem)
 
 
@@ -97,8 +96,6 @@ class BQPFromJson(FromFile):
     def read_bqp_json(self, filename):
         with open(filename, 'r') as file:
             instance = json.load(file)
-        # zes it is realy like this in biqbin :(
-
         def f(F):
             for i, j, v in F:
                 if i == j:
@@ -175,7 +172,7 @@ if __name__ == '__main__':
 
     problem = problem_reader.read()
 
-    if args.solution:
+    if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
             initial_estimate = np.array(json.load(f)['initial_estimate'])
     else:

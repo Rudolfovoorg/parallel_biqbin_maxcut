@@ -5,7 +5,8 @@ import numpy as np
 import logging
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_root_data_collector
-from biqbin.biqbin_module import (run, set_heuristic, goemans_williamson_heuristic, get_rank)
+from biqbin.biqbin_module import (
+    run, set_heuristic, goemans_williamson_heuristic, get_rank)
 
 # Initialize MPI at start
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
@@ -107,7 +108,7 @@ class ProblemQubo(ProblemMaxCut):
         ])
 
     def __str__(self) -> str:
-        return (f'Class: {type(self).__name__}\n'
+        return (f'{super().__str__()}\n'
                 f'Problem name = {self.problem_name}\n'
                 f'Offset = {self.offset}\n'
                 f'Minimizing = {self.is_minimization}\n'
@@ -138,24 +139,28 @@ class SolutionMaxCut(PrettyPrint):
               f'Time limit reached    = {self.meta_data['time_limit_reached']}\n'
               f'{self._get_verbose_metadata_string(verbose)}'
               f'--- Max-Cut ---\n'
-              f'Computed value        = {self.__solution['computed_val']}\n'
-              f'Solution MaxCut       = {self.__solution['solution']}\n'
-              f'              x       = {self.__solution['x']}\n')
+              f' Computed value = {self.__solution['computed_val']}\n'
+              f'Solution MaxCut = {self.__solution['solution']}\n'
+              f'              x = {self.__solution['x']}\n')
 
     def _get_verbose_metadata_string(self, verbose: bool) -> str:
         if verbose:
             return (f'B&B nodes evaluated   = {self.meta_data['eval_bab_nodes']}\n'
                     f'Heurist run count     = {self.meta_data['heuristic_run_count']}\n'
-                    f'Optimized input       = {self.meta_data['parameters']['optimized']}; '
+                    f'Optimized input       = {self.meta_data['parameters']['optimized']}\n'
                     f'gcd = {self.meta_data['parameters']['gcd']}\n'
                     f'Worker processes used = {self.meta_data['num_workers_used']}\n')
         else:
             return ''
 
     def __str__(self) -> str:
-        return (f'{super().__str__()}\n'
-                f'solution = {self.solution}\n'
-                f'meta_data = {self.meta_data}\n')
+        return (
+            f'{super().__str__()}\n'
+            f'   Problem name = {self.problem.problem_name}\n'
+            f' Computed value = {self.__solution['computed_val']}\n'
+            f'       Solution = {self.__solution['solution']}\n'
+            f'              x = {self.__solution['x']}'
+        )
 
 
 class SolutionQubo(SolutionMaxCut):
@@ -219,13 +224,12 @@ class SolutionQubo(SolutionMaxCut):
 
     def print_computed_solution(self, verbose: bool = False) -> None:
         if verbose:
-            base_string = f'{super().__str__()}\n'
+            super().print_computed_solution()
         else:
-            base_string = (f'class: {type(self).__name__}\n'
-                           f'   Problem name = {self.meta_data['instance']}\n'
-                           f'   Compute time = {self.meta_data['time']:.2} seconds\n')
+            print(f'class: {type(self).__name__}\n'
+                  f'   Problem name = {self.meta_data['instance']}\n'
+                  f'   Compute time = {self.meta_data['time']:.2} seconds\n')
         print(
-            f'{base_string}'
             f'--- QUBO ---\n'
             f' Computed value = {self.__solution['computed_val']}\n'
             f'       Solution = {self.__solution['solution']}\n'
@@ -235,8 +239,8 @@ class SolutionQubo(SolutionMaxCut):
 
     def __str__(self):
         return (
-            f'class: {type(self).__name__}\n'
-            f'   Problem name = {self.problem.problem_name}'
+            f'{super().__str__()}\n'
+            f'   Problem name = {self.problem.problem_name}\n'
             f' Computed value = {self.__solution['computed_val']}\n'
             f'       Solution = {self.__solution['solution']}\n'
             f'              x = {self.__solution['x']}\n'
@@ -378,7 +382,7 @@ class MaxCutSolver(PrettyPrint):
         if self.rank == 0:
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
-            print(f'Solving {self.problem}')
+            logger.info(f'Solving {self.problem}')
         else:
             input_matrix = None
 
@@ -421,7 +425,7 @@ class MaxCutSolver(PrettyPrint):
         else:
             return None
 
-    def _check_solution_validity(self, initial_solution: np.ndarray, problem_size):
+    def _check_solution_validity(self, initial_solution: np.ndarray, problem_size: int):
         if initial_solution.ndim != 1 or initial_solution.shape[0] != problem_size:
             raise ValueError(
                 f"Solution must be a 1D vector of size {problem_size}, but got shape {initial_solution.shape}!")
@@ -431,9 +435,9 @@ class MaxCutSolver(PrettyPrint):
 
     def __str__(self) -> str:
         return (f'{super().__str__()}'
-                f'    Problem = {self.problem.problem_name}'
-                f'Params path = {self.params}'
-                f' Time limit = {self.time_limit}')
+                f'    Problem = {self.problem.problem_name}\n'
+                f'Params path = {self.params}\n'
+                f' Time limit = {self.time_limit}\n')
 
 
 class QUBOSolver(MaxCutSolver):

@@ -47,3 +47,10 @@
 - added writing the ProblemQubo to a qplib file in biqbin/utils.py
 - added tests for data parsers and qplib writer with Pytest
 - added doc folder for documentations, split between different .md files, removed most details from README.md
+- changed ToFile.get_output_string to a class method to enable unit testing (there was no reason to have it be a normal method)
+- added tests for ToFile.get_output_string method
+- readded -i, -d to DwaveArgParser as deprecated functions
+- get_rank() checks if MPI_Init was called in wrapper.cpp
+- added init() function to biqbin/__init__.py that initializes MPI
+- added checks to get_rank() and run_py in wrapper.cpp to notify the user if they forgot to initialize mpi
+- various format and small bug fixes

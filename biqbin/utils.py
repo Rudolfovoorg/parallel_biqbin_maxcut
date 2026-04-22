@@ -25,7 +25,7 @@ def to_sparse(qubo: npt.ArrayLike):
     }
 
 
-def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float32]:
+def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float64]:
     """Helper function that converts from sparse coo matrix to regular form
 
     Args:
@@ -92,7 +92,7 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
 def check_matrix_validity_wrap(func):
     @wraps(func)
     def wrapper(*args, **kwargs) -> npt.NDArray[np.float64]:
-        matrix_to_validate = func(*args, *kwargs)
+        matrix_to_validate = func(*args, **kwargs)
         return check_matrix_validity(matrix_to_validate)
 
     return wrapper

@@ -10,14 +10,13 @@ class QuboDwaveSampler(QUBOSolver):
     def __init__(self, problem,
                  params: str,
                  time_limit: int,
-                 initial_solution: np.ndarray | None,
+                 initial_estimate: np.ndarray | None,
                  collect_heuristic_data: bool,
                  sampler, **sampler_kwargs):
         super().__init__(problem, params, time_limit,
-                         initial_solution, collect_heuristic_data)
+                         initial_estimate, collect_heuristic_data)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
-        self.heuristic_counter = 0
 
     def heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
         """Heuristc with D-Waves simulated annealing sampler
@@ -52,7 +51,7 @@ if __name__ == '__main__':
     solver = QuboDwaveSampler(problem=problem,
                               params=args.params,
                               time_limit=args.time,
-                              initial_solution=initial_solution,
+                              initial_estimate=initial_solution,
                               collect_heuristic_data=args.collect_heur_data,
                               sampler=SimulatedAnnealingSampler(),
                               num_reads=10)

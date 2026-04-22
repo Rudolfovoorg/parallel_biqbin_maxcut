@@ -57,9 +57,9 @@ The rest can be installed with `pip install -r requirements.txt` for [minimal re
 ```
 # python>=3.12
 
-numpy==2.3.3
-pybind11==3.0.1
-scipy==1.16.3
+numpy
+pybind11
+scipy
 ```
 
 ## [Installation readme](doc/INSTALLATION.md)

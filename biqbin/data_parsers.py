@@ -62,7 +62,7 @@ class MaxCutFromMatrixMarket(FromFile):
 
 
 class MaxCutFromEdgeWeights(FromFile):
-    """MaxCut edge weigth data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/
+    """MaxCut edge weight data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/
     """
 
     def read(self) -> ProblemMaxCut:
@@ -104,12 +104,9 @@ class QuboFromJson(FromFile):
             qubo_data = json.load(f)
 
         qubo = from_sparse(qubo_data["qubo"])
-        offset = 0
-        if 'offset' in qubo_data:
-            offset = qubo_data['offset']
-        minimization = True
-        if 'is_minimization' in qubo_data:
-            minimization = qubo_data['is_minimization']
+        offset = qubo_data.get('offset', 0)
+        minimization = qubo_data.get('is_minimization', True)
+        
         return ProblemQubo(Q=qubo,
                            offset=offset,
                            problem_name=self.problem_name,

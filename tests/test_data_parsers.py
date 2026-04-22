@@ -12,7 +12,7 @@ from biqbin import (
     QuboFromQPLIB,
     ProblemQubo
 )
-
+from biqbin.data_parsers import ToFile
 from biqbin.utils import qubo_to_qplib_str
 
 
@@ -169,3 +169,24 @@ def test_qplib_writer(json_path, subtests, tmp_path):
         sym = (problem.Q + problem.Q.T) / 2
         _subtest_qplib_writer(save_path, sym, problem.offset,
                               problem.is_minimization, problem)
+
+
+def test_get_output_path(subtests):
+    file_with_json = 'tests/rudy/g05_60.0.json'
+    file_without_json = 'tests/rudy/g05_60.0'
+    
+    with subtests.test('with .json with overwrite'):
+        out_file = ToFile.get_output_path(out_file=file_with_json, overwrite=True)
+        assert(out_file.endswith('.json') and out_file == file_with_json)
+        
+    with subtests.test('with .json without overwrite'):
+        out_file = ToFile.get_output_path(out_file=file_with_json, overwrite=False)
+        assert(out_file.endswith('.json') and out_file != file_with_json)
+        
+    with subtests.test('without .json with overwrite'):
+        out_file = ToFile.get_output_path(out_file=file_without_json, overwrite=True)
+        assert(out_file.endswith('.json') and out_file == file_without_json + '.json')
+        
+    with subtests.test('without .json without overwrite'):
+        out_file = ToFile.get_output_path(out_file=file_without_json, overwrite=False)
+        assert(out_file.endswith('.json') and out_file != file_without_json)

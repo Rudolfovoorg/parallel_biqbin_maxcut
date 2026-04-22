@@ -1,4 +1,5 @@
-from argparse import ArgumentParser, ArgumentTypeError, Action
+import warnings
+from argparse import ArgumentParser, ArgumentTypeError, SUPPRESS
 from biqbin.biqbin_base import logging, logger
 from biqbin.data_parsers import (FromFile,
                                  MaxCutFromJson,
@@ -139,3 +140,39 @@ class ArgParserDWaveHeuristic(ArgParserQubo):
     def __init__(self):
         super().__init__(prog='biqbin_heuristic.py',
                          description='Biqbin QUBO solver with DWave heuristic')
+
+        # Deprecated flags
+        self.add_argument(
+            "-d", "--debug",
+            action="store_true",
+            help=SUPPRESS  # hide from help
+        )
+
+        self.add_argument(
+            "-i", "--info",
+            action="store_true",
+            help=SUPPRESS
+        )
+
+    def parse_args(self, *args, **kwargs):
+        ns = super().parse_args(*args, **kwargs)
+
+        if ns.debug:
+            warnings.warn(
+                "[DEPRECATED] `-d/--debug` is deprecated, use `-vv` instead",
+                UserWarning
+            )
+            ns.verbose = max(ns.verbose, 2)
+
+        if ns.info:
+            warnings.warn(
+                "[DEPRECATED] `-i/--info` is deprecated, use `-v` instead",
+                UserWarning
+            )
+            ns.verbose = max(ns.verbose, 1)
+
+        if ns.verbose == 1:
+            logger.setLevel(logging.INFO)
+        elif ns.verbose > 1:
+            logger.setLevel(logging.DEBUG)
+        return ns

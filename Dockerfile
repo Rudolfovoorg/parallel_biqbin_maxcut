@@ -17,11 +17,10 @@ RUN pip install numpy
 WORKDIR /solver
 COPY . .
 
-RUN pip install -r requirements-dev.txt 
+RUN pip install -r requirements.txt 
 
 ENV OPENBLAS_NUM_THREADS=1 
 ENV GOTO_NUM_THREADS=1 
 ENV OMP_NUM_THREADS=1
 
 RUN make
-RUN make test

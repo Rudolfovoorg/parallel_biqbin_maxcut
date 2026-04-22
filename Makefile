@@ -141,7 +141,7 @@ test-qubo-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c > /dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c > /dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c > /dev/null
-	python -m pytest tests/test_biqbin_output.py tests/test_biqbin_output.py -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json tests/qplib/5881.qplib
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json tests/qplib/5881.qplib
 
 test-qubo-qplib: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --format=qplib -c > /dev/null
@@ -151,23 +151,23 @@ test-qubo-qplib: clean-output
 
 test-qubo-python-heuristic: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
-							 --output tests/heuristic/kcluster40_025_10_1.json.output.json > /dev/null
+				--output tests/heuristic/kcluster40_025_10_1.json.output.json > /dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
-							 --output tests/heuristic/kcluster80_025_20_1.json.output.json > /dev/null
+				--output tests/heuristic/kcluster80_025_20_1.json.output.json > /dev/null
 	
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --without-sol-vector --instances tests/heuristic/kcluster40_025_10_1.json tests/heuristic/kcluster80_025_20_1.json
 
 test-input-solution: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py \
-						     tests/rudy/g05_60.0.json \
-							 --output tests/w_solution/g05_60.0.json.output.json \
-							 -s tests/w_solution/g05_60.0.json_initial_solution.json \
- 							 -c > /dev/null
+				tests/rudy/g05_60.0.json \
+				--output tests/w_solution/g05_60.0.json.output.json \
+				-s tests/w_solution/g05_60.0.json_initial_solution.json \
+				-c > /dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py \
-							 tests/qubos/40/kcluster40_025_10_1.json \
-							 --output tests/w_solution/kcluster40_025_10_1.json.output.json \
-							 -s tests/w_solution/kcluster40_025_10_1.json_initial_solution.json \
-							 -c > /dev/null
+				tests/qubos/40/kcluster40_025_10_1.json \
+				--output tests/w_solution/kcluster40_025_10_1.json.output.json \
+				-s tests/w_solution/kcluster40_025_10_1.json_initial_solution.json \
+				-c > /dev/null
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/w_solution/g05_60.0.json tests/w_solution/kcluster40_025_10_1.json
 
 test-bqp-python: clean-output
@@ -192,7 +192,7 @@ docker-clean:
 	docker rmi -f $(IMAGE):$(TAG) 
 
 docker-test:
-	docker run --rm $(IMAGE):$(TAG) make test
+	docker run --rm $(IMAGE):$(TAG) sh -c 'pip install -r requirements-dev.txt && make test'
 
 docker-shell:
 	docker run --interactive --tty --rm --mount type=bind,src=$(shell pwd)/$(DATA_DIR),dst=/data $(IMAGE):$(TAG) /bin/bash

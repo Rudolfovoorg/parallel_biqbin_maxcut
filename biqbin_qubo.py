@@ -1,4 +1,4 @@
-from biqbin import QUBOSolver, get_rank, QuboSolutionToJson
+from biqbin import QUBOSolver, get_rank, QuboSolutionToJson, init
 from biqbin.argparsers import ArgParserQubo
 import numpy as np
 import json
@@ -8,6 +8,7 @@ import json
 """
 
 if __name__ == '__main__':
+    init()
     parser = ArgParserQubo()
     args = parser.parse_args()
 

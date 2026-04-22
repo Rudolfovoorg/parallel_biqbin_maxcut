@@ -204,6 +204,7 @@ class QuboFromQPLIB(FromFile):
         else:
             Q = np.zeros(problem.description.num_vars)
 
+        # QPLIB definition is 1/2 Quadratic + Linear + Offset
         Q /= 2
         np.fill_diagonal(Q, objective.lin) # pyright: ignore[reportAttributeAccessIssue]
 
@@ -219,7 +220,8 @@ class ToFile(ABC):
     def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
         ...
 
-    def get_output_path(self, out_file: str, overwrite: bool) -> str:
+    @classmethod
+    def get_output_path(cls, out_file: str, overwrite: bool) -> str:
         """Get the proper output path in case it already exists and we do not wish to overwrite.
         Attaches _N where N is the number of the next free output file. Adds .json if not already in the
         out_file's name.
@@ -258,7 +260,7 @@ class MaxCutSolutionToJson(ToFile):
 
         # Check if output filename exists if we are not overriding and replace with filename_N.json
         output_path = self.get_output_path(filename, overwrite)
-        print(output_path)
+
         save_output = {
             'maxcut': self.solution.solution
         }

@@ -5,12 +5,9 @@ import numpy as np
 import logging
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_root_data_collector
-from biqbin.biqbin_module import (run, set_heuristic, init_mpi,
-                                  goemans_williamson_heuristic, get_rank)
-
+from biqbin.biqbin_module import (run, set_heuristic, goemans_williamson_heuristic, get_rank)
 
 # Initialize MPI at start
-init_mpi()
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -347,7 +344,10 @@ class MaxCutSolver(PrettyPrint):
         if np.any(kwargs['xfixed']):
             raise ValueError("xfixed is nonzero!")
 
-        return self.initial_estimate_solution[:-1] # pyright: ignore[reportOptionalSubscript]
+        # Biqbin solution has 1 element less than the problem size, the last elemenent is assumed to be 0
+        MC_DUMMY_ELEMENT_COUNT = 1
+        return self.initial_estimate_solution[:-MC_DUMMY_ELEMENT_COUNT]  # pyright: ignore[reportOptionalSubscript]
+
 
     def _evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
         """Calculate the Max-Cut lower bound value of the heuristic solution

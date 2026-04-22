@@ -27,6 +27,7 @@ __all__ = [
     'QUBOSolver',
     'logger',
     'get_rank',
+    'init',
     'MaxCutSolutionToJson',
     'MaxCutFromJson',
     'MaxCutFromMatrixMarket',
@@ -37,3 +38,14 @@ __all__ = [
     'QuboFromEdgeWeights',
     'QuboFromQPLIB'
 ]
+
+_initialized = False
+
+def init():
+    """Initialize the MPI environment. Must be called before creating any solver."""
+    global _initialized
+    if not _initialized:
+        from biqbin.biqbin_module import init_mpi
+        init_mpi()
+        _initialized = True
+        

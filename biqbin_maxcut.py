@@ -1,11 +1,12 @@
-import logging
-from biqbin import MaxCutSolver, get_rank, MaxCutSolutionToJson
+from biqbin import MaxCutSolver, get_rank, MaxCutSolutionToJson, init
 from biqbin.argparsers import ArgParserMaxCut
 import numpy as np
 import json
 
 
 if __name__ == '__main__':
+    init()
+    
     parser = ArgParserMaxCut()
     args = parser.parse_args()
 

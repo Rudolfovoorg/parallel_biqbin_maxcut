@@ -52,7 +52,17 @@ int adj_matrix_size;
 /// @param func
 void set_heuristic_override(py::object func) { python_heuristic_override = func; }
 
-int get_rank() { return rank; }
+int get_rank()
+{
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized) {
+        PyErr_SetString(PyExc_RuntimeError,
+            "MPI is not initialized. Call biqbin.init() before using any solver.");
+        return -1;
+    }
+    return rank;
+}
 int get_time_limit() { return time_limit; }
 
 /// @brief TODO: find a better fix for conflicts with MPI
@@ -135,6 +145,15 @@ py::array_t<T> get_numpy_array_from_vec(std::vector<T> &in_vec)
 /// @return biqbin maxcut result
 py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, char *params_file_name, int time_limit_in)
 {
+    // Check if MPI was initialized before running
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized) {
+        PyErr_SetString(PyExc_RuntimeError,
+            "MPI is not initialized. Call biqbin.init() before using any solver.");
+        return py::dict();
+    }
+
     time_limit = time_limit_in;
     heuristic_counter = 0;
 

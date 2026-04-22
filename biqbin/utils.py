@@ -114,7 +114,7 @@ def heur_root_data_collector(enabled_flag="collect_heuristic_root_data", data_bo
                 return fn(self, L0, L, xfixed, sol_X, x)
 
             if getattr(self, data_box, None) is None:
-                self.data_box = []
+                setattr(self, data_box, [])
 
             start = time.perf_counter()
             result = fn(self, L0, L, xfixed, sol_X, x)

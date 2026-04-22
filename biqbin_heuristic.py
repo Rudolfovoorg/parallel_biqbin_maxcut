@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import typing as npt
 from dwave.samplers import SimulatedAnnealingSampler
-from biqbin import QUBOSolver, get_rank, QuboSolutionToJson
+from biqbin import QUBOSolver, get_rank, QuboSolutionToJson, init
 from biqbin.argparsers import ArgParserDWaveHeuristic
 import json
 
@@ -37,6 +37,7 @@ class QuboDwaveSampler(QUBOSolver):
 
 
 if __name__ == '__main__':
+    init()
     parser = ArgParserDWaveHeuristic()
     args = parser.parse_args()
 

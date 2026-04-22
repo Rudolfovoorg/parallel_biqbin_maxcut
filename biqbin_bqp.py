@@ -4,7 +4,7 @@ import numpy as np
 import warnings
 
 from biqbin.utils import convert_numpy_to_json_serializable
-from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank
+from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank, init
 from biqbin.argparsers import ArgParserBase
 from biqbin.data_parsers import FromFile, ToFile
 
@@ -161,6 +161,7 @@ class BQPToJson(ToFile):
 
 
 if __name__ == '__main__':
+    init()
     parser = ParserBQP()
     args = parser.parse_args()
 

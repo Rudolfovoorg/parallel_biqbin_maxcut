@@ -3,17 +3,18 @@ import scipy as sp
 import numpy as np
 import warnings
 
-from utils import convert_numpy_to_json_serializable
-from biqbin_base import ArgParserBase, MaxCutSolver, SolutionMaxCut, ProblemMaxCut, ToFile, get_rank
-from data_parsers import FromFile
+from biqbin.utils import convert_numpy_to_json_serializable
+from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank, init
+from biqbin.argparsers import ArgParserBase
+from biqbin.data_parsers import FromFile, ToFile
 
 # these functions are placeholder implementations!
-from bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_json, read_solution_bqp
+from biqbin.bqp_data_processing_PLACEHOLDER import read_data_bqp, read_data_bqp_json, read_solution_bqp
 
 
 class ParserBQP(ArgParserBase):
     def __init__(self):
-        super().__init__(prog=f'biqbin_bqp.py', description='Biqbin BQP solver')
+        super().__init__(prog='biqbin_bqp.py', description='Biqbin BQP solver')
         self.add_argument('-j', '--json', action='store_true',
                           help='use json input file')
 
@@ -45,10 +46,14 @@ class SolutionBQP(SolutionMaxCut):
 
 
 class BQPSolver(MaxCutSolver):
-    solver_name = f'PyBiqBin-BQP-PLACEHOLDER'
+    solver_name = 'PyBiqBin-BQP-PLACEHOLDER'
 
-    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0):
-        super().__init__(problem, params, time_limit)
+    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_data=False):
+        super().__init__(problem=problem,
+                         params=params,
+                         time_limit=time_limit,
+                         initial_estimate=initial_estimate,
+                         collect_heuristic_data=collect_heuristic_data)
         self.__problem: ProblemBQP = problem
 
     @property
@@ -58,7 +63,6 @@ class BQPSolver(MaxCutSolver):
     def compute(self) -> SolutionBQP | None:
         result = self._run_solver()
         if result is not None:
-            print(result)
             return SolutionBQP(result, self.problem)
 
 
@@ -92,8 +96,6 @@ class BQPFromJson(FromFile):
     def read_bqp_json(self, filename):
         with open(filename, 'r') as file:
             instance = json.load(file)
-        # zes it is realy like this in biqbin :(
-
         def f(F):
             for i, j, v in F:
                 if i == j:
@@ -156,6 +158,7 @@ class BQPToJson(ToFile):
 
 
 if __name__ == '__main__':
+    init()
     parser = ParserBQP()
     args = parser.parse_args()
 
@@ -168,7 +171,14 @@ if __name__ == '__main__':
             args.problem_instance, optimize_input=args.optimize)
 
     problem = problem_reader.read()
-    solver = BQPSolver(problem, args.params, args.time)
+
+    if get_rank() == 0 and args.solution:
+        with open(args.solution, 'r') as f:
+            initial_estimate = np.array(json.load(f)['initial_estimate'])
+    else:
+        initial_estimate = None
+
+    solver = BQPSolver(problem, args.params, args.time, initial_estimate, collect_heuristic_data=args.collect_heur_data)
 
     solution = solver.compute()  # run the solver
 

@@ -28,6 +28,11 @@ extern int num_workers_used;
 extern int time_limit_reached;
 extern int heuristic_counter;
 extern int heuristic_sum;
+/* root meta_data */
+extern double root_upper_bound;
+extern double root_lower_bound;
+extern double root_eval_time;
+std::vector<int> root_sol_x;
 
 /* MPI data */
 extern int rank;
@@ -47,7 +52,17 @@ int adj_matrix_size;
 /// @param func
 void set_heuristic_override(py::object func) { python_heuristic_override = func; }
 
-int get_rank() { return rank; }
+int get_rank()
+{
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized) {
+        PyErr_SetString(PyExc_RuntimeError,
+            "MPI is not initialized. Call biqbin.init() before using any solver.");
+        return -1;
+    }
+    return rank;
+}
 int get_time_limit() { return time_limit; }
 
 /// @brief TODO: find a better fix for conflicts with MPI
@@ -130,6 +145,15 @@ py::array_t<T> get_numpy_array_from_vec(std::vector<T> &in_vec)
 /// @return biqbin maxcut result
 py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, char *params_file_name, int time_limit_in)
 {
+    // Check if MPI was initialized before running
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized) {
+        PyErr_SetString(PyExc_RuntimeError,
+            "MPI is not initialized. Call biqbin.init() before using any solver.");
+        return py::dict();
+    }
+
     time_limit = time_limit_in;
     heuristic_counter = 0;
 
@@ -150,12 +174,21 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     py::dict result_dict;
     py::dict solution_info;
     py::dict meta_data;
+    py::dict root_node_dict;
 
     meta_data["time"] = running_time;
     meta_data["time_limit_reached"] = (time_limit_reached) ? true : false;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
     meta_data["heuristic_run_count"] = heuristic_sum;
     meta_data["num_workers_used"] = num_workers_used;
+
+    root_node_dict["time"] = root_eval_time;
+    root_node_dict["heuristic_value"] = root_lower_bound;
+    root_node_dict["heuristic_run_count"] = heuristic_counter;
+    root_node_dict["sdp_value"] = root_upper_bound;
+    root_node_dict["root_solution"] = py::cast(root_sol_x);
+    meta_data["root_node"] = root_node_dict;
+
     solution_info["computed_val"] = Bab_LBGet();
     solution_info["solution"] = py::cast(selected_nodes); // we converted it from numpy to regular list immidiately in python so might as well do it here.
     solution_info["x"] = py::cast(solution_x);
@@ -170,7 +203,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
 /// @param P_L_array        Subproblem L: PP->L
 /// @param xfixed_array     Fixed variables in solution x
 /// @param node_sol_X_array Solution stored in current babnode
-/// @param x_array          Heuristic solution x
+/// @param x_array          Heuristic solution x this
 /// @return                 Lower bound of heuristic solution
 double run_heuristic_python(
     py::array_t<double> P0_L_array,
@@ -261,6 +294,16 @@ void copy_solution()
     solution_x.push_back(0); // .. solution is one more than BabPbSize
 }
 
+/// @brief Copy the solution before memory is freed, so it can be retrieved in Python
+void copy_root_solution()
+{
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        root_sol_x.push_back(BabSol->X[i]); // binary solution vec x
+    }
+    root_sol_x.push_back(0); // .. solution is one more than BabPbSize
+}
+
 /// @brief record time at the end
 /// @param time
 void record_time(double time) { running_time = time; }
@@ -275,7 +318,7 @@ py::tuple init_mpi_python()
     return py::make_tuple(num_workers, rank);
 }
 
-PYBIND11_MODULE(biqbin, m, "Biqbin solver")
+PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
 {
     m.def("init_mpi", &init_mpi_python, "Initialize MPI protocol");
     m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");

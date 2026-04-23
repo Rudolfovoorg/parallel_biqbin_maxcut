@@ -1,21 +1,37 @@
-from biqbin_base import QUBOSolver, ArgParserQubo, QuboToJson, get_rank
-from data_parsers import QuboFromJson
+from biqbin import QUBOSolver, get_rank, QuboSolutionToJson, init
+from biqbin.argparsers import ArgParserQubo
+import numpy as np
+import json
 
 """
     Default Qubo solver using Biqbin MaxCut wrapper
 """
 
 if __name__ == '__main__':
+    init()
     parser = ArgParserQubo()
     args = parser.parse_args()
 
-    file_reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
+    parser_class = args.format
+    file_reader = parser_class(
+        args.problem_instance, optimize_input=args.optimize)
 
     # Read the file and get the problem
     problem = file_reader.read()
+
+    if get_rank() == 0 and args.solution:
+        with open(args.solution, 'r') as f:
+            initial_estimate = np.array(json.load(f)['initial_estimate'])
+    else:
+        initial_estimate = None
+
     # Initialize QUBOSolver class which takes a path to parameters file and time limit
-    solver = QUBOSolver(problem=problem, params=args.params,
-                        time_limit=args.time)
+    solver = QUBOSolver(problem=problem,
+                        params=args.params,
+                        time_limit=args.time,
+                        initial_estimate=initial_estimate,
+                        collect_heur_data=args.collect_heur_data
+                        )
 
     # Run biqbin solver to solve the qubo, passing in the problem
     solution = solver.compute()
@@ -28,7 +44,7 @@ if __name__ == '__main__':
 
         solution.print_computed_solution(args.verbose)
         # Save output path
-        file_writer = QuboToJson(solution)
+        file_writer = QuboSolutionToJson(solution)
 
         if isinstance(args.output, str):
             output_path = args.output
@@ -38,4 +54,5 @@ if __name__ == '__main__':
         file_writer.write(output_path,
                           overwrite=args.overwrite,
                           with_metadata=True,
-                          with_maxcut_solution=True)
+                          with_maxcut_solution=True
+                          )

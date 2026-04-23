@@ -1,6 +1,5 @@
 # python>=3.12
 
-numpy
-pybind11
-scipy
-dwave-neal
+numpy==2.3.3
+pybind11==3.0.1
+scipy==1.16.3

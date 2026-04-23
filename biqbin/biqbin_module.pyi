@@ -11,6 +11,12 @@ def run(solver_name: str, problem_instance_path: str, maxcut_adj_matrix: npt.NDA
     """Runs the solver, returns a solution dictionary on mpi rank 0"""
     ...
 
+def set_initial_solution(x: np.ndarray):
+    """Set the initial solution
+
+    Args:
+        x (np.ndarray): binary vector as numpy array
+    """
 
 def set_heuristic(heuristic_function: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], float]):
     """Sets the heuristic function in biqbin."""

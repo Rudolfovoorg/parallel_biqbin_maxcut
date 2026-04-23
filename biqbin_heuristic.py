@@ -1,106 +1,63 @@
 import numpy as np
-import sys
-from neal import SimulatedAnnealingSampler
-from biqbin_base import QUBOSolver, goemans_williamson_heuristic, ArgParserDWaveHeuristic, QuboToJson, get_rank
-from data_parsers import QuboFromJson
-import logging
-from copy import deepcopy
-
-
-logger = logging.getLogger(__name__)
+from numpy import typing as npt
+from dwave.samplers import SimulatedAnnealingSampler
+from biqbin import QUBOSolver, get_rank, QuboSolutionToJson, init
+from biqbin.argparsers import ArgParserDWaveHeuristic
+import json
 
 
 class QuboDwaveSampler(QUBOSolver):
-    def __init__(self, problem, params: str, time_limit: int, sampler, **sampler_kwargs):
-        super().__init__(problem, params, time_limit)
+    def __init__(self, problem,
+                 params: str,
+                 time_limit: int,
+                 initial_estimate: np.ndarray | None,
+                 collect_heuristic_data: bool,
+                 sampler, **sampler_kwargs):
+        super().__init__(problem, params, time_limit,
+                         initial_estimate, collect_heuristic_data)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
-        self.heuristic_counter = 0
 
-    def heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray):
+    def heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
         """Heuristc with D-Waves simulated annealing sampler
 
         Args:
-            L0 (np.ndarray): main Problem *SP->L matrix
-            L (np.ndarray): subproblem *PP->L matrix
-            xfixed (np.array): BabNode xfixed variables array
-            sol_X (np.array): Solution.X array in BabNode
-            x (np.array): stores current best solution
+            L (np.ndarray): Subproblem Laplacean matrix
 
         Returns:
-            np.ndarray: solution nodes provided by the heuristc, should be in 0, 1 form (1 node is chosen, 0 it is not chosen)
+            np.ndarray: Solution [0, 1] binary vector of size L.shape[0] - 1
         """
-
-        _x = np.array(
+        x = np.array(
             list(self.sampler.sample_qubo(-L[:-1, :-1],
                  **self.sampler_kwargs).first.sample.values()),
             dtype=np.int32
         )
-
-        _x = np.hstack([_x, [0]])  # simplification for above
-
-        j = 0
-        for i in range(len(x)):
-            if xfixed[i] == 0:
-                x[i] = _x[j]
-                j += 1
-            else:
-                x[i] = sol_X[i]
-
-        sol_value = self.evaluate_solution(L0, x)
-
-        if logger.isEnabledFor(logging.DEBUG):
-            her_value = goemans_williamson_heuristic(
-                L0, L, xfixed, sol_X, deepcopy(x))
-            logger.debug(
-                f'Custom heuristic: {sol_value}, default heuristic: {her_value}')
-
-        return sol_value
-
-    def evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
-        """Calculate the lowerbound value of heuristic solution
-
-        Args:
-            L0 (np.ndarray): main Problem *SP->L matrix
-            sol (np.ndarray): current solution
-
-        Returns:
-            float: value of the solution
-        """
-        sol_val = 0
-        for i in range(len(sol)):
-            for j in range(len(sol)):
-                sol_val += L0[i][j] * sol[i] * sol[j]
-        return sol_val
+        return x
 
 
 if __name__ == '__main__':
-
-    # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
-    logging.basicConfig()
-
+    init()
     parser = ArgParserDWaveHeuristic()
     args = parser.parse_args()
 
-    logging_level = logging.WARNING
-    if args.info:
-        logging_level = logging.INFO
-    if args.debug:
-        logging_level = logging.DEBUG
-    logging.root.setLevel(logging_level)
-
-    reader = QuboFromJson(args.problem_instance, optimize_input=args.optimize)
+    reader = args.format(args.problem_instance, optimize_input=args.optimize)
     problem = reader.read()
+    if get_rank() == 0 and args.solution:
+        with open(args.solution, 'r') as f:
+            initial_solution = np.array(json.load(f)['initial_estimate'])
+    else:
+        initial_solution = None
+
     solver = QuboDwaveSampler(problem=problem,
                               params=args.params,
                               time_limit=args.time,
+                              initial_estimate=initial_solution,
+                              collect_heuristic_data=args.collect_heur_data,
                               sampler=SimulatedAnnealingSampler(),
                               num_reads=10)
 
     solution = solver.compute()
     rank = get_rank()
-    if logger.isEnabledFor(logging.INFO):
-        print(f"{rank=} heuristics ran {solver.heuristic_counter} times")
 
     if rank == 0:
         # Master rank prints the results
@@ -108,7 +65,7 @@ if __name__ == '__main__':
             raise ValueError(f'Solution to problem {problem} not found!')
 
         solution.print_computed_solution(args.verbose)
-        solution_writer = QuboToJson(solution)
+        solution_writer = QuboSolutionToJson(solution)
         if isinstance(args.output, str):
             output_path = args.output
         else:

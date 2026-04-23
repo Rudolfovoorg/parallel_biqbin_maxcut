@@ -67,7 +67,7 @@ export GOTO_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
 # Run the solver
-mpirun python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json
+srun python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json
 ```
 
 The above example runs the QUBO version of the solver on a test instance, for other examples please refer to the [readme file](README.md).

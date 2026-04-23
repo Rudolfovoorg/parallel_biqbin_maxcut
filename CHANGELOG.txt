@@ -35,4 +35,22 @@
 - added tests for bqp version
 - added check for problem size before solving
 - refactored DataGetter class into FromFile and Problem classes, for seperate responsibilities
-- added a Solution and ToFile class for computed solution and saving it to disk 
+- added a Solution and ToFile class for computed solution and saving it to disk
+- added offset to qubos
+- added ability to use a precomputed estimate solution on root
+- data collection on root node for heuristic times and values
+- sdp value, heuristic value and heuristic solution for the root node is now saved along with all the timings
+- some heuristic implementations have been changed to use numpy vectorized functions
+- python requirements split between a minimal requirements.txt and full requirements-dev.txt versions
+- updated tests to check the new data saved into the output file
+- added data parsers MatrixMarket and QPLIB format, added Edge-Weight list format for QUBOs
+- added writing the ProblemQubo to a qplib file in biqbin/utils.py
+- added tests for data parsers and qplib writer with Pytest
+- added doc folder for documentations, split between different .md files, removed most details from README.md
+- changed ToFile.get_output_string to a class method to enable unit testing (there was no reason to have it be a normal method)
+- added tests for ToFile.get_output_string method
+- readded -i, -d to DwaveArgParser as deprecated functions
+- get_rank() checks if MPI_Init was called in wrapper.cpp
+- added init() function to biqbin/__init__.py that initializes MPI
+- added checks to get_rank() and run_py in wrapper.cpp to notify the user if they forgot to initialize mpi
+- various format and small bug fixes

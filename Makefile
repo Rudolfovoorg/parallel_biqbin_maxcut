@@ -32,10 +32,10 @@ INCLUDES += $(PYBIND11_INCLUDES) $(PYTHON_INCLUDE)
 LIB += $(PYTHON_LIB)
 
 # Python module (Pybind11)
-PYMODULE = biqbin.so
+PYMODULE = biqbin_module.so
 PYMOD_OUT = $(WRAPPER_BUILD_DIR)/$(PYMODULE)
 # C only binary
-BIQBIN_BINARY = biqbin
+BIQBIN_BINARY = biqbin_executable
 BINS =  $(C_BUILD_DIR)/$(BIQBIN_BINARY)
 
 # BQP module (Pybind11)
@@ -71,9 +71,9 @@ CPPFLAGS = $(CPPOPTI) -Wall -W -pedantic
 
 # Default rule is to create all binaries #
 all: clean $(BINS) $(PYMOD_OUT) $(BQPMOD_OUT)
-	cp $(PYMOD_OUT) .
+	cp $(PYMOD_OUT) biqbin/
 	cp $(BINS) .
-	cp $(BQPMOD_OUT) .
+	cp $(BQPMOD_OUT) biqbin/
 
 	
 clean-output:
@@ -82,13 +82,14 @@ clean-output:
 	rm -f tests/qubos/*/*.output*
 	rm -f tests/bqp/*.output*
 	rm -f tests/qplib/*.output*
+	rm -f tests/*/*.output*
 
 # Clean rule #
 clean: clean-output
 	rm -rf build/
 	rm -rf $(BIQBIN_BINARY)
-	rm -rf $(PYMODULE)
-	rm -rf $(BQPMODULE)
+	rm -rf biqbin/$(PYMODULE)
+	rm -rf biqbin/$(BQPMODULE)
 
 # Ensure output directories exist
 $(WRAPPER_BUILD_DIR) $(C_BUILD_DIR) $(BQP_BUILD_DIR):
@@ -127,37 +128,59 @@ test-maxcut: clean-output
 	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output params
 
 test-maxcut-python: clean-output
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_60.0.json tests/rudy/g05_60.0-expected_output
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_80.0.json tests/rudy/g05_80.0-expected_output
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 python biqbin_maxcut.py" tests/rudy/g05_100.4.json tests/rudy/g05_100.4-expected_output
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_60.0.json -c > /dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_80.0.json -c > /dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_100.4.json -c > /dev/null
+
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances \
+		tests/rudy/g05_60.0.json \
+		tests/rudy/g05_80.0.json \
+		tests/rudy/g05_100.4.json
 
 test-qubo-python: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json
-	python tests/check_qubo_test.py tests/qubos/40/kcluster40_025_10_1.json
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json
-	python tests/check_qubo_test.py tests/qubos/80/kcluster80_025_20_1.json
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c > /dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c > /dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c > /dev/null
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json tests/qplib/5881.qplib
+
+test-qubo-qplib: clean-output
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --format=qplib -c > /dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster80_025_20_1.qplib --format=qplib -c > /dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c > /dev/null
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/qplib/kcluster40_025_10_1.qplib tests/qplib/kcluster80_025_20_1.qplib tests/qplib/5881.qplib
 
 test-qubo-python-heuristic: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json
-	python tests/check_qubo_test.py tests/qubos/40/kcluster40_025_10_1.json
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json
-	python tests/check_qubo_test.py tests/qubos/80/kcluster80_025_20_1.json
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
+				--output tests/heuristic/kcluster40_025_10_1.json.output.json > /dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
+				--output tests/heuristic/kcluster80_025_20_1.json.output.json > /dev/null
+	
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --without-sol-vector --instances tests/heuristic/kcluster40_025_10_1.json tests/heuristic/kcluster80_025_20_1.json
 
-# test-qubo-qplib: clean-output
-# 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --qplib
-# 	python tests/check_qubo_test.py tests/qplib/kcluster40_025_10_1.qplib
-# 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster80_025_20_1.qplib --qplib
-# 	python tests/check_qubo_test.py tests/qplib/kcluster80_025_20_1.qplib
-# 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/5881.qplib --qplib
-# 	python tests/check_qubo_test.py tests/qplib/5881.qplib
+test-input-solution: clean-output
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py \
+				tests/rudy/g05_60.0.json \
+				--output tests/w_solution/g05_60.0.json.output.json \
+				-s tests/w_solution/g05_60.0.json_initial_solution.json \
+				-c > /dev/null
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py \
+				tests/qubos/40/kcluster40_025_10_1.json \
+				--output tests/w_solution/kcluster40_025_10_1.json.output.json \
+				-s tests/w_solution/kcluster40_025_10_1.json_initial_solution.json \
+				-c > /dev/null
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/w_solution/g05_60.0.json tests/w_solution/kcluster40_025_10_1.json
 
 test-bqp-python: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data
-	python tests/check_bqp_test.py tests/bqp/test_bqp.data
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j
-	python tests/check_bqp_test.py tests/bqp/test_bqp.json
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data > /dev/null 2>&1
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j > /dev/null 2>&1
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json
 
-test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic test-bqp-python
+
+test-parsers:
+	python -m pytest tests/test_data_parsers.py -v --no-header
+
+
+test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers
 
 docker: 
 	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
@@ -169,7 +192,7 @@ docker-clean:
 	docker rmi -f $(IMAGE):$(TAG) 
 
 docker-test:
-	docker run --rm $(IMAGE):$(TAG) make test
+	docker run --rm $(IMAGE):$(TAG) sh -c 'pip install -r requirements-dev.txt && make test'
 
 docker-shell:
 	docker run --interactive --tty --rm --mount type=bind,src=$(shell pwd)/$(DATA_DIR),dst=/data $(IMAGE):$(TAG) /bin/bash

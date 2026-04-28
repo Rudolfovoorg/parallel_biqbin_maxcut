@@ -256,7 +256,7 @@ double* readData(const char *instance, int *adj_N) {
 /// @param Adj Adjacency matrix of the instance
 /// @param num_vertices number of vertices in the graph
 /// @return 0 if success 1 if fail
-int process_adj_matrix(double* Adj, int num_vertices) {
+int process_adj_matrix(const double* Adj, int num_vertices) {
     
     // Check if the problem size is compatible with Biqbin
     if (num_vertices > NMAX) 

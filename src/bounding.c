@@ -21,7 +21,7 @@ extern double *X_test;
 extern double diff;		                     // difference between basic SDP relaxation and bound with added cutting planes
 
 /******** main bounding routine calling bundle method ********/
-double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank) {
+double SDPbound(BabNode *node, const Problem *SP, Problem *PP, int rank) {
 
     int index;                      // helps to store the fractional solution in the node
     double bound;                   // f + fixedvalue

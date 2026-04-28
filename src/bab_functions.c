@@ -96,7 +96,7 @@ int Bab_Init(int argc, char **argv, int rank) {
 /* NOTE: int *sol in functions evaluateSolution and updateSolution have length BabPbSize
  * -> to get objecive multiple with Laplacian that is stored in upper left corner of SP->L
  */
-double evaluateSolution(int *sol) {
+double evaluateSolution(const int *sol) {
 
     double val = 0.0;
     
@@ -387,7 +387,7 @@ void Bab_End(void) {
  *
  * node: the current node of the branch-and-bound search tree
  */
-int getBranchingVariable(BabNode *node) {
+int getBranchingVariable(const BabNode *node) {
 
     int ic = -1;  // x[ic] is the variable to branch on
     double maxValue, minValue;
@@ -425,7 +425,7 @@ int getBranchingVariable(BabNode *node) {
 
 
 /* Count the number of fixed variables */
-int countFixedVariables(BabNode *node) {
+int countFixedVariables(const BabNode *node) {
     
     int numFixedVariables = 0;
 

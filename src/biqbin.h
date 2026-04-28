@@ -130,19 +130,19 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
 void printSolution(FILE *file);
 void printFinalOutput(FILE *file, int num_nodes);
 void Bab_End(void);
-int getBranchingVariable(BabNode *node);
-int countFixedVariables(BabNode *node);
+int getBranchingVariable(const BabNode *node);
+int countFixedVariables(const BabNode *node);
 
 /* bounding.c */
-double SDPbound(BabNode *node, Problem *SP, Problem *PP, int rank);
+double SDPbound(BabNode *node, const Problem *SP, Problem *PP, const int rank);
 
 /* bundle.c */
 double fct_eval(const Problem *PP, double *dual_gamma, double *X, double *g);
-void solve_lambda(int k, double *Q, double *c, double *lambda);
+void solve_lambda(const int k, const double *Q, const double *c, double *lambda);
 void lambda_eta(const Problem *PP, double *zeta, double *G, double *dual_gamma, double *dgamma, double *lambda, double *eta, double *t);
 void bundle_method(Problem *PP, double *t, int bdl_iter);
 
-/* cutting_planec.c */
+/* cutting_planes.c */
 double evaluateTriangleInequality(double *XX, int N, int type, int ii, int jj, int kk);
 double getViolated_TriangleInequalities(double *X, int N, Triangle_Inequality *List, int *ListSize);
 double updateTriangleInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted);
@@ -152,25 +152,24 @@ double getViolated_HeptagonalInequalities(double *X, int N, Heptagonal_Inequalit
 double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int hept_index);
 
 /* evaluate.c */
-double Evaluate(BabNode *node, Problem *SP, Problem *PP, int rank);
-void createSubproblem(BabNode *node, Problem *SP, Problem *PP);
-double getFixedValue(BabNode *node, Problem *SP);
+double Evaluate(BabNode *node, const Problem *SP, Problem *PP, const int rank);
+void createSubproblem(BabNode *node, const Problem *SP, Problem *PP);
+double getFixedValue(const BabNode *node, const Problem *SP);
 
 /* heap.c */
-void Bab_incEvalNodes(void);                         // increment the number of evaluated nodes
-int isPQEmpty(void);                                 // checks if queue is empty
-int Bab_LBUpd(double new_lb, BabSolution *bs);       // checks and updates lower bound if better found, returns 1 if success
-BabNode *newNode(BabNode *parentNode);               // create child node from parent
-BabNode *Bab_PQPop(void);                            // take and remove the node with the highest priority
-void Bab_PQInsert(BabNode *node);                    // insert node into priority queue based on intbound and level
-void Bab_LBInit(double lowerBound, BabSolution *bs); // initialize global lower bound and solution vector
-Heap *Init_Heap(int size);                           // allocates space for heap (array of BabNode*)
+void Bab_incEvalNodes(void);                               // increment the number of evaluated nodes
+int isPQEmpty(void);                                       // checks if queue is empty
+int Bab_LBUpd(double new_lb, const BabSolution *bs);       // checks and updates lower bound if better found, returns 1 if success
+BabNode *newNode(const BabNode *parentNode);               // create child node from parent
+BabNode *Bab_PQPop(void);                                  // take and remove the node with the highest priority
+void Bab_PQInsert(BabNode *node);                          // insert node into priority queue based on intbound and level
+void Bab_LBInit(double lowerBound, const BabSolution *bs); // initialize global lower bound and solution vector
+Heap *Init_Heap(const int size);                           // allocates space for heap (array of BabNode*)
 
 /* heuristic.c */
-double runHeuristic(Problem *P0, Problem *P, BabNode *node, int *x);
-double GW_heuristic(double *P0_L, int P0_N , double *P_L, int P_N, int *node_xfixed, int *node_sol_X, int *x, int num); // RK
-// RK double mc_1opt(int *x, Problem *P0);
-double mc_1opt(int *x, double *P_L, int P_N);
+double runHeuristic(const Problem *P0, Problem *P, BabNode *node, int *x);
+double GW_heuristic(const double *P0_L, int P0_N, const double *P_L, int P_N, const int *node_xfixed, const int *node_sol_X, int *x, int num);
+double mc_1opt(int *x, const double *P_L, int P_N);
 
 /* operators.c */
 void diag(const double *X, double *y, int n);
@@ -182,7 +181,7 @@ void op_Bt(const Problem *P, double *X, const double *tt);
 void print_symmetric_matrix(double *Mat, int N);
 int processCommandLineArguments(int argc, char **argv, int rank);
 int readParameters(const char *path, int rank);
-
+double *readData(const char *instance, int *adj_N);
 
 /* qap_simuted_annealing.c */
 double qap_simulated_annealing(int *H, int k, double *X, int n, int *pent);

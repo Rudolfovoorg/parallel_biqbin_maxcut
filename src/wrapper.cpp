@@ -56,9 +56,10 @@ int get_rank()
 {
     int initialized;
     MPI_Initialized(&initialized);
-    if (!initialized) {
+    if (!initialized)
+    {
         PyErr_SetString(PyExc_RuntimeError,
-            "MPI is not initialized. Call biqbin.init() before using any solver.");
+                        "MPI is not initialized. Call biqbin.init() before using any solver.");
         return -1;
     }
     return rank;
@@ -148,9 +149,10 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     // Check if MPI was initialized before running
     int initialized;
     MPI_Initialized(&initialized);
-    if (!initialized) {
+    if (!initialized)
+    {
         PyErr_SetString(PyExc_RuntimeError,
-            "MPI is not initialized. Call biqbin.init() before using any solver.");
+                        "MPI is not initialized. Call biqbin.init() before using any solver.");
         return py::dict();
     }
 
@@ -256,7 +258,7 @@ py::array_t<T> wrapped_matrix(T *data, ssize_t rows, ssize_t cols)
 /// @param node current branch and bound node
 /// @param x stores the best solution nodes found the by the heuristic function
 /// @return best lower bound of the current subproblem found by the heuristic used
-double wrapped_heuristic(Problem *P0, Problem *P, BabNode *node, int *x)
+double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x)
 {
     heuristic_counter++;
     // Wrap matrices

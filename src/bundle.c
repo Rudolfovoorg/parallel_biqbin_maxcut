@@ -387,7 +387,7 @@ void lambda_eta(const Problem *PP, double *zeta, double *G, double *dual_gamma, 
  *       s.t. z = c + Q lambda - e y           
  *       lambda >= 0, z >=0 , y free
  */
-void solve_lambda(int k, double *Q, double *c, double *lambda) {
+void solve_lambda(int k, const double *Q, const double *c, double *lambda) {
 
     // BLAS/LAPACK variables
     int inc = 1;

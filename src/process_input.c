@@ -1,45 +1,52 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>   // for numbering of output files
+#include <sys/stat.h> // for numbering of output files
 #include <mpi.h>
 
 #include "biqbin.h"
 #include "wrapper.h"
 
+#ifdef PURE_C
 extern FILE *output;
+#endif
 extern BiqBinParameters params;
-extern Problem *SP;             
-extern Problem *PP;            
+extern Problem *SP;
+extern Problem *PP;
 extern int BabPbSize;
 
 // macro to handle the errors in the input reading
-#define READING_ERROR(file,cond,message)\
-        if ((cond)) {\
-            fprintf(stderr, "\nError: "#message"\n");\
-            fclose(file);\
-            exit(1);\
-        }
+#define READING_ERROR(file, cond, message)          \
+    if ((cond))                                     \
+    {                                               \
+        fprintf(stderr, "\nError: " #message "\n"); \
+        fclose(file);                               \
+        exit(1);                                    \
+    }
 
-
-void print_symmetric_matrix(double *Mat, int N) {
+void print_symmetric_matrix(double *Mat, int N)
+{
 
     double val;
 
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            val = (i >= j) ? Mat[i + j*N] : Mat[j + i*N];
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            val = (i >= j) ? Mat[i + j * N] : Mat[j + i * N];
             printf("%24.16e", val);
         }
         printf("\n");
     }
-}        
+}
 
-int processCommandLineArguments(int argc, char **argv, int rank) {
+int processCommandLineArguments(int argc, char **argv, int rank)
+{
 
     int read_error = 0;
 
-    if (argc != 3) {
+    if (argc != 3)
+    {
         if (rank == 0)
             fprintf(stderr, "Usage: ./biqbin file.rudy file.params\n");
         read_error = 1;
@@ -49,21 +56,24 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
     /***** only master process creates output file and reads the whole graph *****/
 
     // Control the command line arguments
-    if (rank == 0) {
+    if (rank == 0)
+    {
 
-        // Create the output file
+// Create the output file
+#ifdef PURE_C
         char output_path[200];
         sprintf(output_path, "%s.output", argv[1]);
 
         // Check if the file already exists, if so aappend _<NUMBER> to the end of the output file name
         struct stat buffer;
         int counter = 1;
-        
+
         while (stat(output_path, &buffer) == 0)
             sprintf(output_path, "%s.output_%d", argv[1], counter++);
 
         output = fopen(output_path, "w");
-        if (!output) {
+        if (!output)
+        {
             fprintf(stderr, "Error: Cannot create output file.\n");
             read_error = 1;
             MPI_Bcast(&read_error, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -71,36 +81,38 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
         }
 
         // Read the input file instance
-        #ifdef PURE_C
-            double *adj;
-            int adj_N;
-            adj = readData(argv[1], &adj_N);
-            if (!adj) {
-                read_error = 1;
-            }
-            else {
-                read_error = process_adj_matrix(adj, adj_N);
-                free(adj);
-            }
-            #else
-            read_error = wrapped_read_data();
-            #endif
-            
+        double *adj;
+        int adj_N;
+        adj = readData(argv[1], &adj_N);
+        if (!adj)
+        {
+            read_error = 1;
+        }
+        else
+        {
+            read_error = process_adj_matrix(adj, adj_N);
+            free(adj);
+        }
+#else
+        read_error = wrapped_read_data();
+#endif
+
         // bcast first read_error then whole graph
         MPI_Bcast(&read_error, 1, MPI_INT, 0, MPI_COMM_WORLD);
         if (read_error)
             return read_error;
-        else {
+        else
+        {
             MPI_Bcast(&(SP->n), 1, MPI_INT, 0, MPI_COMM_WORLD);
-            MPI_Bcast(SP->L, SP->n * SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
+            MPI_Bcast(SP->L, SP->n * SP->n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
-            
     }
-    else {
+    else
+    {
 
         MPI_Bcast(&read_error, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        if (read_error) 
-            return read_error;    
+        if (read_error)
+            return read_error;
 
         // allocate memory for original problem SP and subproblem PP
         alloc(SP, Problem);
@@ -123,8 +135,8 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
         int incx = 1;
         int incy = 1;
         dcopy_(&N2, SP->L, &incx, PP->L, &incy);
-    }    
-    
+    }
+
     // Read the parameters from a user file
     read_error = readParameters(argv[2], rank);
     if (read_error)
@@ -135,81 +147,83 @@ int processCommandLineArguments(int argc, char **argv, int rank) {
     if (params.adjust_TriIneq)
         params.TriIneq = SP->n * 10;
 
-    #ifndef PURE_C
+#ifndef PURE_C
     // BZ: Putting handling of all parameters on the TODO list
     params.time_limit = get_time_limit();
-    #endif
+#else
 
-    if (rank == 0) {
-            // print parameters to output file
-            fprintf(output, "BiqBin parameters:\n");
-    #define P(type, name, format, def_value)\
+    if (rank == 0)
+    {
+        // print parameters to output file
+        fprintf(output, "BiqBin parameters:\n");
+#define P(type, name, format, def_value) \
     fprintf(output, "%20s = " format "\n", #name, params.name);
-            PARAM_FIELDS
-    #undef P
+        PARAM_FIELDS
+#undef P
     }
-
+#endif
     return read_error;
 }
 
-
-
 /* Read parameters contained in the file given by the argument */
-int readParameters(const char *path, int rank) {
+int readParameters(const char *path, int rank)
+{
 
-    FILE* paramfile;
-    char s[128];            // read line
+    FILE *paramfile;
+    char s[128]; // read line
     char param_name[50];
 
     // Initialize every parameter with its default value
-#define P(type, name, format, def_value)\
+#define P(type, name, format, def_value) \
     params.name = def_value;
     PARAM_FIELDS
 #undef P
 
     // open parameter file
-    if ( (paramfile = fopen(path, "r")) == NULL ) {
+    if ((paramfile = fopen(path, "r")) == NULL)
+    {
         if (rank == 0)
             fprintf(stderr, "Error: parameter file %s not found.\n", path);
         return 1;
     }
-    
-    while (!feof(paramfile)) {
-        if ( fgets(s, 120, paramfile) != NULL ) {
-        
+
+    while (!feof(paramfile))
+    {
+        if (fgets(s, 120, paramfile) != NULL)
+        {
+
             // read parameter name
             sscanf(s, "%[^=^ ]", param_name);
 
-            // read parameter value
-            #define P(type, name, format, def_value)             \
-            if (strcmp(#name, param_name) == 0)              \
-            {                                                \
-                sscanf(s, "%*[^=]= " format, &params.name);   \
-            }
+// read parameter value
+#define P(type, name, format, def_value)            \
+    if (strcmp(#name, param_name) == 0)             \
+    {                                               \
+        sscanf(s, "%*[^=]= " format, &params.name); \
+    }
             PARAM_FIELDS
 #undef P
-
         }
     }
-    fclose(paramfile);   
-   
+    fclose(paramfile);
+
     return 0;
 }
 
-
 /*** read graph file ***/
-double* readData(const char *instance, int *adj_N) {
-
+#ifdef PURE_C
+double *readData(const char *instance, int *adj_N)
+{
     // open input file
     FILE *f = fopen(instance, "r");
-    if (f == NULL) {
+    if (f == NULL)
+    {
         fflush(stdout);
         fprintf(stderr, "Error: problem opening input file %s\n", instance);
         return NULL;
     }
-    printf("Input file: %s\n", instance);	
-    fprintf(output,"Input file: %s\n", instance);
-
+    printf("Input file: %s\n", instance);
+    fprintf(output, "Input file: %s\n", instance);
     int num_vertices;
     int num_edges;
 
@@ -220,48 +234,49 @@ double* readData(const char *instance, int *adj_N) {
     // OUTPUT information on instance
     fprintf(stdout, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
     fprintf(output, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
-
     // read edges and store them in matrix Adj
     // NOTE: last node is fixed to 0
     int i, j;
     double weight;
 
-
-    // Adjacency matrix Adj: allocate and set to 0 
+    // Adjacency matrix Adj: allocate and set to 0
     double *Adj;
     alloc_matrix(Adj, num_vertices, double);
     *adj_N = num_vertices; // RK
 
-    for (int edge = 0; edge < num_edges; ++edge) {
-        
+    for (int edge = 0; edge < num_edges; ++edge)
+    {
+
         READING_ERROR(f, fscanf(f, "%d %d %lf \n", &i, &j, &weight) != 3,
-                      "Problem reading edges of the graph"); 
+                      "Problem reading edges of the graph");
 
         READING_ERROR(f, ((i < 1 || i > num_vertices) || (j < 1 || j > num_vertices)),
-                      "Problem with edge. Vertex not in range");  
-        
-        int int_test = (int) weight;
-        READING_ERROR(f, (double) int_test != weight, "Edge weight value error! All edge weights need to be integers!" );
-        
-        Adj[ num_vertices * (j - 1) + (i - 1) ] = weight;
-        Adj[ num_vertices * (i - 1) + (j - 1) ] = weight;      
-    }   
+                      "Problem with edge. Vertex not in range");
+
+        int int_test = (int)weight;
+        READING_ERROR(f, (double)int_test != weight, "Edge weight value error! All edge weights need to be integers!");
+
+        Adj[num_vertices * (j - 1) + (i - 1)] = weight;
+        Adj[num_vertices * (i - 1) + (j - 1)] = weight;
+    }
 
     fclose(f);
     // RK BabPbSize = num_vertices - 1; // num_vertices - 1;
     return Adj;
 }
+#endif
 
 /// @brief Builds the main Problem L matrix allocates Problem SP and PP global variables
 /// @param Adj Adjacency matrix of the instance
 /// @param num_vertices number of vertices in the graph
 /// @return 0 if success 1 if fail
-int process_adj_matrix(const double* Adj, int num_vertices) {
-    
+int process_adj_matrix(const double *Adj, int num_vertices)
+{
+
     // Check if the problem size is compatible with Biqbin
-    if (num_vertices > NMAX) 
+    if (num_vertices > NMAX)
     {
-        fprintf(stderr,"Number of vertices larger than NMAX in biqbin_cpp_api.h\n");
+        fprintf(stderr, "Number of vertices larger than NMAX in biqbin_cpp_api.h\n");
         abort_alloc_fail(1);
     }
     BabPbSize = num_vertices - 1; // RK // num_vertices - 1;
@@ -276,11 +291,10 @@ int process_adj_matrix(const double* Adj, int num_vertices) {
     alloc_matrix(SP->L, SP->n, double);
     alloc_matrix(PP->L, SP->n, double);
 
-
     // IMPORTANT: last node is fixed to 0
     // --> BabPbSize is one less than the size of problem SP
     PP->n = SP->n;
-    
+
     /********** construct SP->L from Adj **********/
     /*
      * SP->L = [ Laplacian,  Laplacian*e; (Laplacian*e)',  e'*Laplacian*e]
@@ -289,12 +303,14 @@ int process_adj_matrix(const double* Adj, int num_vertices) {
     //       (in function createSubproblem)
     // NOTE: Laplacian is stored in upper left corner of L
 
-    // (1) construct vec Adje = Adj*e 
+    // (1) construct vec Adje = Adj*e
     double *Adje;
     alloc_vector(Adje, num_vertices, double);
 
-    for (int ii = 0; ii < num_vertices; ++ii) {
-        for (int jj = 0; jj < num_vertices; ++jj) {
+    for (int ii = 0; ii < num_vertices; ++ii)
+    {
+        for (int jj = 0; jj < num_vertices; ++jj)
+        {
             Adje[ii] += Adj[jj + ii * num_vertices];
         }
     }
@@ -305,35 +321,41 @@ int process_adj_matrix(const double* Adj, int num_vertices) {
     Diag(tmp, Adje, num_vertices);
 
     // (3) fill upper left corner of L with Laplacian = tmp - Adj,
-    //     vector parts and constant part      
+    //     vector parts and constant part
     double sum_row = 0.0;
     double sum = 0.0;
 
     // NOTE: skip last vertex!!
-    for (int ii = 0; ii < num_vertices; ++ii) {            
-        for (int jj = 0; jj < num_vertices; ++jj) {
+    for (int ii = 0; ii < num_vertices; ++ii)
+    {
+        for (int jj = 0; jj < num_vertices; ++jj)
+        {
 
             // matrix part of L
-            if ( (ii < num_vertices - 1) && (jj < num_vertices - 1) ) {
-                SP->L[jj + ii * num_vertices] = tmp[jj + ii * num_vertices] - Adj[jj + ii * num_vertices]; 
-                sum_row += SP->L[jj + ii * num_vertices];       
+            if ((ii < num_vertices - 1) && (jj < num_vertices - 1))
+            {
+                SP->L[jj + ii * num_vertices] = tmp[jj + ii * num_vertices] - Adj[jj + ii * num_vertices];
+                sum_row += SP->L[jj + ii * num_vertices];
             }
             // vector part of L
-            else if ( (jj == num_vertices - 1) && (ii != num_vertices - 1)  ) {
+            else if ((jj == num_vertices - 1) && (ii != num_vertices - 1))
+            {
                 SP->L[jj + ii * num_vertices] = sum_row;
                 sum += sum_row;
             }
             // vector part of L
-            else if ( (ii == num_vertices - 1) && (jj != num_vertices - 1)  ) {
+            else if ((ii == num_vertices - 1) && (jj != num_vertices - 1))
+            {
                 SP->L[jj + ii * num_vertices] = SP->L[ii + jj * num_vertices];
             }
             // constant term in L
-            else { 
+            else
+            {
                 SP->L[jj + ii * num_vertices] = sum;
             }
         }
         sum_row = 0.0;
-    } 
+    }
 
     int N2 = SP->n * SP->n;
     int incx = 1;
@@ -341,7 +363,7 @@ int process_adj_matrix(const double* Adj, int num_vertices) {
     dcopy_(&N2, SP->L, &incx, PP->L, &incy);
 
     free(Adje);
-    free(tmp);  
+    free(tmp);
 
     return 0;
 }

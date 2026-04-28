@@ -11,29 +11,33 @@ extern double diff;
 
 extern BiqBinParameters params;
 extern double TIME;
+
+#ifdef PURE_C
 extern FILE *output;
+#endif
 
-int rank;
-int num_workers;
-int num_workers_used = 0;
-int time_limit_reached = 0;
+extern int rank;
+extern int num_workers;
+extern int num_workers_used;
+extern int time_limit_reached;
 
-int heuristic_counter;
-int heuristic_sum;
+extern int heuristic_counter;
+extern int heuristic_sum;
 
 // Root data
 extern double root_lower_bound;
 
 int wrapped_main(int argc, char **argv)
 {
-
     /*******************************************************
     *********** BRANCH & BOUND: PARALLEL ALGORITHM ********
     ******************************************************/
     MPI_Status status;
 
     if (rank == 0)
+    {
         printf("Number of cores: %d\n", num_workers);
+    }
 
     /***** user defined MPI struct: for sending and receiving *****/
     // (1) for BabSolution
@@ -257,13 +261,14 @@ FINISH:
         record_time(MPI_Wtime() - TIME);
         // Time limit is checked only in workers during execution, this rechecks in master process
         time_limit_reached = (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit);
-#endif
-        printFinalOutput(stdout, Bab_numEvalNodes());
+#else
         printFinalOutput(output, Bab_numEvalNodes());
         fprintf(output, "Number of cores: %d\n", num_workers);
         fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
-        printf("Maximum number of workers used: %d\n", num_workers_used);
         fclose(output);
+#endif
+        printFinalOutput(stdout, Bab_numEvalNodes());
+        printf("Maximum number of workers used: %d\n", num_workers_used);
     }
 
     /* free memory */

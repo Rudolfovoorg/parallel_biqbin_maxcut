@@ -34,7 +34,7 @@ typedef struct Problem
 } Problem;
 
 /* Maximum number of variables */
-#define NMAX 1024
+#define NMAX 2501
 
 /* Solution of the problem */
 typedef struct BabSolution

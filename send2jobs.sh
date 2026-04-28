@@ -1,0 +1,2 @@
+sbatch --job-name=Ns_2500_instance_6.json --output=Ns_2500_instance_6.json.stdout send_job.sh sidon_instances/2500/Ns_2500_instance_6.json sidon_solutions/2500/Ns_2500_instance_6.json
+sbatch --job-name=Ns_100_instance_1.json --output=Ns_100_instance_1.json.stdout send_job.sh sidon_instances/100/Ns_100_instance_1.json sidon_solutions/100/Ns_100_instance_1.json

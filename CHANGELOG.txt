@@ -54,3 +54,4 @@
 - added init() function to biqbin/__init__.py that initializes MPI
 - added checks to get_rank() and run_py in wrapper.cpp to notify the user if they forgot to initialize mpi
 - various format and small bug fixes
+- added Dockerfile.dev for full testing environment, added make docker-dev command

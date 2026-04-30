@@ -2,6 +2,7 @@
 
 # container image name
 IMAGE ?= parallel-biqbin
+IMAGE_DEV ?= parallel-biqbin-dev
 # container image tag
 TAG ?= 1.0.0
 DOCKER_BUILD_PARAMS ?=
@@ -58,7 +59,7 @@ OBJS =   $(WRAPPER_BUILD_DIR)/bundle.o $(WRAPPER_BUILD_DIR)/allocate_free.o $(WR
          $(WRAPPER_BUILD_DIR)/evaluate.o $(WRAPPER_BUILD_DIR)/heap.o $(WRAPPER_BUILD_DIR)/ipm_mc_pk.o \
          $(WRAPPER_BUILD_DIR)/heuristic.o $(WRAPPER_BUILD_DIR)/main.o $(WRAPPER_BUILD_DIR)/operators.o \
          $(WRAPPER_BUILD_DIR)/process_input.o $(WRAPPER_BUILD_DIR)/qap_simulated_annealing.o \
-		 $(WRAPPER_BUILD_DIR)/wrapper.o
+		 $(WRAPPER_BUILD_DIR)/wrapper_hooks.o $(WRAPPER_BUILD_DIR)/wrapper.o
 
 # All objects
 
@@ -111,7 +112,7 @@ $(WRAPPER_BUILD_DIR)/%.o: src/%.cpp  | $(WRAPPER_BUILD_DIR)
 	$(CPP) $(CPPFLAGS) $(INCLUDES) -c -o $@ $<
 
 # Python module rule
-$(PYMOD_OUT): $(OBJS) build/wrapper/wrapper.o
+$(PYMOD_OUT): $(OBJS)
 	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
 
 # bqp module build
@@ -185,11 +186,16 @@ test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic
 docker: 
 	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
 
+docker-dev:
+	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
+	docker build $(DOCKER_BUILD_PARAMS) -f Dockerfile.dev --build-arg BASE_IMAGE=$(IMAGE):$(TAG) --progress=plain -t $(IMAGE_DEV):$(TAG)  . 
+
 docker-no-cache: 
 	docker build --no-cache $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
 
 docker-clean: 
-	docker rmi -f $(IMAGE):$(TAG) 
+	docker rmi -f $(IMAGE):$(TAG)
+	docker rmi -f $(IMAGE_DEV):$(TAG)
 
 docker-test:
 	docker run --rm $(IMAGE):$(TAG) sh -c 'pip install -r requirements-dev.txt && make test'

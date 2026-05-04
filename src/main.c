@@ -51,7 +51,7 @@ int wrapped_main(int argc, char **argv)
 
     // (2) for BabNode
     MPI_Datatype BabNodetype;
-    MPI_Datatype type2[5] = {MPI_INT, BabSolutiontype, MPI_DOUBLE, MPI_INT, MPI_INT};
+    MPI_Datatype type2[5] = {MPI_INT, BabSolutiontype, MPI_DOUBLE, MPI_INT, MPI_DOUBLE};
     int blocklen2[5] = {NMAX, 1, NMAX, 1, 1};
     MPI_Aint disp2[5];
     disp2[0] = offsetof(BabNode, xfixed);

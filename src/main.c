@@ -26,6 +26,7 @@ extern int heuristic_sum;
 
 // Root data
 extern double root_lower_bound;
+extern double root_upper_bound;
 
 int wrapped_main(int argc, char **argv)
 {
@@ -104,7 +105,7 @@ int wrapped_main(int argc, char **argv)
         if (params.use_diff)
             MPI_Bcast(&diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-        // broadcast lower bound to others or -1 to exit
+        // broadcast lower and upper bound of root to others or -1 to exit
         MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         if ((over == -1) || params.root)
@@ -115,6 +116,8 @@ int wrapped_main(int argc, char **argv)
         {
             g_lowerBound = Bab_LBGet();
             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            printf("broadcasting %f\n", root_upper_bound);
+            MPI_Bcast(&root_upper_bound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
 
         // array of busy workers: 0 = free, 1 = busy
@@ -198,9 +201,14 @@ int wrapped_main(int argc, char **argv)
 
         // receive lower bound
         if (over == -1 || params.root) // root node is pruned
+        {
             goto FINISH;
+        }
         else
+        {
             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            MPI_Bcast(&root_upper_bound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        }
 
         // update lower bound
         BabSolution solx;

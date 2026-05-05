@@ -273,30 +273,25 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
      * then we must branch since there could be a better feasible
      * solution in this subproblem
      */
-    if (Bab_LBGet() + 1.0 < node->upper_bound)
+    if (Bab_LBGet() + 1.0 < fmin(root_upper_bound, node->upper_bound) && node->level < BabPbSize)
     {
-
         /***** branch *****/
-
         // Determine the variable x[ic] to branch on
         int ic = getBranchingVariable(node);
-        if (ic < 0 || ic >= BabPbSize)
+
+        BabNode *child_node;
+
+        for (int xic = 0; xic <= 1; ++xic)
         {
+            // Create a new child node from the parent node
+            child_node = newNode(node);
 
-            BabNode *child_node;
+            // split on node ic
+            child_node->xfixed[ic] = 1;
+            child_node->sol.X[ic] = xic;
 
-            for (int xic = 0; xic <= 1; ++xic)
-            {
-                // Create a new child node from the parent node
-                child_node = newNode(node);
-
-                // split on node ic
-                child_node->xfixed[ic] = 1;
-                child_node->sol.X[ic] = xic;
-
-                /* insert node into the priority queue */
-                Bab_PQInsert(child_node);
-            }
+            /* insert node into the priority queue */
+            Bab_PQInsert(child_node);
         }
 
         // free parent node

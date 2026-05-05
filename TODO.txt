@@ -12,3 +12,4 @@
 - remove '.output' file created by C from the Python version
 - check what in utils is actually useful or needed
 - create DockerFile-dev with full testing environment
+- check if custom sdp-bound is valid (upper - lower >= 0)

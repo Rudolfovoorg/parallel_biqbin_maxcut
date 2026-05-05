@@ -124,7 +124,6 @@ void freeMemory(void);
 void initializeBabSolution(void);
 int Init_PQ(void);
 int Bab_Init(int argc, char **argv, int rank);
-int updateSolution(int *x);
 void master_Bab_Main(Message message, int source, int *busyWorkers, int num_workers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype);
 void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank);
 void printSolution(FILE *file);
@@ -132,9 +131,6 @@ void printFinalOutput(FILE *file, int num_nodes);
 void Bab_End(void);
 int getBranchingVariable(const BabNode *node);
 int countFixedVariables(const BabNode *node);
-
-/* bounding.c */
-double SDPbound(BabNode *node, const Problem *SP, Problem *PP, const int rank);
 
 /* bundle.c */
 double fct_eval(const Problem *PP, double *dual_gamma, double *X, double *g);
@@ -153,7 +149,7 @@ double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
 
 /* evaluate.c */
 double Evaluate(BabNode *node, const Problem *SP, Problem *PP, const int rank);
-void createSubproblem(BabNode *node, const Problem *SP, Problem *PP);
+void createSubproblem(const BabNode *node, const Problem *SP, Problem *PP);
 double getFixedValue(const BabNode *node, const Problem *SP);
 
 /* heap.c */

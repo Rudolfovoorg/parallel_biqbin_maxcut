@@ -79,3 +79,36 @@ py::array_t<T> get_numpy_array_from_vec(const std::vector<T> &vec)
 {
     return py::array_t<T>(vec.size(), vec.data());
 }
+
+extern int BabPbSize;
+namespace detail
+{
+    // --- BabSolution ---
+    inline py::array_t<int> babsolution_get_X(BabSolution &self)
+    {
+        return wrapped_array(self.X, BabPbSize, false);
+    }
+
+    // --- BabNode ---
+    inline py::array_t<int> babnode_get_xfixed(BabNode &self)
+    {
+        return wrapped_array(self.xfixed, BabPbSize, false);
+    }
+
+    inline py::array_t<double> babnode_get_fracsol(BabNode &self)
+    {
+        return wrapped_array(self.fracsol, BabPbSize, true);
+    }
+
+    inline BabSolution &babnode_get_sol(BabNode &self)
+    {
+        return self.sol;
+    }
+
+    // --- Problem ---
+    inline py::array_t<double> problem_get_L(Problem &self)
+    {
+        return wrapped_matrix(self.L, self.n, self.n, false);
+    }
+
+} // namespace detail

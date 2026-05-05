@@ -5,8 +5,11 @@ import numpy as np
 import logging
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_root_data_collector
-from biqbin.biqbin_module import (
-    run, set_heuristic, goemans_williamson_heuristic, get_rank)
+from biqbin.biqbin_module import (run,
+                                  update_mc_lower_bound_solution,
+                                  set_heuristic, goemans_williamson_heuristic,
+                                  set_node_evaluation, sdp_bound,
+                                  get_rank)
 
 # Initialize MPI at start
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
@@ -280,7 +283,7 @@ class MaxCutSolver(PrettyPrint):
         # Heuristic data collection
         self.collect_heuristic_root_data: bool = collect_heuristic_data
         self.heuristic_root_data = []
-
+        set_node_evaluation(sdp_bound)
         set_heuristic(self._call_heuristic)
 
     @property
@@ -304,6 +307,7 @@ class MaxCutSolver(PrettyPrint):
         x[xfixed == 0] = heur_sol
 
         heur_value = self._evaluate_solution(L0, x)
+        solution_updated = update_mc_lower_bound_solution(x)
 
         if logger.isEnabledFor(logging.DEBUG):
             default_gw_value = goemans_williamson_heuristic(
@@ -363,6 +367,7 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             float: value of the solution
         """
+        self._check_solution_validity(sol, self.problem.maxcut_adjacency_matrix.shape[0] - 1)
         sol_val = sol @ L0[:-1, :-1] @ sol
 
         return float(sol_val)

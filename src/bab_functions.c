@@ -5,12 +5,12 @@
 #include <mpi.h>
 
 #include "biqbin.h"
-  
-  /* defined in heap.c */  
-extern Heap *heap;  
-extern int BabPbSize;           
+
+/* defined in heap.c */
+extern Heap *heap;
+extern int BabPbSize;
 extern BabSolution *BabSol;
-   
+
 extern BiqBinParameters params;
 extern Problem *SP;
 extern Problem *PP;
@@ -22,24 +22,25 @@ extern int num_workers_used;
 extern double root_upper_bound;
 extern double root_eval_time;
 
-
 /* initialize global lower bound to 0 and global solution vector to zero */
-void initializeBabSolution() { 
+void initializeBabSolution()
+{
 
     BabSolution bs;
 
     // #ifdef PURE_C
-    for (int i = 0; i < BabPbSize; ++i) {
+    for (int i = 0; i < BabPbSize; ++i)
+    {
         bs.X[i] = 0;
     }
 
     Bab_LBInit(0, &bs);
 }
 
-
 /************** Initialization: root node and priority queue **************/
-int Init_PQ(void) {
-    
+int Init_PQ(void)
+{
+
     int over = 0;
     extern BabNode *BabRoot;
 
@@ -49,7 +50,7 @@ int Init_PQ(void) {
     // increase number of evaluated nodes
     Bab_incEvalNodes();
     double t0 = MPI_Wtime();
-    // Evaluate root node: compute upper and lower bound 
+    // Evaluate root node: compute upper and lower bound
     root_upper_bound = Evaluate(BabRoot, SP, PP, 0);
     root_eval_time = MPI_Wtime() - t0;
     printf("Root node bound: %.2f\n", root_upper_bound);
@@ -59,10 +60,12 @@ int Init_PQ(void) {
 
     /* insert node into the priority queue or prune */
     // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
-    if (Bab_LBGet() + 1.0 < BabRoot->upper_bound) {    
-        Bab_PQInsert(BabRoot); 
+    if (Bab_LBGet() + 1.0 < BabRoot->upper_bound)
+    {
+        Bab_PQInsert(BabRoot);
     }
-    else {
+    else
+    {
         // otherwise, intbound <= BabLB, so we can prune
         over = -1;
         free(BabRoot);
@@ -71,14 +74,14 @@ int Init_PQ(void) {
     return over;
 }
 
-
 /* Bab function which initializes the problem and allocates the structures */
-int Bab_Init(int argc, char **argv, int rank) {
+int Bab_Init(int argc, char **argv, int rank)
+{
 
     int read_error = 0;
 
     // Process the command line arguments
-    if ( (read_error = processCommandLineArguments(argc, argv, rank)) )
+    if ((read_error = processCommandLineArguments(argc, argv, rank)))
         return read_error;
 
     // Seed the random number generator
@@ -96,12 +99,15 @@ int Bab_Init(int argc, char **argv, int rank) {
 /* NOTE: int *sol in functions evaluateSolution and updateSolution have length BabPbSize
  * -> to get objecive multiple with Laplacian that is stored in upper left corner of SP->L
  */
-double evaluateSolution(const int *sol) {
+double evaluateSolution(const int *sol)
+{
 
     double val = 0.0;
-    
-    for (int i = 0; i < BabPbSize; ++i) {
-        for (int j = 0; j < BabPbSize; ++j) {
+
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        for (int j = 0; j < BabPbSize; ++j)
+        {
             val += SP->L[j + i * SP->n] * sol[i] * sol[j];
         }
     }
@@ -109,122 +115,128 @@ double evaluateSolution(const int *sol) {
     return val;
 }
 
-
 /*
  * Only this function can update best solution and value.
  * Returns 1 if success.
  */
-int updateSolution(int *x) {
-    
+int updateSolution(const int *x)
+{
+
     int solutionAdded = 0;
     double sol_value;
     BabSolution solx;
 
     // Copy x into solx --> because Bab_LBUpd needs BabSolution and not int*
-    for (int i = 0; i < BabPbSize; ++i) {
-      solx.X[i] = x[i];
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        solx.X[i] = x[i];
     }
 
     sol_value = evaluateSolution(x); // computes objective value of solx
 
-    /* If new solution is better than the global solution, 
+    /* If new solution is better than the global solution,
      * then update and print the new solution. */
-    if (Bab_LBUpd(sol_value, &solx)) {
+    if (Bab_LBUpd(sol_value, &solx))
+    {
         solutionAdded = 1;
     }
-    
+
     return solutionAdded;
 }
 
-
 /* MASTER process main routine */
-void master_Bab_Main(Message message, int source, int *busyWorkers, int num_workers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype) {
+void master_Bab_Main(Message message, int source, int *busyWorkers, int num_workers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype)
+{
 
     // If the algorithm stops before finding the optimal solution
-    if (!stopped && (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit) ) {
-        
+    if (!stopped && (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit))
+    {
+
         // signal to printFinalOutput that algorihtm stopped early
-        stopped = 1;        
+        stopped = 1;
     }
 
     MPI_Status status;
 
-    switch(message) {
+    switch (message)
+    {
 
-        case IDLE:
+    case IDLE:
 
-            busyWorkers[source] = 0;
-            ++(*numbFreeWorkers);
-            break;  
+        busyWorkers[source] = 0;
+        ++(*numbFreeWorkers);
+        break;
 
-        case NEW_VALUE:
+    case NEW_VALUE:
+    {
+
+        // receive best lower bound and corresponding feasible solution
+        double g_lowerBound;
+        BabSolution solx;
+
+        MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD, &status);
+        MPI_Recv(&solx, 1, BabSolutiontype, source, SOLUTION, MPI_COMM_WORLD, &status);
+
+        if (Bab_LBUpd(g_lowerBound, &solx))
         {
-        
-            // receive best lower bound and corresponding feasible solution
-            double g_lowerBound;
-            BabSolution solx;
-            
-            MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD, &status);
-            MPI_Recv(&solx, 1, BabSolutiontype, source, SOLUTION, MPI_COMM_WORLD, &status);  
-
-            if ( Bab_LBUpd(g_lowerBound, &solx) ){
-                printf("Feasible solution %.0lf\n", Bab_LBGet());
-            }
-            
-            // send update information back to worker
-            g_lowerBound = Bab_LBGet();
-
-            MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD);
-            break;       
+            printf("Feasible solution %.0lf\n", Bab_LBGet());
         }
-        case SEND_FREEWORKERS:
-        {            
-            // get number of requested workers            
-            int workers_request;                
-            MPI_Recv(&workers_request, 1, MPI_INT, source, FREEWORKER, MPI_COMM_WORLD, &status);
-                        
-            // compute number of freeworkers
-            int num_workers_available = (workers_request < *numbFreeWorkers) ? workers_request : *numbFreeWorkers;
-            int available_workers[num_workers_available];
 
-            for(int i = 1, j = 0; (i < num_workers) && (j < num_workers_available); ++i)    // master has rank 0 and is not considered
-            {
-                if(busyWorkers[i] == 0){ // is free
-                    available_workers[j] = i;
-                    ++j;
-                    busyWorkers[i] = 1; // set to busy
-                    --(*numbFreeWorkers);
-                }
-            }
-    
+        // send update information back to worker
+        g_lowerBound = Bab_LBGet();
 
-            // worker branched subproblem in local queue --> add 2 bab nodes
-            Bab_incEvalNodes();
-            Bab_incEvalNodes(); 
-
-	        // count current number of busy workers
-	        int current_busy = 0;
-
-	        for (int i = 1; i < num_workers; ++i) {
-		       if (busyWorkers[i] == 1)
-		       ++current_busy;
-	        } 
-	
-	        num_workers_used = (current_busy > num_workers_used) ? current_busy : num_workers_used;
-
-	        // send message back
-            double g_lowerBound = Bab_LBGet();            
-            MPI_Send(&num_workers_available, 1, MPI_INT, source, NUM_FREE_WORKERS, MPI_COMM_WORLD);              
-            MPI_Send(available_workers, num_workers_available, MPI_INT, source, FREEWORKER, MPI_COMM_WORLD);
-            MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD);     
-            break;
-        }
+        MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD);
+        break;
     }
-    
+    case SEND_FREEWORKERS:
+    {
+        // get number of requested workers
+        int workers_request;
+        MPI_Recv(&workers_request, 1, MPI_INT, source, FREEWORKER, MPI_COMM_WORLD, &status);
+
+        // compute number of freeworkers
+        int num_workers_available = (workers_request < *numbFreeWorkers) ? workers_request : *numbFreeWorkers;
+        int available_workers[num_workers_available];
+
+        for (int i = 1, j = 0; (i < num_workers) && (j < num_workers_available); ++i) // master has rank 0 and is not considered
+        {
+            if (busyWorkers[i] == 0)
+            { // is free
+                available_workers[j] = i;
+                ++j;
+                busyWorkers[i] = 1; // set to busy
+                --(*numbFreeWorkers);
+            }
+        }
+
+        // worker branched subproblem in local queue --> add 2 bab nodes
+        Bab_incEvalNodes();
+        Bab_incEvalNodes();
+
+        // count current number of busy workers
+        int current_busy = 0;
+
+        for (int i = 1; i < num_workers; ++i)
+        {
+            if (busyWorkers[i] == 1)
+                ++current_busy;
+        }
+
+        num_workers_used = (current_busy > num_workers_used) ? current_busy : num_workers_used;
+
+        // send message back
+        double g_lowerBound = Bab_LBGet();
+        MPI_Send(&num_workers_available, 1, MPI_INT, source, NUM_FREE_WORKERS, MPI_COMM_WORLD);
+        MPI_Send(available_workers, num_workers_available, MPI_INT, source, FREEWORKER, MPI_COMM_WORLD);
+        MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, source, LOWER_BOUND, MPI_COMM_WORLD);
+        break;
+    }
+    }
 }
 
 /* WORKER process main routine */
-void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank) {
+void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank)
+{
 
     Message message;
     MPI_Status status;
@@ -240,7 +252,8 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
     node->upper_bound = Evaluate(node, SP, PP, rank);
 
     // check if better lower bound found --> update info with master
-    if (Bab_LBGet() > g_lowerBound){
+    if (Bab_LBGet() > g_lowerBound)
+    {
 
         message = NEW_VALUE;
         g_lowerBound = Bab_LBGet();
@@ -248,7 +261,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
         MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
         MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD);
         MPI_Send(BabSol, 1, BabSolutiontype, 0, SOLUTION, MPI_COMM_WORLD);
-        
+
         MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
 
         // update
@@ -256,35 +269,38 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
         Bab_LBUpd(g_lowerBound, &solx);
     }
 
-
-    /* if BabLB + 1.0 < child_node->upper_bound, 
-     * then we must branch since there could be a better feasible 
+    /* if BabLB + 1.0 < child_node->upper_bound,
+     * then we must branch since there could be a better feasible
      * solution in this subproblem
      */
-    if (Bab_LBGet() + 1.0 < node->upper_bound) {
+    if (Bab_LBGet() + 1.0 < node->upper_bound)
+    {
 
         /***** branch *****/
 
         // Determine the variable x[ic] to branch on
         int ic = getBranchingVariable(node);
+        if (ic < 0 || ic >= BabPbSize)
+        {
 
-        BabNode *child_node; 
-        
-        for (int xic = 0; xic <= 1; ++xic) { 
+            BabNode *child_node;
 
-            // Create a new child node from the parent node
-            child_node = newNode(node);
+            for (int xic = 0; xic <= 1; ++xic)
+            {
+                // Create a new child node from the parent node
+                child_node = newNode(node);
 
-            // split on node ic
-            child_node->xfixed[ic] = 1;
-            child_node->sol.X[ic] = xic;
+                // split on node ic
+                child_node->xfixed[ic] = 1;
+                child_node->sol.X[ic] = xic;
 
-            /* insert node into the priority queue */
-            Bab_PQInsert(child_node);
+                /* insert node into the priority queue */
+                Bab_PQInsert(child_node);
+            }
         }
 
         // free parent node
-        free(node); 
+        free(node);
 
         /************ distribute subproblems ************/
 
@@ -296,23 +312,25 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
 
         // check if other subproblems can be send to free workers --> ask master
         message = SEND_FREEWORKERS;
-        
+
         MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
         MPI_Send(&workers_request, 1, MPI_INT, 0, FREEWORKER, MPI_COMM_WORLD);
-        
+
         MPI_Recv(&num_free_workers, 1, MPI_INT, 0, NUM_FREE_WORKERS, MPI_COMM_WORLD, &status);
-        
+
         int free_workers[num_free_workers];
-        
+
         MPI_Recv(free_workers, num_free_workers, MPI_INT, 0, FREEWORKER, MPI_COMM_WORLD, &status);
         MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
 
         Bab_LBUpd(g_lowerBound, &solx);
 
         // send subproblems to free workers
-        if ( num_free_workers != 0 ) {// free workers found
-      
-            for (int i = 0; i < num_free_workers; ++i){
+        if (num_free_workers != 0)
+        { // free workers found
+
+            for (int i = 0; i < num_free_workers; ++i)
+            {
 
                 // get next subproblem from queue and send it
                 node = Bab_PQPop();
@@ -323,49 +341,50 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
                 MPI_Send(node, 1, BabNodetype, free_workers[i], PROBLEM, MPI_COMM_WORLD);
 
                 free(node);
-            }    
-        }                            
-
+            }
+        }
     }
-    else {
+    else
+    {
         // otherwise, intbound <= BabLB, so we can prune
         free(node);
     }
-
-}  
-
-
-
+}
 
 /* print solution 0-1 vector */
-void printSolution(FILE *file) {
+void printSolution(FILE *file)
+{
 
     fprintf(file, "Solution = ( ");
-    for (int i = 0; i < BabPbSize; ++i) {
-        if (BabSol->X[i] == 1) {
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        if (BabSol->X[i] == 1)
+        {
             fprintf(file, "%d ", i + 1);
         }
     }
     fprintf(file, ")\n");
 }
 
-
 /* print final output */
-void printFinalOutput(FILE *file, int num_nodes) {
+void printFinalOutput(FILE *file, int num_nodes)
+{
 
     // Best solution found
     double best_sol = Bab_LBGet();
 
     fprintf(file, "\nNodes = %d\n", num_nodes);
-    
+
     // normal termination
-    if (!stopped) {
+    if (!stopped)
+    {
         fprintf(file, "Root node bound = %.2lf\n", root_upper_bound);
         fprintf(file, "Maximum value = %.0lf\n", best_sol);
-        
-    } else { // B&B stopped early
+    }
+    else
+    { // B&B stopped early
         fprintf(file, "TIME LIMIT REACHED.\n");
-        fprintf(file, "Root node bound = %.2lf\n", root_upper_bound); 
+        fprintf(file, "Root node bound = %.2lf\n", root_upper_bound);
         fprintf(file, "Best value = %.0lf\n", best_sol);
     }
 
@@ -373,13 +392,12 @@ void printFinalOutput(FILE *file, int num_nodes) {
     fprintf(file, "Time = %.2f s\n\n", MPI_Wtime() - TIME);
 }
 
-
 /* Bab function called at the end of the execution.
  * This function frees the memory allocated by the program. */
-void Bab_End(void) {
-    freeMemory();   
+void Bab_End(void)
+{
+    freeMemory();
 }
-
 
 /*
  * getBranchingVariable function used in the Bab_GenChild routine to determine
@@ -387,50 +405,60 @@ void Bab_End(void) {
  *
  * node: the current node of the branch-and-bound search tree
  */
-int getBranchingVariable(const BabNode *node) {
+int getBranchingVariable(const BabNode *node)
+{
 
-    int ic = -1;  // x[ic] is the variable to branch on
+    int ic = -1; // x[ic] is the variable to branch on
     double maxValue, minValue;
 
-    /* 
+    /*
      * Choose the branching variable x[ic] based on params.branchingStrategy
      */
-    if (params.branchingStrategy == LEAST_FRACTIONAL) {
+    if (params.branchingStrategy == LEAST_FRACTIONAL)
+    {
         // Branch on the variable x[ic] that has the least fractional value
         maxValue = -BIG_NUMBER;
-        for (int i = 0; i < BabPbSize; ++i) {
-            if (!(node->xfixed[i]) && fabs(0.5 - node->fracsol[i]) > maxValue) {
+        for (int i = 0; i < BabPbSize; ++i)
+        {
+            if (!(node->xfixed[i]) && fabs(0.5 - node->fracsol[i]) > maxValue)
+            {
                 ic = i;
                 maxValue = fabs(0.5 - node->fracsol[ic]);
             }
         }
     }
-    else if (params.branchingStrategy == MOST_FRACTIONAL) {
+    else if (params.branchingStrategy == MOST_FRACTIONAL)
+    {
         // Branch on the variable x[ic] that has the most fractional value
         minValue = BIG_NUMBER;
-        for (int i = 0; i < BabPbSize; ++i) {
-            if (!(node->xfixed[i]) && fabs(0.5 - node->fracsol[i]) < minValue) {
+        for (int i = 0; i < BabPbSize; ++i)
+        {
+            if (!(node->xfixed[i]) && fabs(0.5 - node->fracsol[i]) < minValue)
+            {
                 ic = i;
                 minValue = fabs(0.5 - node->fracsol[ic]);
             }
         }
     }
-    else {
+    else
+    {
         fprintf(stderr, "Error: Wrong value for params.branchingStrategy\n");
-        MPI_Abort(MPI_COMM_WORLD,10);
+        MPI_Abort(MPI_COMM_WORLD, 10);
     }
 
     return ic;
 }
 
-
 /* Count the number of fixed variables */
-int countFixedVariables(const BabNode *node) {
-    
+int countFixedVariables(const BabNode *node)
+{
+
     int numFixedVariables = 0;
 
-    for (int i = 0; i < BabPbSize; ++i) {
-        if (node->xfixed[i]) {
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        if (node->xfixed[i])
+        {
             ++numFixedVariables;
         }
     }

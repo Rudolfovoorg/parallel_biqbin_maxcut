@@ -106,7 +106,6 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP, int rank)
     }
 
     runHeuristic(SP, PP, node, x);
-    updateSolution(x);
 
     // upper bound
     bound = f + fixedvalue;
@@ -208,7 +207,6 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP, int rank)
             }
 
             runHeuristic(SP, PP, node, x);
-            updateSolution(x);
 
             prune = (bound < Bab_LBGet() + 1.0) ? 1 : 0;
         }

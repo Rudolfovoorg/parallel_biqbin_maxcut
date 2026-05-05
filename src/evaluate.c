@@ -1,4 +1,5 @@
 #include "biqbin.h"
+#include "wrapper_hooks.h"
 
 extern BiqBinParameters params;
 extern int BabPbSize;
@@ -14,33 +15,30 @@ double Evaluate(BabNode *node, const Problem *SP, Problem *PP, int rank)
     createSubproblem(node, SP, PP);
 
     // compute the SDP upper bound and run heuristic
-    double bound = SDPbound(node, SP, PP, rank);
-
+    double bound;
+#ifdef PURE_C
+    bound = SDPbound(node, SP, PP, rank);
+#else
+    bound = wrapped_sdp_bound(node, SP, PP, rank);
+#endif
     return bound;
 }
 
-/*
- * Writes subproblem to PP.
+/**
+ * @brief Construct a subproblem (PP) from the original problem (SP) at a given B&B node.
  *
- * Computes the subproblem removing the rows and the columns of the
- * fixed variables upper left corner of SP->L
+ * Removes rows and columns of variables fixed at the current node (assumed to occupy
+ * the upper-left block of SP->L), producing a reduced objective matrix PP->L.
+ * The resulting subproblem is formulated for variables in {-1, 1}:
  *
- * SP is
- * PP
+ *      max x' L x,  s.t. x ∈ {-1,1}^(PP->n)
  *
- * PP is made from SP
- * Function prepares objective matrix L for model in -1,1 variables:
- *
- * max x'LX, s.t. x in {-1,1}^(PP->n)
+ * @param node Current branch-and-bound node defining fixed variables
+ * @param SP   Original problem
+ * @param PP   Output subproblem with reduced dimension and updated matrix
  */
-
-/// @brief Writes subproblem to PP. Computes the subproblem removing the rows and the columns of the fixed variables upper left corner of SP->L
-/// @param node current branch & bound node
-/// @param SP the original problem
-/// @param PP the subproblem (some variables are fixed)
-void createSubproblem(BabNode *node, const Problem *SP, Problem *PP)
+void createSubproblem(const BabNode *node, const Problem *SP, Problem *PP)
 {
-
     // Subproblem size is the number of non-fixed variables in the node
     PP->n = BabPbSize + 1 - countFixedVariables(node);
 

@@ -3,7 +3,7 @@
 #include <math.h>
 
 #include "biqbin.h"
-#include "wrapper.h"
+#include "wrapper_hooks.h"
 
 extern double *X;
 extern double *Z; // stores Cholesky decomposition: X = ZZ^T
@@ -11,7 +11,9 @@ extern double *Z; // stores Cholesky decomposition: X = ZZ^T
 double runHeuristic(const Problem *P0, Problem *P, BabNode *node, int *x)
 {
 #ifdef PURE_C
-    return runHeuristic_unpacked(P0->L, P0->n, P->L, P->n, node->xfixed, node->sol.X, x);
+    double heur_obj_value = runHeuristic_unpacked(P0->L, P0->n, P->L, P->n, node->xfixed, node->sol.X, x);
+    updateSolution(x);
+    return heur_obj_value;
 #else
     return wrapped_heuristic(P0, P, node, x);
 #endif

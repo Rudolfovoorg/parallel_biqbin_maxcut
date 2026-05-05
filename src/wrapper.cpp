@@ -11,6 +11,7 @@
 
 #include "wrapper.h"
 #include "wrapper_utils.h"
+#include "wrapper_hooks.h"
 
 namespace py = pybind11;
 
@@ -39,25 +40,12 @@ std::vector<int> root_sol_x;
 extern int rank;
 extern int num_workers;
 
-double running_time;
-int time_limit;
-
-// Python override functions
-py::object python_heuristic_override;
+static double running_time;
+static int time_limit;
 
 // Python received problem, memory is owned by Python
-double *adj_matrix;
-int adj_matrix_size;
-
-/// @brief set heuristic function from python
-/// @param func
-void set_heuristic_override(py::object func) { python_heuristic_override = func; }
-
-/// @brief RAII guard for the python_heuristic_override function, cleans up Python references after the solver is run.
-struct HeuristicGuard
-{
-    ~HeuristicGuard() { python_heuristic_override = py::object(); }
-};
+static double *adj_matrix;
+static int adj_matrix_size;
 
 int get_rank()
 {
@@ -81,7 +69,7 @@ int get_time_limit() { return time_limit; }
 py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, char *params_file_name, int time_limit_in)
 {
     // heuristic guard to clean Python references on exit
-    HeuristicGuard heuristic_guard;
+    PythonReferencesGuard heuristic_guard;
 
     // Check if MPI was initialized before running
     int initialized;
@@ -166,34 +154,17 @@ double run_heuristic_python(
     return runHeuristic_unpacked(P0_L, P0_L_array.shape(0), P_L, P_L_array.shape(0), xfixed, node_sol_X, x);
 }
 
-/// @brief Called in runHeuristic in heuristic.c
-/// @param P0 is the original Problem *SP in global_var.h
-/// @param P  current subproblem Problem *PP in global_var.h
-/// @param node current branch and bound node
-/// @param x stores the best solution nodes found the by the heuristic function
-/// @return best lower bound of the current subproblem found by the heuristic used
-double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x)
-{
-    heuristic_counter++;
-    // Wrap matrices
-    py::array_t<double> P0_L_array = wrapped_matrix(P0->L, P0->n, P0->n, false);
-    py::array_t<double> P_L_array = wrapped_matrix(P->L, P->n, P->n, false);
-
-    // Wrap vectors
-    py::array_t<int> xfixed_array = wrapped_array(node->xfixed, P0->n - 1, false);
-    py::array_t<int> sol_X_array = wrapped_array(node->sol.X, P0->n - 1, false);
-    py::array_t<int> x_array = wrapped_array(x, BabPbSize, true);
-
-    // Call Python override
-    return python_heuristic_override(
-               P0_L_array, P_L_array, xfixed_array, sol_X_array, x_array)
-        .cast<double>();
-}
-
 /// @brief Get an adjacency matrix from Python and set Problem *SP->L and *PP global variables
 int wrapped_read_data()
 {
     return process_adj_matrix(adj_matrix, adj_matrix_size);
+}
+
+bool update_solution_python(const py::array_t<int> potential_solution)
+{
+    check_np_array_validity(potential_solution, 1, true, "new solution x");
+    int is_updated = updateSolution(potential_solution.data());
+    return is_updated != 0;
 }
 
 /// @brief Copy the solution before memory is freed, so it can be retrieved in Python
@@ -240,5 +211,30 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
     m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");
     m.def("run", &run_py, "Run the solver");
     m.def("goemans_williamson_heuristic", &run_heuristic_python, "Default C-implemented GW heuristic");
+    m.def("update_mc_lower_bound_solution", &update_solution_python, "updates the MaxCut lower-bound solution if it is better than the current one");
     m.def("get_rank", &get_rank, "Get the mpi rank");
+
+    m.def("set_node_evaluation", &set_node_evaluation_override, "Override the SDP bound function");
+    m.def("sdp_bound", &SDPbound, "Default C-implemented SDPbound");
+
+    py::class_<BabSolution>(m, "BabSolution")
+        .def(py::init<>())
+        .def_property_readonly("X", &detail::babsolution_get_X);
+
+    py::class_<BabNode>(m, "BabNode")
+        .def(py::init<>())
+        .def_property_readonly("xfixed", &detail::babnode_get_xfixed)
+        .def_property_readonly("sol", &detail::babnode_get_sol)
+        .def_readonly("level", &BabNode::level)
+        .def_readonly("upper_bound", &BabNode::upper_bound)
+        .def("fracsol", &detail::babnode_get_fracsol);
+
+    py::class_<Problem>(m, "Problem")
+        .def(py::init<>())
+        .def_property_readonly("L", &detail::problem_get_L)
+        .def_readonly("n", &Problem::n)
+        .def_readonly("NIneq", &Problem::NIneq)
+        .def_readonly("NPentIneq", &Problem::NPentIneq)
+        .def_readonly("NHeptaIneq", &Problem::NHeptaIneq)
+        .def_readonly("bundle", &Problem::bundle);
 }

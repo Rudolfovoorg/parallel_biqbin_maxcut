@@ -7,15 +7,22 @@
 
 extern double *X;
 extern double *Z; // stores Cholesky decomposition: X = ZZ^T
+extern int BabPbSize;
 
-double runHeuristic(const Problem *P0, Problem *P, BabNode *node, int *x)
+double runHeuristic(const Problem *P0, Problem *P, BabNode *node)
 {
 #ifdef PURE_C
+    int x[BabPbSize];
+
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        x[i] = node->xfixed[i] ? node->sol.X[i] : 0;
+    }
     double heur_obj_value = runHeuristic_unpacked(P0->L, P0->n, P->L, P->n, node->xfixed, node->sol.X, x);
     updateSolution(x);
     return heur_obj_value;
 #else
-    return wrapped_heuristic(P0, P, node, x);
+    return wrapped_heuristic(P0, P, node);
 #endif
 }
 

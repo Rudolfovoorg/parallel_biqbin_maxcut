@@ -125,7 +125,7 @@ void initializeBabSolution(void);
 int Init_PQ(void);
 int Bab_Init(int argc, char **argv, int rank);
 void master_Bab_Main(Message message, int source, int *busyWorkers, int num_workers, int *numbFreeWorkers, MPI_Datatype BabSolutiontype);
-void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank);
+void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype);
 void printSolution(FILE *file);
 void printFinalOutput(FILE *file, int num_nodes);
 void Bab_End(void);
@@ -148,7 +148,7 @@ double getViolated_HeptagonalInequalities(double *X, int N, Heptagonal_Inequalit
 double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *NumSubtracted, int hept_index);
 
 /* evaluate.c */
-double Evaluate(BabNode *node, const Problem *SP, Problem *PP, const int rank);
+double Evaluate(BabNode *node, const Problem *SP, Problem *PP);
 void createSubproblem(const BabNode *node, const Problem *SP, Problem *PP);
 double getFixedValue(const BabNode *node, const Problem *SP);
 
@@ -163,7 +163,7 @@ void Bab_LBInit(double lowerBound, const BabSolution *bs); // initialize global 
 Heap *Init_Heap(const int size);                           // allocates space for heap (array of BabNode*)
 
 /* heuristic.c */
-double runHeuristic(const Problem *P0, Problem *P, BabNode *node, int *x);
+double runHeuristic(const Problem *P0, Problem *P, BabNode *node);
 double GW_heuristic(const double *P0_L, int P0_N, const double *P_L, int P_N, const int *node_xfixed, const int *node_sol_X, int *x, int num);
 double mc_1opt(int *x, const double *P_L, int P_N);
 

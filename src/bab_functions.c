@@ -51,7 +51,7 @@ int Init_PQ(void)
     Bab_incEvalNodes();
     double t0 = MPI_Wtime();
     // Evaluate root node: compute upper and lower bound
-    root_upper_bound = Evaluate(BabRoot, SP, PP, 0);
+    root_upper_bound = Evaluate(BabRoot, SP, PP);
     root_eval_time = MPI_Wtime() - t0;
     printf("Root node bound: %.2f\n", root_upper_bound);
 
@@ -235,7 +235,7 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int num_work
 }
 
 /* WORKER process main routine */
-void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int rank)
+void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
 {
 
     Message message;
@@ -249,7 +249,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype, int
     double g_lowerBound = Bab_LBGet();
 
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
-    node->upper_bound = Evaluate(node, SP, PP, rank);
+    node->upper_bound = Evaluate(node, SP, PP);
 
     // check if better lower bound found --> update info with master
     if (Bab_LBGet() > g_lowerBound)

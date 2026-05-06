@@ -245,7 +245,7 @@ int wrapped_main(int argc, char **argv)
                         break;
                     }
 
-                    worker_Bab_Main(BabSolutiontype, BabNodetype, rank);
+                    worker_Bab_Main(BabSolutiontype, BabNodetype);
                 }
 
                 message = IDLE;

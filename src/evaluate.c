@@ -9,7 +9,7 @@ extern int BabPbSize;
  * This function computes the upper and lower bounds of a specific node
  * (calls SDP bound function) and returns the upper bound of the node
  */
-double Evaluate(BabNode *node, const Problem *SP, Problem *PP, int rank)
+double Evaluate(BabNode *node, const Problem *SP, Problem *PP)
 {
     // create subproblem PP
     createSubproblem(node, SP, PP);
@@ -17,9 +17,9 @@ double Evaluate(BabNode *node, const Problem *SP, Problem *PP, int rank)
     // compute the SDP upper bound and run heuristic
     double bound;
 #ifdef PURE_C
-    bound = SDPbound(node, SP, PP, rank);
+    bound = SDPbound(node, SP, PP);
 #else
-    bound = wrapped_sdp_bound(node, SP, PP, rank);
+    bound = wrapped_sdp_bound(node, SP, PP);
 #endif
     return bound;
 }

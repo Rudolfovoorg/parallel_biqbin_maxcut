@@ -11,8 +11,8 @@
 #define EXTERN_C
 #endif
 
-EXTERN_C double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node, int *x);
-EXTERN_C double wrapped_sdp_bound(BabNode *node, const Problem *P0, Problem *P, int rank);
+EXTERN_C double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node);
+EXTERN_C double wrapped_sdp_bound(BabNode *node, const Problem *P0, Problem *P);
 
 /* C++-only: Pybind11 overrides and RAII guard */
 #ifdef __cplusplus

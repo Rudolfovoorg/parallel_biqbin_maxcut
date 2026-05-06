@@ -3,6 +3,7 @@
 extern BiqBinParameters params;
 extern FILE *output;
 extern int BabPbSize;
+extern int rank;
 
 extern double TIME;
 extern Triangle_Inequality *Cuts;         // vector of triangle inequality constraints
@@ -21,14 +22,13 @@ extern double *X_test;
 extern double diff; // difference between basic SDP relaxation and bound with added cutting planes
 
 /******** main bounding routine calling bundle method ********/
-double SDPbound(BabNode *node, const Problem *SP, Problem *PP, int rank)
+double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
 {
 
     int index;          // helps to store the fractional solution in the node
     double bound;       // f + fixedvalue
     double gap;         // difference between best lower bound and upper bound
     double oldf;        // stores f from previous iteration
-    int x[BabPbSize];   // vector for heuristic
     double viol3;       // maximum violation of triangle inequalities
     double viol5 = 0.0; // maximum violation of pentagonal inequalities
     double viol7 = 0.0; // maximum violation of heptagonal inequalities
@@ -93,19 +93,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP, int rank)
     }
 
     /* run heuristic */
-    for (int i = 0; i < BabPbSize; ++i)
-    {
-        if (node->xfixed[i])
-        {
-            x[i] = node->sol.X[i];
-        }
-        else
-        {
-            x[i] = 0;
-        }
-    }
-
-    runHeuristic(SP, PP, node, x);
+    runHeuristic(SP, PP, node);
 
     // upper bound
     bound = f + fixedvalue;
@@ -194,19 +182,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP, int rank)
         if (!prune)
         {
 
-            for (int i = 0; i < BabPbSize; ++i)
-            {
-                if (node->xfixed[i])
-                {
-                    x[i] = node->sol.X[i];
-                }
-                else
-                {
-                    x[i] = 0;
-                }
-            }
-
-            runHeuristic(SP, PP, node, x);
+            runHeuristic(SP, PP, node);
 
             prune = (bound < Bab_LBGet() + 1.0) ? 1 : 0;
         }

@@ -109,15 +109,15 @@ def heur_root_data_collector(enabled_flag="collect_heuristic_root_data", data_bo
     """
     def decorator(fn):
         @wraps(fn)
-        def wrapper(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray):
+        def wrapper(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray):
             if self.rank != 0 or not getattr(self, enabled_flag, False):
-                return fn(self, L0, L, xfixed, sol_X, x)
+                return fn(self, L0, L, xfixed, sol_X)
 
             if getattr(self, data_box, None) is None:
                 setattr(self, data_box, [])
 
             start = time.perf_counter()
-            result = fn(self, L0, L, xfixed, sol_X, x)
+            result = fn(self, L0, L, xfixed, sol_X)
             getattr(self, data_box).append({
                 "time": time.perf_counter() - start,
                 "value": result,

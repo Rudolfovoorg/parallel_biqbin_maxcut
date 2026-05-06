@@ -3,26 +3,20 @@ import numpy as np
 import numpy.typing as npt
 from typing import Callable, Tuple
 
-"""biqbin.so
-"""
 
+"""
+Python bindings for BiqBin exposed in biqbin_module.so
+"""
 
 def run(solver_name: str, problem_instance_path: str, maxcut_adj_matrix: npt.NDArray[np.float64] | None, params_path: str, time_limit: int) -> dict:
     """Runs the solver, returns a solution dictionary on mpi rank 0"""
     ...
 
 
-def set_initial_solution(x: np.ndarray):
-    """Set the initial solution
-
-    Args:
-        x (np.ndarray): binary vector as numpy array
-    """
-
-
-def set_heuristic(heuristic_function: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], float]):
+def set_heuristic(heuristic_function: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray], float]):
     """Sets the heuristic function in biqbin."""
     ...
+
 
 def update_mc_lower_bound_solution(new_solution_x: npt.NDArray[np.int32]) -> bool:
     """update the Max-Cut global lower-bound solution, if it is better than the current one
@@ -35,30 +29,28 @@ def update_mc_lower_bound_solution(new_solution_x: npt.NDArray[np.int32]) -> boo
     """
     ...
 
+
 def goemans_williamson_heuristic(L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
-    """Runs the default GW heuristic."""
+    """Default Biqbin GW heuristic implementation (heuristic_unpacked in src/heuristic.c)"""
     ...
 
 
-def set_node_evaluation(node_eval_function: Callable[[BabNode, Problem, Problem, int], float]):
+def set_node_evaluation(node_eval_function: Callable[[BabNode, Problem, Problem], float]):
     """Set the function that will evaluate both bounds.
     """
     ...
 
 
-def sdp_bound(node: BabNode, main_problem: Problem, subproblem: Problem, rank: int) -> float:
-    """Default SDPBound in src/bounding.c. Computes both bound...
+def sdp_bound(node: BabNode, main_problem: Problem, subproblem: Problem) -> float:
+    """Default Biqbin SDPBound in src/bounding.c. Calls the heuristic function many times during execution
 
     Args:
-        L0 (np.ndarray): _description_
-        L (np.ndarray): _description_
-        xfixed (np.ndarray): _description_
-        sol_X (np.ndarray): _description_
-        fracsol (np.ndarray): _description_
-        rank (int): _description_
+        node (BabNode): current node being evaluated
+        main_problem (Problem): Full problem, constructed at the start of solving
+        subproblem (Problem): Subproblem constructed for the current node
 
     Returns:
-        float: upper bound (maximization), lower bound (minimization)
+        float: Max-Cut upper bound (QUBO minimization lower bound)
     """
     ...
 
@@ -69,7 +61,7 @@ def get_rank() -> int:
 
 
 def init_mpi() -> Tuple[int, int]:
-    """initialize MPI
+    """initializes MPI
 
     Returns:
         (int, int): MPI (size, rank) tuple 

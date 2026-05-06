@@ -1,11 +1,13 @@
 __version__ = '2.0.5'
 
+from deprecated import deprecated
 import numpy.typing as npt
 import numpy as np
 import logging
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, heur_root_data_collector
-from biqbin.biqbin_module import (run,
+from biqbin.biqbin_module import (BabNode, Problem,
+                                  run,
                                   update_mc_lower_bound_solution,
                                   set_heuristic, goemans_williamson_heuristic,
                                   set_node_evaluation, sdp_bound,
@@ -274,27 +276,97 @@ class MaxCutSolver(PrettyPrint):
         self.initial_estimate_solution = None
 
         self.rank: int = get_rank()
-        if self.rank == 0 and initial_estimate is not None:
-            self._check_solution_validity(
-                initial_estimate, problem.maxcut_adjacency_matrix.shape[0])
-            self.initial_estimate_solution = initial_estimate
-            self.heuristic = self._use_initial_estimate_on_root
+        if self.rank == 0:
+            if initial_estimate is not None:
+                self._check_solution_validity(
+                    initial_estimate, problem.maxcut_adjacency_matrix.shape[0])
+                self.initial_estimate_solution = initial_estimate
+                self.root_heuristic = self._use_initial_estimate_on_root
+
+            self._heuristic_fn = self.root_heuristic
+            self._upper_bound_fn = self.root_upper_bound
+        
+        else:
+            self._heuristic_fn = self.heuristic
+            self._upper_bound_fn = self.upper_bound
 
         # Heuristic data collection
         self.collect_heuristic_root_data: bool = collect_heuristic_data
         self.heuristic_root_data = []
-        set_node_evaluation(sdp_bound)
+        
+        set_node_evaluation(self._bab_node_evaluation)
         set_heuristic(self._call_heuristic)
+
+        # SDPBound calls heuristic by itself, but if that is not called, we need to call it manually
+        self._heuristic_was_called: bool = False
 
     @property
     def problem(self) -> ProblemMaxCut:
         return self.__problem
 
+    def _bab_node_evaluation(self, node: BabNode, P0: Problem, P: Problem) -> float:
+        """ Calls the upper and lower bound functions on a given BabNode
+
+        Args:
+            node (BabNode): current node
+            P0 (Problem): Main-Problem
+            P (Problem): Sub-Problem
+
+        Returns:
+            float: _description_
+        """
+        self._heuristic_was_called = False
+        upper_bound_value = self._call_upper_bound(node, P0, P)
+        if not self._heuristic_was_called:
+            lower_bound_value = self._call_heuristic(
+                P0.L, P.L, node.xfixed, node.sol.X)
+        return upper_bound_value
+
+    def upper_bound(self, node, P0, P, *args, **kwargs) -> float:
+        logger.info('CALLED UPPER BOUND')
+        return sdp_bound(node, P0, P)
+
+    def root_upper_bound(self, node, P0, P, *args, **kwargs) -> float:
+        logger.info('--- CALLED ROOT UPPER BOUND ---')
+        return self.upper_bound(node, P0, P, *args, **kwargs)
+
+    def heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
+        """
+        Args:
+            L (np.ndarray): Sub-Problem Laplacean matrix
+
+        Returns:
+            float: value of the solution array "x" found by the heuristic function
+        """
+        logger.info("CALLED HEURISTIC")
+        
+        L0 = kwargs['L0']
+        xfixed = kwargs['xfixed']
+        sol_X = kwargs['sol_X']
+        # biqbin gw expects a full solution vector
+        x = np.zeros(L0.shape[0] - 1, dtype=np.int32)
+
+        goemans_williamson_heuristic(
+            L0, L, xfixed, sol_X, x
+        )
+
+        return x[xfixed == 0]
+
+    def root_heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
+        logger.info("--- CALLED ROOT HEURISTIC ---")
+        return self.heuristic(L, **kwargs)
+
+    def _call_upper_bound(self, node, P0, P, *args, **kwargs) -> float:
+        """Wrapper to check if check if check
+        """
+        return self._upper_bound_fn(node, P0, P, *args, **kwargs)
+
     @heur_root_data_collector()
-    def _call_heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
+    def _call_heuristic(self, L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray) -> float:
+        self._heuristic_was_called = True
 
         # Call heuristic function get the solution vector
-        heur_sol = self.heuristic(L, L0=L0, xfixed=xfixed, sol_X=sol_X)
+        heur_sol = self._heuristic_fn(L, L0=L0, xfixed=xfixed, sol_X=sol_X)
 
         # Check if the solution is in valid format
         if not isinstance(heur_sol, np.ndarray):
@@ -303,7 +375,7 @@ class MaxCutSolver(PrettyPrint):
         self._check_solution_validity(heur_sol, L.shape[0] - 1)
 
         # copy to full solution x
-        np.copyto(x, sol_X)
+        x = sol_X.copy()
         x[xfixed == 0] = heur_sol
 
         heur_value = self._evaluate_solution(L0, x)
@@ -319,27 +391,6 @@ class MaxCutSolver(PrettyPrint):
 
         return heur_value
 
-    def heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
-        """Default GW heuristic (heuristic_unpacked in heuristic.c)
-
-        Args:
-            L (np.ndarray): Subproblem Problem Laplacean matrix
-
-        Returns:
-            float: value of the solution array "x" found by the heuristic function
-        """
-        L0 = kwargs['L0']
-        xfixed = kwargs['xfixed']
-        sol_X = kwargs['sol_X']
-        # biqbin gw expects a full solution vector
-        x = np.zeros(L0.shape[0] - 1, dtype=np.int32)
-
-        goemans_williamson_heuristic(
-            L0, L, xfixed, sol_X, x
-        )
-
-        return x[xfixed == 0]
-
     def _use_initial_estimate_on_root(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
         """ heuristic call on root node if initial estimate solution is passed in
         """
@@ -354,7 +405,8 @@ class MaxCutSolver(PrettyPrint):
 
         # Biqbin solution has 1 element less than the problem size, the last elemenent is assumed to be 0
         MC_DUMMY_ELEMENT_COUNT = 1
-        return self.initial_estimate_solution[:-MC_DUMMY_ELEMENT_COUNT]  # pyright: ignore[reportOptionalSubscript]
+
+        return self.initial_estimate_solution[:-MC_DUMMY_ELEMENT_COUNT] # pyright: ignore[reportOptionalSubscript]
 
 
     def _evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
@@ -367,7 +419,8 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             float: value of the solution
         """
-        self._check_solution_validity(sol, self.problem.maxcut_adjacency_matrix.shape[0] - 1)
+        self._check_solution_validity(
+            sol, self.problem.maxcut_adjacency_matrix.shape[0] - 1)
         sol_val = sol @ L0[:-1, :-1] @ sol
 
         return float(sol_val)

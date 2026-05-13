@@ -10,7 +10,7 @@ namespace py = pybind11;
 static constexpr int NPY_WRITEABLE_FLAG = 0x0400;
 
 template <typename T>
-void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, bool expected_writable, const std::string &np_array_name)
+void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, const std::string &np_array_name)
 {
     // Check number of dimensions
     if (np_in.ndim() != expected_ndim)
@@ -33,6 +33,12 @@ void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, boo
     {
         throw py::type_error(np_array_name + " must be row-major (C-contiguous).");
     }
+}
+
+template <typename T>
+void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, bool expected_writable, const std::string &np_array_name)
+{
+    check_np_array_validity(np_in, expected_ndim, np_array_name);
 
     // Ensure the array is writable
     if (np_in.writeable() != expected_writable)

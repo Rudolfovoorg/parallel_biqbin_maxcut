@@ -18,6 +18,7 @@ namespace py = pybind11;
 /* biqbin's global variables from global_var.h */
 extern Problem *SP;
 extern Problem *PP;
+extern double *X; // Primal solution
 extern BabSolution *BabSol;
 extern int BabPbSize;
 
@@ -160,6 +161,23 @@ int wrapped_read_data()
     return process_adj_matrix(adj_matrix, adj_matrix_size);
 }
 
+// void set_primal_solution(const py::array_t<double> primal_solution)
+// {
+//     int nn = SP->n * SP->n;
+//     int inc = 1;
+//     dcopy_(&nn, primal_solution.data(), &inc, X, &inc);
+// }
+
+void set_primal_solution(
+    const py::array_t<double> &primal_solution)
+{
+    const int n = PP->n;
+
+    check_np_array_validity(primal_solution, 2, "primal solution");
+
+    std::copy_n(primal_solution.data(), n * n, X);
+}
+
 bool update_solution_python(const py::array_t<int> potential_solution)
 {
     check_np_array_validity(potential_solution, 1, true, "new solution x");
@@ -216,6 +234,7 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
 
     m.def("set_node_evaluation", &set_node_evaluation_override, "Override the SDP bound function");
     m.def("sdp_bound", &SDPbound, "Default C-implemented SDPbound");
+    m.def("set_primal_solution", &set_primal_solution, "Set the primal solution before running default GW");
 
     py::class_<BabSolution>(m, "BabSolution")
         .def(py::init<>())

@@ -28,7 +28,6 @@ double runHeuristic(const Problem *P0, Problem *P, BabNode *node)
 
 double runHeuristic_unpacked(const double *P0_L, int P0_N, const double *P_L, int P_N, const int *node_xfixed, const int *node_sol_X, int *x)
 {
-
     // Problem *P0 ... the original problem
     // Problem *P  ... the current subproblem
     // int *x      ... current best feasible solution

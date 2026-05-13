@@ -8,13 +8,23 @@ from typing import Callable, Tuple
 Python bindings for BiqBin exposed in biqbin_module.so
 """
 
+
 def run(solver_name: str, problem_instance_path: str, maxcut_adj_matrix: npt.NDArray[np.float64] | None, params_path: str, time_limit: int) -> dict:
     """Runs the solver, returns a solution dictionary on mpi rank 0"""
     ...
 
 
-def set_heuristic(heuristic_function: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray], float]):
+def set_heuristic(heuristic_function: Callable[[BabNode, Problem, Problem], float]):
     """Sets the heuristic function in biqbin."""
+    ...
+
+
+def set_primal_solution(primal_solution: np.ndarray):
+    """Set the primal solution matrix X before running the default GW heuristic
+
+    Args:
+        primal_solution (np.ndarray): shape (n, n) where n is the size of the original Problem->n
+    """
     ...
 
 
@@ -65,6 +75,15 @@ def init_mpi() -> Tuple[int, int]:
 
     Returns:
         (int, int): MPI (size, rank) tuple 
+    """
+    ...
+
+
+def abort_mpi(abort_code: int):
+    """Abort solver execution on fatal errors
+
+    Args:
+        abort_code (int)
     """
     ...
 

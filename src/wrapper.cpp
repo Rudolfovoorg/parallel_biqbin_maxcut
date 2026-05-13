@@ -161,20 +161,12 @@ int wrapped_read_data()
     return process_adj_matrix(adj_matrix, adj_matrix_size);
 }
 
-// void set_primal_solution(const py::array_t<double> primal_solution)
-// {
-//     int nn = SP->n * SP->n;
-//     int inc = 1;
-//     dcopy_(&nn, primal_solution.data(), &inc, X, &inc);
-// }
-
 void set_primal_solution(
     const py::array_t<double> &primal_solution)
 {
     const int n = PP->n;
 
     check_np_array_validity(primal_solution, 2, "primal solution");
-
     std::copy_n(primal_solution.data(), n * n, X);
 }
 
@@ -223,9 +215,15 @@ py::tuple init_mpi_python()
     return py::make_tuple(num_workers, rank);
 }
 
+void abort_mpi_python(int abort_code)
+{
+    MPI_Abort(MPI_COMM_WORLD, abort_code);
+}
+
 PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
 {
     m.def("init_mpi", &init_mpi_python, "Initialize MPI protocol");
+    m.def("abort_mpi", &abort_mpi_python, "Abort execution on fatal errors");
     m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");
     m.def("run", &run_py, "Run the solver");
     m.def("goemans_williamson_heuristic", &run_heuristic_python, "Default C-implemented GW heuristic");

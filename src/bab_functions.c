@@ -233,11 +233,10 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int num_work
     }
     }
 }
-
+extern int rank;
 /* WORKER process main routine */
 void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
 {
-
     Message message;
     MPI_Status status;
     int over = 0;
@@ -250,7 +249,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
 
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
     node->upper_bound = Evaluate(node, SP, PP);
-
+    
     // check if better lower bound found --> update info with master
     if (Bab_LBGet() > g_lowerBound)
     {
@@ -261,7 +260,6 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
         MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
         MPI_Send(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD);
         MPI_Send(BabSol, 1, BabSolutiontype, 0, SOLUTION, MPI_COMM_WORLD);
-
         MPI_Recv(&g_lowerBound, 1, MPI_DOUBLE, 0, LOWER_BOUND, MPI_COMM_WORLD, &status);
 
         // update
@@ -269,8 +267,8 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
         Bab_LBUpd(g_lowerBound, &solx);
     }
 
-    /* if BabLB + 1.0 < child_node->upper_bound,
-     * then we must branch since there could be a better feasible
+    /* if BabLB + 1.0 <  min of child_node->upper_bound and root upper bound,
+     * and we are not max depth, we must branch since there could be a better feasible
      * solution in this subproblem
      */
     if (Bab_LBGet() + 1.0 < fmin(root_upper_bound, node->upper_bound) && node->level < BabPbSize)
@@ -293,7 +291,6 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
             /* insert node into the priority queue */
             Bab_PQInsert(child_node);
         }
-
         // free parent node
         free(node);
 
@@ -326,7 +323,6 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
 
             for (int i = 0; i < num_free_workers; ++i)
             {
-
                 // get next subproblem from queue and send it
                 node = Bab_PQPop();
 

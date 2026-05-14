@@ -22,13 +22,13 @@ void Bab_incEvalNodes(void) { ++Bab_numNodes; }
  * Returns 1 if node1 has bigger priority than node2 and
  *        -1 if other way around
  */
-inline int compare_Nodes(const BabNode *node1, const BabNode *node2)
+static inline int compare_Nodes(const BabNode *node1, const BabNode *node2)
 {
 
     return ((node1->upper_bound > node2->upper_bound) ? 1 : -1);
 }
 
-inline void swap_entries(int i, int j)
+static inline void swap_entries(int i, int j)
 {
 
     BabNode **data = heap->data;
@@ -146,7 +146,8 @@ BabNode *newNode(const BabNode *parentNode)
 {
 
     // allocate memory for the new child node
-    BabNode *node = (BabNode *)malloc(sizeof(BabNode));
+    // BZ calloc is needed as malloc can cause a double free() error with -O3 optimization
+    BabNode *node = calloc(1, sizeof(BabNode));
     if (node == NULL)
     {
         fprintf(stderr, "Error: Not enough memory for creating new node.\n");

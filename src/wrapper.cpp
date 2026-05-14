@@ -88,9 +88,9 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     if (rank == 0)
     {
         // One last safety check
-        check_np_array_validity<double>(adj_matrix_in, 2, true, "maxcut_adjacency_matrix");
-        // Set the problem data, memory owned by Python
         adj_matrix_size = adj_matrix_in.shape(0);
+        check_np_array_validity<double>(adj_matrix_in, 2, adj_matrix_size, true, "maxcut_adjacency_matrix");
+        // Set the problem data, memory owned by Python
         adj_matrix = static_cast<double *>(adj_matrix_in.mutable_data());
     }
 
@@ -140,11 +140,11 @@ double run_heuristic_python(
     py::array_t<int> x_array)
 {
     // Check if input is valid
-    check_np_array_validity<double>(P0_L_array, 2, false, "P0_L");
-    check_np_array_validity<double>(P_L_array, 2, false, "P_L");
-    check_np_array_validity<int>(xfixed_array, 1, false, "xfixed");
-    check_np_array_validity<int>(node_sol_X_array, 1, false, "node_sol_x");
-    check_np_array_validity<int>(x_array, 1, true, "x");
+    check_np_array_validity<double>(P0_L_array, 2, SP->n, false, "P0_L");
+    check_np_array_validity<double>(P_L_array, 2, PP->n, false, "P_L");
+    check_np_array_validity<int>(xfixed_array, 1, BabPbSize, false, "xfixed");
+    check_np_array_validity<int>(node_sol_X_array, 1, BabPbSize, false, "node_sol_x");
+    check_np_array_validity<int>(x_array, 1, BabPbSize, true, "x");
 
     const auto P0_L = P0_L_array.data();
     const auto P_L = P_L_array.data();
@@ -166,13 +166,13 @@ void set_primal_solution(
 {
     const int n = PP->n;
 
-    check_np_array_validity(primal_solution, 2, "primal solution");
+    check_np_array_validity(primal_solution, 2, PP->n, "primal solution");
     std::copy_n(primal_solution.data(), n * n, X);
 }
 
 bool update_solution_python(const py::array_t<int> potential_solution)
 {
-    check_np_array_validity(potential_solution, 1, true, "new solution x");
+    check_np_array_validity(potential_solution, 1, BabPbSize, true, "new solution x");
     int is_updated = updateSolution(potential_solution.data());
     return is_updated != 0;
 }
@@ -235,11 +235,9 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
     m.def("set_primal_solution", &set_primal_solution, "Set the primal solution before running default GW");
 
     py::class_<BabSolution>(m, "BabSolution")
-        .def(py::init<>())
         .def_property_readonly("X", &detail::babsolution_get_X);
 
     py::class_<BabNode>(m, "BabNode")
-        .def(py::init<>())
         .def_property_readonly("xfixed", &detail::babnode_get_xfixed)
         .def_property_readonly("sol", &detail::babnode_get_sol)
         .def_readonly("level", &BabNode::level)
@@ -247,7 +245,6 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
         .def("fracsol", &detail::babnode_get_fracsol);
 
     py::class_<Problem>(m, "Problem")
-        .def(py::init<>())
         .def_property_readonly("L", &detail::problem_get_L)
         .def_readonly("n", &Problem::n)
         .def_readonly("NIneq", &Problem::NIneq)

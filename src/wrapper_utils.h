@@ -10,7 +10,7 @@ namespace py = pybind11;
 static constexpr int NPY_WRITEABLE_FLAG = 0x0400;
 
 template <typename T>
-void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, const std::string &np_array_name)
+void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, int size, const std::string &np_array_name)
 {
     // Check number of dimensions
     if (np_in.ndim() != expected_ndim)
@@ -28,6 +28,11 @@ void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, con
         }
     }
 
+    if (np_in.shape(0) != size)
+    {
+        throw py::type_error(np_array_name + " must be of size " + std::to_string(size) + ", got " + std::to_string(np_in.shape(0)));
+    }
+
     // Ensure the array is row-major (C-contiguous)
     if (!(np_in.flags() & py::array::c_style))
     {
@@ -36,9 +41,9 @@ void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, con
 }
 
 template <typename T>
-void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, bool expected_writable, const std::string &np_array_name)
+void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, int size, bool expected_writable, const std::string &np_array_name)
 {
-    check_np_array_validity(np_in, expected_ndim, np_array_name);
+    check_np_array_validity(np_in, expected_ndim, size, np_array_name);
 
     // Ensure the array is writable
     if (np_in.writeable() != expected_writable)

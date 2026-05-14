@@ -52,6 +52,7 @@ int wrapped_main(int argc, char **argv)
 
     // (2) for BabNode
     MPI_Datatype BabNodetype;
+    // BZ: Last element double node->upper_bound was incorrectly set as MPI_INT, it has been set to MPI_DOUBLE
     MPI_Datatype type2[5] = {MPI_INT, BabSolutiontype, MPI_DOUBLE, MPI_INT, MPI_DOUBLE};
     int blocklen2[5] = {NMAX, 1, NMAX, 1, 1};
     MPI_Aint disp2[5];
@@ -116,7 +117,6 @@ int wrapped_main(int argc, char **argv)
         {
             g_lowerBound = Bab_LBGet();
             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-            printf("broadcasting %f\n", root_upper_bound);
             MPI_Bcast(&root_upper_bound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
 
@@ -142,7 +142,6 @@ int wrapped_main(int argc, char **argv)
 
         for (int xic = 0; xic <= 1; ++xic)
         {
-
             // Create a new child node from the parent node
             child_node = newNode(node);
 
@@ -172,7 +171,6 @@ int wrapped_main(int argc, char **argv)
         /************* MAIN LOOP for master **************/
         do
         {
-
             /*** wait for messages: extract source from status ***/
             MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MESSAGE, MPI_COMM_WORLD, &status);
             source = status.MPI_SOURCE;
@@ -217,13 +215,11 @@ int wrapped_main(int argc, char **argv)
         /************* MAIN LOOP for worker **************/
         do
         {
-
             // wait for info: stop (from master) or receive new subproblem from other worker
             MPI_Recv(&over, 1, MPI_INT, MPI_ANY_SOURCE, OVER, MPI_COMM_WORLD, &status);
 
             if (!over)
             {
-
                 alloc(node, BabNode);
 
                 // receive subproblem from master or other worker
@@ -238,16 +234,13 @@ int wrapped_main(int argc, char **argv)
 
                 while (!isPQEmpty())
                 {
-
                     // check if time limit reached
                     if (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit)
                     {
                         break;
                     }
-
                     worker_Bab_Main(BabSolutiontype, BabNodetype);
                 }
-
                 message = IDLE;
                 MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
             }

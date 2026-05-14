@@ -451,30 +451,34 @@ class MaxCutSolver(PrettyPrint):
         solution_updated = update_mc_lower_bound_solution(x)
 
         if logger.isEnabledFor(logging.DEBUG):
-            default_gw_value = goemans_williamson_heuristic(
-                P0.L, P.L, node.xfixed, node.sol.X, np.zeros(P0.n)
-            )
-            logger.debug(
-                f'Custom heuristic: {heur_value}; default gw heuristic: {default_gw_value}'
-            )
+            if self._primal_solution_set:
+                default_gw_value = goemans_williamson_heuristic(
+                    P0.L, P.L, node.xfixed, node.sol.X, np.zeros(P0.n)
+                )
+                logger.debug(
+                    f'Custom heuristic: {heur_value}; default gw heuristic: {default_gw_value}'
+                )
 
         return heur_value
 
     def _use_initial_estimate_on_root(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
         """ heuristic call on root node if initial estimate solution is passed in
         """
-        if logger.isEnabledFor(logging.DEBUG):
-            if kwargs['L0'].shape != L.shape:
-                logger.fatal(
-                    f"Main problem shape {kwargs['L0'].shape} != Subproblem shape {L.shape}!")
-                abort_mpi(10)
-            if kwargs['L0'].shape != self.problem.maxcut_adjacency_matrix.shape:
-                logger.fatal(
-                    f"Main problem shape {kwargs['L0'].shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
-                abort_mpi(10)
-            if np.any(kwargs['xfixed']):
-                logger.fatal("xfixed is nonzero!")
-                abort_mpi(10)
+        fatal_error = False
+        if kwargs['P0'].L.shape != L.shape:
+            logger.fatal(
+                f"Main problem shape {kwargs['L0'].shape} != Subproblem shape {L.shape}!")
+            fatal_error = True
+        if kwargs['P'].L.shape != self.problem.maxcut_adjacency_matrix.shape:
+            logger.fatal(
+                f"Main problem shape {kwargs['L0'].shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
+            fatal_error = True
+        if np.any(kwargs['node'].xfixed):
+            logger.fatal("xfixed is nonzero!")
+            fatal_error = True
+            
+        if fatal_error:
+            abort_mpi(10)
 
         return self.initial_estimate_solution[:-MaxCutSolver._MC_DUMMY_ELEMENT] # pyright: ignore[reportOptionalSubscript]
 

@@ -251,9 +251,6 @@ int wrapped_main(int argc, char **argv)
     }
 
 FINISH:
-
-    // Reduce all heuristic_counter values into heuristic_sum on rank 0
-    MPI_Reduce(&heuristic_counter, &heuristic_sum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     /* Print results to the standard output and to the output file */
     if (rank == 0)
     {
@@ -282,8 +279,6 @@ FINISH:
     MPI_Type_free(&BabSolutiontype); // free when done
     MPI_Type_free(&BabNodetype);     // free when done
 
-    MPI_Finalize();
-
     return 0;
 }
 int main(int argc, char **argv)
@@ -293,7 +288,11 @@ int main(int argc, char **argv)
     // get number of proccesses and corresponding ranks
     MPI_Comm_size(MPI_COMM_WORLD, &num_workers);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    return wrapped_main(argc, argv);
+
+    int result = wrapped_main(argc, argv);
+
+    MPI_Finalize();
+    return result;
 }
 
 /// @brief alloc matrix and alloc vector macros use this

@@ -10,12 +10,12 @@ import logging
 import biqbin
 from biqbin import biqbin_module
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, data_collector
-from biqbin.biqbin_module import (BabNode, Problem, abort_mpi,
-                                  run,
+from biqbin.biqbin_module import (BabNode, Problem, finalize_mpi,
+                                  reduce_sum_mpi, abort_mpi, run,
                                   update_mc_lower_bound_solution,
                                   set_heuristic, goemans_williamson_heuristic,
                                   set_primal_solution, set_node_evaluation, sdp_bound,
-                                  get_rank)
+                                  get_rank, get_fixed_value)
 
 # Initialize MPI at start
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
@@ -307,9 +307,13 @@ class MaxCutSolver(PrettyPrint):
             self._heuristic_fn = self.heuristic
             self._sdp_bound_fn = self.sdp_bound
 
-        # Heuristic data collection
+        # Data collection
+        # BZ TODO: Enable non-root data collection, might get complicated on 2000+ processes
+        self.bab_node_evaluation_call_count = 0
+        self.heuristic_call_count = 0
         self.collect_heuristic_root_data: bool = collect_heuristic_data if self.rank == 0 else False
         self.heuristic_root_data: list[dict] = []
+        self.sdp_bound_call_count = 0
         self.collect_sdp_bound_root_data: bool = collect_sdp_bound_root_data if self.rank == 0 else False
         self.sdp_bound_root_data: list[dict] = []
 
@@ -333,6 +337,7 @@ class MaxCutSolver(PrettyPrint):
             SolutionMaxCut | None: Returns the solution class on MPI rank == 0.
         """
         biqbin_result = self._run_solver()
+
         if biqbin_result is not None:
             return SolutionMaxCut(biqbin_result, self.problem)
         else:
@@ -371,9 +376,8 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             np.ndarray: Binary solution vector found by the heuristic. Shape must be a 1D of length one less than Subproblem size (L.shape[0] - 1, )
         """
-        P0 = kwargs['P0']
-        P = kwargs['P']
-        node = kwargs['node']
+        P0: Problem = kwargs['P0']
+        node: BabNode = kwargs['node']
 
         if not self._primal_solution_set:
             logger.fatal(
@@ -384,7 +388,7 @@ class MaxCutSolver(PrettyPrint):
         x = np.zeros(P0.n - MaxCutSolver._MC_DUMMY_ELEMENT, dtype=np.int32)
 
         # solution is stored in x where solution variables are not fixed
-        goemans_williamson_heuristic(P0.L, L, node.xfixed, node.sol.X, x)
+        goemans_williamson_heuristic(P0.L, L, node.xfixed, node.sol.x, x)
 
         # return only where solution variables are not fixed
         return x[node.xfixed == 0]
@@ -395,11 +399,15 @@ class MaxCutSolver(PrettyPrint):
     def set_sdp_primal_solution(self, primal_solution: np.ndarray):
         set_primal_solution(primal_solution)
         self._primal_solution_set = True
-    """
-    ####################################################
-                    Private
-    ####################################################
-    """
+
+    def get_fixed_value(self, node: BabNode, P0: Problem) -> float:
+        """Get contribution to the objective value of the fixed variables.
+
+        Args:
+            node (BabNode): current B&B node
+            P0 (Problem): main (full) problem
+        """
+        return get_fixed_value(node, P0)
 
     def _bab_node_evaluation(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """ Compute the upper and lower bound of the current B&B node
@@ -407,11 +415,12 @@ class MaxCutSolver(PrettyPrint):
         Args:
             node (BabNode): current B&B node
             P0 (Problem): Original (full) problem
-            P (Problem): current nodes subproblem
+            P (Problem): Current nodes subproblem
 
         Returns:
             float: sdp bound value of the current node
         """
+        self.bab_node_evaluation_call_count += 1
         # Check if the primal solution was set for the default GW heuristic,
         # default sdp_bound does this by itself.
         self._primal_solution_set = False
@@ -427,13 +436,15 @@ class MaxCutSolver(PrettyPrint):
 
     @data_collector(enabled_flag='collect_sdp_bound_root_data', data_box='sdp_bound_root_data')
     def _call_sdp_bound(self, node: BabNode, P0: Problem, P: Problem) -> float:
-        """Wrapper around sdp bound function call in case we want to add other data
+        """Wrapper around sdp bound function call in case we want to add/collect data
         """
+        self.sdp_bound_call_count += 1
         return self._sdp_bound_fn(node, P0, P)
 
     @data_collector(enabled_flag='collect_heuristic_root_data', data_box='heuristic_root_data')
     def _call_heuristic(self, node: BabNode, P0: Problem, P: Problem) -> float:
         # Call heuristic function
+        self.heuristic_call_count += 1
         heur_sol = self._heuristic_fn(P.L, node=node, P0=P0, P=P)
         self._heuristic_was_called = True
 
@@ -444,7 +455,7 @@ class MaxCutSolver(PrettyPrint):
             heur_sol, P.n - MaxCutSolver._MC_DUMMY_ELEMENT)
 
         # copy to full solution x
-        x = node.sol.X.copy()
+        x = node.sol.x.copy()
         x[node.xfixed == 0] = heur_sol
 
         heur_value = self._evaluate_solution(P0.L, x)
@@ -453,7 +464,7 @@ class MaxCutSolver(PrettyPrint):
         if logger.isEnabledFor(logging.DEBUG):
             if self._primal_solution_set:
                 default_gw_value = goemans_williamson_heuristic(
-                    P0.L, P.L, node.xfixed, node.sol.X, np.zeros(P0.n)
+                    P0.L, P.L, node.xfixed, node.sol.x, np.zeros(P0.n)
                 )
                 logger.debug(
                     f'Custom heuristic: {heur_value}; default gw heuristic: {default_gw_value}'
@@ -476,7 +487,7 @@ class MaxCutSolver(PrettyPrint):
         if np.any(kwargs['node'].xfixed):
             logger.fatal("xfixed is nonzero!")
             fatal_error = True
-            
+
         if fatal_error:
             abort_mpi(10)
 
@@ -503,7 +514,7 @@ class MaxCutSolver(PrettyPrint):
         """Runs Biqbin C/C++ implementation
 
         Returns:
-            dict: Solution python dict built by C++, or empty dict on MPI rank != 0
+            dict | None: Solution on MPI rank == 0; else None
         """
         # MC adjacency matrix is passed in on rank 0 and broadcasted to worker ranks during execution
         if self.rank == 0:
@@ -519,13 +530,18 @@ class MaxCutSolver(PrettyPrint):
                           self.params,
                           self.time_limit)
 
-        if self.rank == 0:
-            return self._update_result_dict(raw_results)
-        else:
-            return None
+        result = self._update_result_dict(raw_results)
+        finalize_mpi()
+        return result
 
-    def _update_result_dict(self, result: dict):
-        assert self.rank == 0, "_build_result must only be called on rank 0"
+    def _update_result_dict(self, result: dict) -> dict | None:
+        bab_node_call_count_sum = reduce_sum_mpi(
+            self.bab_node_evaluation_call_count)
+        sdp_call_count_sum = reduce_sum_mpi(self.sdp_bound_call_count)
+        heur_call_count_sum = reduce_sum_mpi(self.heuristic_call_count)
+
+        if self.rank != 0:
+            return None
 
         result['meta_data']['solver'] = self.solver_name
         result['meta_data']['instance'] = self.problem.problem_name
@@ -534,9 +550,15 @@ class MaxCutSolver(PrettyPrint):
             'optimized': self.problem.optimize_mc_adj_matrix,
             'gcd': self.problem.gcd
         }
+
+        result['meta_data']['bab_node_evaluation_call_count'] = bab_node_call_count_sum
+        result['meta_data']['sdp_call_count'] = sdp_call_count_sum
+        result['meta_data']['heuristic_call_count'] = heur_call_count_sum
+
         if self.collect_heuristic_root_data:
             result['meta_data']['root_node']['total_heur_time'] = sum(
                 d['time'] for d in self.heuristic_root_data)
+            result['meta_data']['root_node']['heuristic_call_count'] = self.heuristic_call_count
             result['meta_data']['root_node']['heuristic_data'] = self.heuristic_root_data
         if self.collect_sdp_bound_root_data:
             result['meta_data']['root_node']['sdp_bound_data'] = self.sdp_bound_root_data
@@ -544,15 +566,16 @@ class MaxCutSolver(PrettyPrint):
 
     def _check_solution_validity(self, initial_solution: np.ndarray, problem_size: int):
         fatal_error = False
+        error_msg = ''
         if initial_solution.ndim != 1 or initial_solution.shape[0] != problem_size:
-            logger.fatal(
-                f"Solution must be a 1D vector of size {problem_size}, but got shape {initial_solution.shape}!")
+            error_msg += f'Solution vector must be a 1D vector of size {problem_size}, but got shape {initial_solution.shape}! '
             fatal_error = True
         if not ((initial_solution == 0) | (initial_solution == 1)).all():
-            logger.fatal("Solution must be a binary vector!")
+            error_msg += 'Solution vector must be a binary [0, 1] vector!'
             fatal_error = True
 
         if fatal_error:
+            logger.fatal(error_msg, stack_info=True)
             abort_mpi(10)
 
     def __str__(self) -> str:

@@ -150,7 +150,6 @@ double updateHeptagonalInequalities(Problem *PP, double *y, int *NumAdded, int *
 /* evaluate.c */
 double Evaluate(BabNode *node, const Problem *SP, Problem *PP);
 void createSubproblem(const BabNode *node, const Problem *SP, Problem *PP);
-double getFixedValue(const BabNode *node, const Problem *SP);
 
 /* heap.c */
 void Bab_incEvalNodes(void);                               // increment the number of evaluated nodes

@@ -18,7 +18,7 @@ CPP = mpic++
 
 LINALG 	 = -lopenblas -lm 
 OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common
-CPPOPTI  = -O3 -fexceptions -fPIC -fno-common -ffast-math
+CPPOPTI  = -O3 -ffast-math -fexceptions -fPIC -fno-common
 
 PYTHON_VERSION := $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PYTHON_INCLUDE := $(shell python3-config --includes)
@@ -152,9 +152,9 @@ test-qubo-qplib: clean-output
 
 test-qubo-python-heuristic: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
-				--output tests/heuristic/kcluster40_025_10_1.json.output.json > /dev/null
+				--output tests/heuristic/kcluster40_025_10_1.json.output.json -c > /dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
-				--output tests/heuristic/kcluster80_025_20_1.json.output.json > /dev/null
+				--output tests/heuristic/kcluster80_025_20_1.json.output.json -c > /dev/null
 	
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --without-sol-vector --instances tests/heuristic/kcluster40_025_10_1.json tests/heuristic/kcluster80_025_20_1.json
 
@@ -172,8 +172,8 @@ test-input-solution: clean-output
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/w_solution/g05_60.0.json tests/w_solution/kcluster40_025_10_1.json
 
 test-bqp-python: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data > /dev/null 2>&1
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j > /dev/null 2>&1
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data -c > /dev/null 2>&1
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j -c > /dev/null 2>&1
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json
 
 

@@ -29,8 +29,7 @@ std::vector<int> solution_x;
 /* meta_data */
 extern int num_workers_used;
 extern int time_limit_reached;
-extern int heuristic_counter;
-extern int heuristic_sum;
+
 /* root meta_data */
 extern double root_upper_bound;
 extern double root_lower_bound;
@@ -66,6 +65,7 @@ int get_time_limit() { return time_limit; }
 /// @param prog_name argv[0] "biqbin_*.py"
 /// @param problem_instance_name argv[1] "problem_path_to_file"
 /// @param params_file_name argv[2] "path_to_params_file"
+/// @param time_limit_in solving time limit in seconds, 0 if none
 /// @return biqbin maxcut result
 py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, char *params_file_name, int time_limit_in)
 {
@@ -83,7 +83,6 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     }
 
     time_limit = time_limit_in;
-    heuristic_counter = 0;
 
     if (rank == 0)
     {
@@ -106,19 +105,18 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     meta_data["time"] = running_time;
     meta_data["time_limit_reached"] = (time_limit_reached) ? true : false;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
-    meta_data["heuristic_run_count"] = heuristic_sum;
     meta_data["num_workers_used"] = num_workers_used;
+    meta_data["root_node"] = root_node_dict;
 
     root_node_dict["time"] = root_eval_time;
     root_node_dict["heuristic_value"] = root_lower_bound;
-    root_node_dict["heuristic_run_count"] = heuristic_counter;
     root_node_dict["sdp_value"] = root_upper_bound;
     root_node_dict["root_solution"] = py::cast(root_sol_x);
-    meta_data["root_node"] = root_node_dict;
 
     solution_info["computed_val"] = Bab_LBGet();
-    solution_info["solution"] = py::cast(selected_nodes); // we converted it from numpy to regular list immidiately in python so might as well do it here.
+    solution_info["solution"] = py::cast(selected_nodes);
     solution_info["x"] = py::cast(solution_x);
+
     result_dict["meta_data"] = meta_data;
     result_dict["maxcut"] = solution_info;
 
@@ -166,7 +164,7 @@ void set_primal_solution(
 {
     const int n = PP->n;
 
-    check_np_array_validity(primal_solution, 2, PP->n, "primal solution");
+    check_np_array_validity(primal_solution, 2, n, "primal solution");
     std::copy_n(primal_solution.data(), n * n, X);
 }
 
@@ -215,34 +213,62 @@ py::tuple init_mpi_python()
     return py::make_tuple(num_workers, rank);
 }
 
+void finalize_mpi_python()
+{
+    MPI_Finalize();
+}
+
 void abort_mpi_python(int abort_code)
 {
     MPI_Abort(MPI_COMM_WORLD, abort_code);
 }
 
+int reduce_sum_mpi_python(int number)
+{
+    int summation;
+    MPI_Reduce(&number, &summation, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    return rank == 0 ? summation : 0;
+}
+
+double reduce_sum_mpi_python(double number)
+{
+    double summation;
+    MPI_Reduce(&number, &summation, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    return rank == 0 ? summation : 0.0;
+}
+
 PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
 {
+    // MPI functions
     m.def("init_mpi", &init_mpi_python, "Initialize MPI protocol");
+    m.def("finalize_mpi", &finalize_mpi_python, "Finalize MPI on solver end");
     m.def("abort_mpi", &abort_mpi_python, "Abort execution on fatal errors");
+    m.def("get_rank", &get_rank, "Get MPI rank of this process");
+    m.def("reduce_sum_mpi", py::overload_cast<int>(&reduce_sum_mpi_python));
+    m.def("reduce_sum_mpi", py::overload_cast<double>(&reduce_sum_mpi_python));
+
+    // Heuristic functions
     m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");
     m.def("run", &run_py, "Run the solver");
     m.def("goemans_williamson_heuristic", &run_heuristic_python, "Default C-implemented GW heuristic");
     m.def("update_mc_lower_bound_solution", &update_solution_python, "updates the MaxCut lower-bound solution if it is better than the current one");
-    m.def("get_rank", &get_rank, "Get the mpi rank");
 
+    // Sdp bound and node evaluation functions
     m.def("set_node_evaluation", &set_node_evaluation_override, "Override the SDP bound function");
     m.def("sdp_bound", &SDPbound, "Default C-implemented SDPbound");
     m.def("set_primal_solution", &set_primal_solution, "Set the primal solution before running default GW");
+    m.def("get_fixed_value", &getFixedValue);
 
+    // C-structs
     py::class_<BabSolution>(m, "BabSolution")
-        .def_property_readonly("X", &detail::babsolution_get_X);
+        .def_property_readonly("x", &detail::babsolution_get_X);
 
     py::class_<BabNode>(m, "BabNode")
         .def_property_readonly("xfixed", &detail::babnode_get_xfixed)
         .def_property_readonly("sol", &detail::babnode_get_sol)
+        .def_property_readonly("fracsol", &detail::babnode_get_fracsol)
         .def_readonly("level", &BabNode::level)
-        .def_readonly("upper_bound", &BabNode::upper_bound)
-        .def("fracsol", &detail::babnode_get_fracsol);
+        .def_readonly("upper_bound", &BabNode::upper_bound);
 
     py::class_<Problem>(m, "Problem")
         .def_property_readonly("L", &detail::problem_get_L)

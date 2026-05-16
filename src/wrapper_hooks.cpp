@@ -4,7 +4,6 @@
 py::object python_heuristic_override;
 py::object python_node_evaluation_override;
 
-extern int heuristic_counter;
 
 /// @brief set heuristic function to a Python function
 void set_heuristic_override(py::object func) { python_heuristic_override = func; }
@@ -20,8 +19,6 @@ void set_node_evaluation_override(py::object func) { python_node_evaluation_over
 /// @return best lower bound of the current subproblem found by the heuristic used
 double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node)
 {
-    heuristic_counter++;
-
     // Call Python override
     return python_heuristic_override(
                                 py::cast(node, py::return_value_policy::reference),

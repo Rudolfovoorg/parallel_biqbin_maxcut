@@ -26,7 +26,7 @@ def test_biqbin_output(problem_instance, request, subtests):
     time_diff = expected_result["meta_data"]["time"] - \
         result["meta_data"]["time"]
 
-    with subtests.test(f'Bab nodes diff = {bab_nodes_diff} Time diff = {time_diff:.3f}'):
+    with subtests.test(f'Bab nodes diff (exp - calc) = {bab_nodes_diff} Time diff (exp - calc) = {time_diff:.3f}'):
         # Best way I found to pretty print the bab nodes and time diff
         assert True
 
@@ -116,10 +116,10 @@ def test_biqbin_output(problem_instance, request, subtests):
         )
 
     with subtests.test('Root node heuristic_run_count'):
-        if expected_root["heuristic_run_count"] != computed_root["heuristic_run_count"]:
+        if expected_root["heuristic_run_count"] != computed_root["heuristic_call_count"]:
             pytest.xfail(
                 f'root heuristic_run_count mismatch!'
-                f'Got:      {computed_root["heuristic_run_count"]}\n'
+                f'Got:      {computed_root["heuristic_call_count"]}\n'
                 f'Expected: {expected_root["heuristic_run_count"]}'
             )
 

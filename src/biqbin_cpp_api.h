@@ -73,4 +73,5 @@ EXTERN_C void abort_alloc_fail(int abort_code);
 EXTERN_C int process_adj_matrix(const double *Adj, int Adj_N);
 EXTERN_C int Bab_numEvalNodes(void); // returns number of evaluated nodes
 EXTERN_C void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print);
+EXTERN_C double getFixedValue(const BabNode *node, const Problem *SP);
 #endif

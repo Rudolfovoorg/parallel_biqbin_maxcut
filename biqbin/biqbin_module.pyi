@@ -14,22 +14,39 @@ def run(solver_name: str, problem_instance_path: str, maxcut_adj_matrix: npt.NDA
     ...
 
 
-def set_heuristic(heuristic_function: Callable[[BabNode, Problem, Problem], float]):
-    """Sets the heuristic function in biqbin."""
+def set_heuristic(heuristic_function: Callable[[BabNode, Problem, Problem], float]) -> None:
+    """Sets the heuristic function in native biqbin."""
     ...
 
 
-def set_primal_solution(primal_solution: np.ndarray):
-    """Set the primal solution matrix X before running the default GW heuristic
+def set_primal_solution(primal_solution: npt.NDArray[np.float64]) -> None:
+    """Sets the SDP primal solution matrix ``X`` in C.
+    
+    Vital step before running the default GW heuristic,
+    default SDPBound routine does this automatically, but if we overwrite ``sdp_bound`` with a 
+    custom implementation, we need to manually set the primal solution X before running
 
     Args:
-        primal_solution (np.ndarray): shape (n, n) where n is the size of the original Problem->n
+        primal_solution (np.ndarray): shape (P.n, P.n) where n is the size of the subproblem P passed into
+        ``heuristic`` and ``sdp_bound`` solver callbacks.
     """
     ...
 
+def get_fixed_value(node: BabNode, P0: Problem) -> float:
+    """Calculate the objective value contribution of the "fixed" part,
+    where ``node.xfixed[i] == 1``.
+
+    Args:
+        node (BabNode): Current B&B node
+        P0 (Problem): Main (full) Problem
+
+    Returns:
+        float: Fixed value
+    """
+    ...
 
 def update_mc_lower_bound_solution(new_solution_x: npt.NDArray[np.int32]) -> bool:
-    """update the Max-Cut global lower-bound solution, if it is better than the current one
+    """Update Max-Cut global lower-bound solution, if it is better than the current one
 
     Args:
         new_solution_x (npt.NDArray[np.int32]): Binary vector of a potential new solution.
@@ -41,26 +58,26 @@ def update_mc_lower_bound_solution(new_solution_x: npt.NDArray[np.int32]) -> boo
 
 
 def goemans_williamson_heuristic(L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
-    """Default Biqbin GW heuristic implementation (heuristic_unpacked in src/heuristic.c)"""
+    """Default Biqbin GW heuristic implementation"""
     ...
 
 
-def set_node_evaluation(node_eval_function: Callable[[BabNode, Problem, Problem], float]):
-    """Set the function that will evaluate both bounds.
+def set_node_evaluation(node_eval_function: Callable[[BabNode, Problem, Problem], float]) -> None:
+    """Set the function that will evaluate upper and lower bounds of a branch-and-bound node.
     """
     ...
 
 
-def sdp_bound(node: BabNode, main_problem: Problem, subproblem: Problem) -> float:
-    """Default Biqbin SDPBound in src/bounding.c. Calls the heuristic function many times during execution
+def sdp_bound(node: BabNode, P0: Problem, P: Problem) -> float:
+    """Default Biqbin SDPBound implementation which internally calls the heuristic function many times during execution.
 
     Args:
         node (BabNode): current node being evaluated
-        main_problem (Problem): Full problem, constructed at the start of solving
-        subproblem (Problem): Subproblem constructed for the current node
+        P0 (Problem): Full problem, constructed at the start of solving
+        P (Problem): Subproblem constructed for the current node
 
     Returns:
-        float: Max-Cut upper bound (QUBO minimization lower bound)
+        float: SDP bound value, which BabNode.upper_bound will be set to after node evaluation
     """
     ...
 
@@ -77,7 +94,10 @@ def init_mpi() -> Tuple[int, int]:
         (int, int): MPI (size, rank) tuple 
     """
     ...
-
+    
+def finalize_mpi() -> None:
+    """Finalize MPI protocol after running the solver
+    """
 
 def abort_mpi(abort_code: int):
     """Abort solver execution on fatal errors
@@ -87,38 +107,172 @@ def abort_mpi(abort_code: int):
     """
     ...
 
+def reduce_sum_mpi(number: int | float) -> int | float:
+    """Reduce sum the input number of all ranks
+
+    Returns:
+        int | float: the sum on master process ``MPI rank == 0``, else it returns 0. 
+    """
+    ...
+
 
 class BabSolution:
+    """Solution data attached to a branch-and-bound node.
+
+    Python view of the native ``BabSolution`` struct used by the solver.
+
+    The object is accessed through ``BabNode.sol`` during custom
+    node-evaluation callbacks.
+    """
     @property
-    def X(self) -> npt.NDArray[np.int32]: ...
+    def x(self) -> npt.NDArray[np.int32]:
+        """Binary 0-1 solution vector.
+
+        Python view of the native ``BabSolution.X`` array.
+
+        One-dimensional read-only Python view with shape ``(P0.n - 1,)``, where
+        ``P0`` is the full problem passed to the same callback.
+
+        For entries where ``node.xfixed[i] == 1``, ``x[i]`` gives the binary value
+        that variable is fixed to.
+
+        The returned array is backed by solver-owned memory. Copy it before
+        storing it beyond the current callback.
+        """
+        ...
 
 
 class BabNode:
+    """Branch-and-bound search node.
+
+    Python view of the native ``BabNode`` struct used by the solver.
+
+    A ``BabNode`` is passed to node-evaluation callbacks such as ``sdp_bound`` and ``heuristic``.
+
+    Treat array-valued attributes as short-lived views. Copy them before storing
+    them beyond the current callback.    
+    """
+
     @property
-    def xfixed(self) -> npt.NDArray[np.int32]: ...
+    def xfixed(self) -> npt.NDArray[np.int32]:
+        """Mask of problem variables fixed at this branch-and-bound node.
+
+        One-dimensional read-only Python view with shape ``(P0.n - 1,)``,
+        where ``P0`` is the main problem passed to the same callback.
+
+        Entry ``xfixed[i]`` indicates
+        whether the corresponding problem variable / graph vertex has already
+        been fixed by branching:
+
+        - ``0``: variable is still free at this search-tree node
+        - ``1``: variable has been fixed at this search-tree node, fixed solutions
+        value is stored in the ``sol.x[i]`` 
+
+        This is a fixing mask, not the fixed value itself. The returned array
+        is read-only and backed by solver-owned memory.
+        """
+        ...
+
     @property
-    def sol(self) -> BabSolution: ...
+    def sol(self) -> BabSolution:
+        """Solution data associated with this search-tree node.
+
+        Provides access to the native ``BabSolution`` object stored in the
+        branch-and-bound node.
+
+        ``xfixed`` mask indicates which problem variables have been fixed by branching.
+        For entries where ``xfixed[i] == 1``, ``sol.x[i]`` gives the binary value
+        that variable is fixed to.
+
+        The returned object is a Python view of solver-owned state. Its array
+        attributes are valid only while the current callback is active; copy any
+        data that must be stored beyond the callback.
+        """
+        ...
+
     @property
-    def level(self) -> int: ...
+    def fracsol(self) -> npt.NDArray[np.float64]:
+        """Fractional solution associated with this node, used for determining the next branching variable.
+
+        Shape: ``(P0.n - 1,)`` where n is the size of the main problem P0
+
+        This array is intended for node-evaluation logic and may be updated by the solver between
+        callbacks.
+
+        The returned array is backed by solver-owned memory. Copy it before
+        storing it beyond the current callback.
+        """
+        ...
+
     @property
-    def upper_bound(self) -> float: ...
-    # fracsol is mutable — SDPbound writes back into it
+    def level(self) -> int:
+        """Depth of this node in the branch-and-bound tree.
+
+        The root node has level ``0``.
+        """
+        ...
+
     @property
-    def fracsol(self) -> npt.NDArray[np.float64]: ...
-    @fracsol.setter
-    def fracsol(self, value: npt.NDArray[np.float64]) -> None: ...
+    def upper_bound(self) -> float:
+        """Current upper bound associated with this node. It is set after node evaluation
+        by the solver.
+        """
+        ...
 
 
 class Problem:
+    """Problem data passed to node-evaluation callbacks.
+
+    Python view of the native ``Problem`` struct used by the solver.
+
+    ``Problem`` represents either the full MaxCut problem or the current
+    branch-and-bound subproblem, depending on which callback argument is being
+    inspected. In callbacks such as ``sdp_bound(node, P0, P)``, ``P0`` is the
+    full problem and ``P`` is the current subproblem.
+
+    Array-valued attributes expose solver-owned memory and are read-only
+    Python views. Copy arrays before storing them beyond the current callback.
+    """
     @property
-    def L(self) -> npt.NDArray[np.float64]: ...  # shape: (n, n)
+    def L(self) -> npt.NDArray[np.float64]:
+        """Objective matrix.
+
+        Two-dimensional read-only Python view with shape ``(self.n, self.n)``.
+
+        - For ``P0``, this is the objective matrix of the full problem. 
+        - For ``P``, this is the objective matrix of the current subproblem.
+
+        The returned array is backed by solver-owned memory. Copy it before
+        storing it beyond the current callback.
+        """
+        ...
+
     @property
-    def n(self) -> int: ...
+    def n(self) -> int:
+        """Size of the objective matrix ``L``.
+
+        ``L`` has shape ``(n, n)``. For MaxCut problems this size includes the
+        solver's dummy MaxCut variable, so the number of non-dummy problem
+        variables is usually ``n - 1``.
+        """
+        ...
+
     @property
-    def NIneq(self) -> int: ...
+    def NIneq(self) -> int:
+        """Number of triangle inequalities currently attached to this problem."""
+        ...
+
     @property
-    def NPentIneq(self) -> int: ...
+    def NPentIneq(self) -> int:
+        """Number of pentagonal inequalities currently attached to this problem."""
+        ...
+
     @property
-    def NHeptaIneq(self) -> int: ...
+    def NHeptaIneq(self) -> int:
+        """Number of heptagonal inequalities currently attached to this problem."""
+        ...
+
     @property
-    def bundle(self) -> int: ...
+    def bundle(self) -> int:
+        """Bundle size used by the SDP bounding routine for this problem."""
+        ...

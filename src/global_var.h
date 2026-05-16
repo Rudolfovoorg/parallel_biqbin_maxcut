@@ -19,14 +19,10 @@ double diff; // difference between basic SDP relaxation and bound with added cut
 /********************************************************/
 /******************** Tracking **************************/
 /********************************************************/
-
 int rank;               // MPI rank
 int num_workers;        // Number of all worker processes
 int num_workers_used;   // Number of workers that evaluated a BabNode
 int time_limit_reached; // 1 if solver timed out, 0 otherwise
-
-int heuristic_counter;  // Number of times the heuristic was called on this MPI rank
-int heuristic_sum;      // Total number of times the heuristic was called
 
 /********************************************************/
 /*************** Specific to node ***********************/

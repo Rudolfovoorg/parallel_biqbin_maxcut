@@ -1,5 +1,6 @@
 __version__ = '2.0.5'
 
+from dataclasses import dataclass
 from typing import ClassVar
 
 from deprecated import deprecated
@@ -8,7 +9,7 @@ import numpy as np
 import logging
 
 import biqbin
-from biqbin import biqbin_module
+
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, data_collector
 from biqbin.biqbin_module import (BabNode, Problem, finalize_mpi,
                                   reduce_sum_mpi, abort_mpi, run,
@@ -16,6 +17,7 @@ from biqbin.biqbin_module import (BabNode, Problem, finalize_mpi,
                                   set_heuristic, goemans_williamson_heuristic,
                                   set_primal_solution, set_node_evaluation, sdp_bound,
                                   get_rank, get_fixed_value)
+
 
 # Initialize MPI at start
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
@@ -263,7 +265,7 @@ class MaxCutSolver(PrettyPrint):
     solver_name: ClassVar[str] = f'PyBiqBin-MaxCut {__version__}'
 
     # Biqbin solution has 1 element less than the problem size, the last elemenent is assumed to be 0
-    _MC_DUMMY_ELEMENT: ClassVar[int] = 1
+    _MC_OFFSET: ClassVar[int] = 1
 
     def __init__(self,
                  problem: ProblemMaxCut,
@@ -343,7 +345,7 @@ class MaxCutSolver(PrettyPrint):
         else:
             return None
 
-    def sdp_bound(self, node: BabNode, P0: Problem, P: Problem) -> float:
+    def sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """Compute the SDP bound for a B&B node.
 
         Override in subclasses to use a custom bounding strategy.
@@ -354,27 +356,26 @@ class MaxCutSolver(PrettyPrint):
 
     def root_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """Compute the SDP bound on the root node. 
-        By default it will stay the same as self.upper_bound computed on
-        non-root nodes. 
+        By default it will call ``self.upper_bound``, same as the leaf B&B nodes.
 
         Override in subclasses to use a custom bounding strategy.
         """
         return self.sdp_bound(node, P0, P, *args, **kwargs)
 
     def heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
-        """
-        Finds a heuristic solution binary vector for the subproblem Laplacean matrix L.
+        """Finds a heuristic solution binary vector for the subproblem Laplacean matrix L.
 
         Args:
-            L (np.ndarray): Subproblem Laplacean matrix for the Max-Cut Problem
+            L (np.ndarray): Subproblem objective matrix for the Max-Cut Problem
 
         Keyword Args:
-            L0 (np.ndarray): Laplacian of the full (original) problem.
-            xfixed (np.ndarray): Fixed-variable mask, shape (n,).
-            sol_X (np.ndarray): Stores the value of the fixed variables, shape (n,).
+            node (BabNode): current B&B node
+            P0 (Problem): Original (full) problem
+            P (Problem): Current nodes subproblem
 
         Returns:
-            np.ndarray: Binary solution vector found by the heuristic. Shape must be a 1D of length one less than Subproblem size (L.shape[0] - 1, )
+            npt.ArrayLike: Binary solution vector found by the heuristic. 
+            Shape must be a 1D of length one less than subproblem size (L.shape[0] - 1, )
         """
         P0: Problem = kwargs['P0']
         node: BabNode = kwargs['node']
@@ -385,7 +386,7 @@ class MaxCutSolver(PrettyPrint):
             abort_mpi(10)
 
         # biqbin GW implementation expects a full solution vector
-        x = np.zeros(P0.n - MaxCutSolver._MC_DUMMY_ELEMENT, dtype=np.int32)
+        x = np.zeros(P0.n - MaxCutSolver._MC_OFFSET, dtype=np.int32)
 
         # solution is stored in x where solution variables are not fixed
         goemans_williamson_heuristic(P0.L, L, node.xfixed, node.sol.x, x)
@@ -393,15 +394,39 @@ class MaxCutSolver(PrettyPrint):
         # return only where solution variables are not fixed
         return x[node.xfixed == 0]
 
-    def root_heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
-        return self.heuristic(L, **kwargs)
+    def root_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
+        """Finds a heuristic solution binary vector on the root B&B node.
+        By default it calls ``self.heuristic``, same as the leaf B&B nodes.
+
+        Args:
+            L (np.ndarray): Subproblem objective matrix for the Max-Cut Problem
+
+        Keyword Args:
+            node (BabNode): current B&B node
+            P0 (Problem): Original (full) problem
+            P (Problem): Current nodes subproblem
+
+        Returns:
+            npt.ArrayLike: Binary solution vector found by the heuristic.
+            Shape must be a 1D of length one less than full problem size (P0.n - 1, )
+        """
+        return self.heuristic(L, *args, **kwargs)
 
     def set_sdp_primal_solution(self, primal_solution: np.ndarray):
+        """Sets the SDP primal solution matrix X.
+
+        Vital step before running the default GW heuristic, default SDPBound routine in C does this automatically, 
+        but if we overwrite ``sdp_bound`` with a custom implementation, we need to manually set the primal solution X before running.
+
+        Args:
+            primal_solution (np.ndarray): shape (P.n, P.n) where n is the size of the subproblem P passed into
+            ``heuristic`` and ``sdp_bound`` solver callbacks.
+        """
         set_primal_solution(primal_solution)
         self._primal_solution_set = True
 
     def get_fixed_value(self, node: BabNode, P0: Problem) -> float:
-        """Get contribution to the objective value of the fixed variables.
+        """Get the contribution to the objective value of the fixed variables
 
         Args:
             node (BabNode): current B&B node
@@ -409,18 +434,19 @@ class MaxCutSolver(PrettyPrint):
         """
         return get_fixed_value(node, P0)
 
-    def _bab_node_evaluation(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
+    def _bab_node_evaluation(self, node: BabNode, P0: Problem, P: Problem) -> float:
         """ Compute the upper and lower bound of the current B&B node
 
         Args:
             node (BabNode): current B&B node
-            P0 (Problem): Original (full) problem
-            P (Problem): Current nodes subproblem
+            P0 (Problem): original (full) problem
+            P (Problem): current nodes subproblem
 
         Returns:
             float: sdp bound value of the current node
         """
         self.bab_node_evaluation_call_count += 1
+
         # Check if the primal solution was set for the default GW heuristic,
         # default sdp_bound does this by itself.
         self._primal_solution_set = False
@@ -436,13 +462,30 @@ class MaxCutSolver(PrettyPrint):
 
     @data_collector(enabled_flag='collect_sdp_bound_root_data', data_box='sdp_bound_root_data')
     def _call_sdp_bound(self, node: BabNode, P0: Problem, P: Problem) -> float:
-        """Wrapper around sdp bound function call in case we want to add/collect data
+        """Wrapper around sdp bound function call in case we want to add, check or collect additional data.
+        This is the function native Biqbin calls from C.
+
+        Returns:
+            float: SDP value
         """
         self.sdp_bound_call_count += 1
         return self._sdp_bound_fn(node, P0, P)
 
     @data_collector(enabled_flag='collect_heuristic_root_data', data_box='heuristic_root_data')
     def _call_heuristic(self, node: BabNode, P0: Problem, P: Problem) -> float:
+        """Wrapper around heuristic function, it validates the provided solution vector by ``self.heuristic``
+        before sending it to the native solver. It also collects additional metadata (runtime and return value).
+
+        This is the function native Biqbin calls from C.
+
+        Args:
+            node (BabNode): current B&B node
+            P0 (Problem): original (full) problem
+            P (Problem): current nodes subproblem
+
+        Returns:
+            float: objective value of the heuristic solution
+        """
         # Call heuristic function
         self.heuristic_call_count += 1
         heur_sol = self._heuristic_fn(P.L, node=node, P0=P0, P=P)
@@ -452,14 +495,14 @@ class MaxCutSolver(PrettyPrint):
         if not isinstance(heur_sol, np.ndarray):
             heur_sol = np.array(heur_sol)
         self._check_solution_validity(
-            heur_sol, P.n - MaxCutSolver._MC_DUMMY_ELEMENT)
+            heur_sol, P.n - MaxCutSolver._MC_OFFSET)
 
         # copy to full solution x
         x = node.sol.x.copy()
         x[node.xfixed == 0] = heur_sol
 
         heur_value = self._evaluate_solution(P0.L, x)
-        solution_updated = update_mc_lower_bound_solution(x)
+        update_mc_lower_bound_solution(x)
 
         if logger.isEnabledFor(logging.DEBUG):
             if self._primal_solution_set:
@@ -473,16 +516,16 @@ class MaxCutSolver(PrettyPrint):
         return heur_value
 
     def _use_initial_estimate_on_root(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
-        """ heuristic call on root node if initial estimate solution is passed in
+        """ Heuristic call on root node if initial estimate solution is used
         """
         fatal_error = False
         if kwargs['P0'].L.shape != L.shape:
             logger.fatal(
-                f"Main problem shape {kwargs['L0'].shape} != Subproblem shape {L.shape}!")
+                f"Original problem shape {kwargs['L0'].shape} != Subproblem shape {L.shape}!")
             fatal_error = True
         if kwargs['P'].L.shape != self.problem.maxcut_adjacency_matrix.shape:
             logger.fatal(
-                f"Main problem shape {kwargs['L0'].shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
+                f"Original problem shape {kwargs['L0'].shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
             fatal_error = True
         if np.any(kwargs['node'].xfixed):
             logger.fatal("xfixed is nonzero!")
@@ -491,22 +534,23 @@ class MaxCutSolver(PrettyPrint):
         if fatal_error:
             abort_mpi(10)
 
-        return self.initial_estimate_solution[:-MaxCutSolver._MC_DUMMY_ELEMENT] # pyright: ignore[reportOptionalSubscript]
+        assert self.initial_estimate_solution is not None
+        return self.initial_estimate_solution[:-MaxCutSolver._MC_OFFSET]
 
     def _evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
         """Calculate the Max-Cut objective value of the solution
 
         Args:
-            L0 (np.ndarray): Laplacean of the original (full) problem
+            L0 (np.ndarray): Laplacean objective matrix of the original (full) problem
             sol (np.ndarray): current solution
 
         Returns:
             float: value of the solution
         """
         self._check_solution_validity(
-            sol, self.problem.maxcut_adjacency_matrix.shape[0] - MaxCutSolver._MC_DUMMY_ELEMENT)
-        sol_val = sol @ L0[:-MaxCutSolver._MC_DUMMY_ELEMENT,
-                           :-MaxCutSolver._MC_DUMMY_ELEMENT] @ sol
+            sol, self.problem.maxcut_adjacency_matrix.shape[0] - MaxCutSolver._MC_OFFSET)
+        sol_val = sol @ L0[:-MaxCutSolver._MC_OFFSET,
+                           :-MaxCutSolver._MC_OFFSET] @ sol
 
         return float(sol_val)
 
@@ -514,7 +558,7 @@ class MaxCutSolver(PrettyPrint):
         """Runs Biqbin C/C++ implementation
 
         Returns:
-            dict | None: Solution on MPI rank == 0; else None
+            dict | None: solution on MPI rank == 0; else None
         """
         # MC adjacency matrix is passed in on rank 0 and broadcasted to worker ranks during execution
         if self.rank == 0:
@@ -534,7 +578,16 @@ class MaxCutSolver(PrettyPrint):
         finalize_mpi()
         return result
 
-    def _update_result_dict(self, result: dict) -> dict | None:
+    def _update_result_dict(self, raw_result: dict) -> dict | None:
+        """Update the raw result from BiqBin C implementation with additional metadata.
+        Calls ``MPI_Reduce`` to sum up data from worker ranks. 
+
+        Args:
+            raw_result (dict): result dictionary built in C-solver, is empty on ``self.rank != 0``
+
+        Returns:
+            dict | None: updated result on ``self.rank == 0``; else None
+        """
         bab_node_call_count_sum = reduce_sum_mpi(
             self.bab_node_evaluation_call_count)
         sdp_call_count_sum = reduce_sum_mpi(self.sdp_bound_call_count)
@@ -543,34 +596,35 @@ class MaxCutSolver(PrettyPrint):
         if self.rank != 0:
             return None
 
-        result['meta_data']['solver'] = self.solver_name
-        result['meta_data']['instance'] = self.problem.problem_name
-        result['meta_data']['parameters'] = {
+        raw_result['meta_data']['solver'] = self.solver_name
+        raw_result['meta_data']['instance'] = self.problem.problem_name
+        raw_result['meta_data']['parameters'] = {
             'time_limit': self.time_limit if self.time_limit > 0 else None,
             'optimized': self.problem.optimize_mc_adj_matrix,
             'gcd': self.problem.gcd
         }
 
-        result['meta_data']['bab_node_evaluation_call_count'] = bab_node_call_count_sum
-        result['meta_data']['sdp_call_count'] = sdp_call_count_sum
-        result['meta_data']['heuristic_call_count'] = heur_call_count_sum
+        raw_result['meta_data']['bab_node_evaluation_call_count'] = bab_node_call_count_sum
+        raw_result['meta_data']['sdp_call_count'] = sdp_call_count_sum
+        raw_result['meta_data']['heuristic_call_count'] = heur_call_count_sum
 
         if self.collect_heuristic_root_data:
-            result['meta_data']['root_node']['total_heur_time'] = sum(
+            raw_result['meta_data']['root_node']['total_heur_time'] = sum(
                 d['time'] for d in self.heuristic_root_data)
-            result['meta_data']['root_node']['heuristic_call_count'] = self.heuristic_call_count
-            result['meta_data']['root_node']['heuristic_data'] = self.heuristic_root_data
+            raw_result['meta_data']['root_node']['heuristic_call_count'] = self.heuristic_call_count
+            raw_result['meta_data']['root_node']['heuristic_data'] = self.heuristic_root_data
         if self.collect_sdp_bound_root_data:
-            result['meta_data']['root_node']['sdp_bound_data'] = self.sdp_bound_root_data
-        return result
+            raw_result['meta_data']['root_node']['sdp_bound_data'] = self.sdp_bound_root_data
+        return raw_result
 
-    def _check_solution_validity(self, initial_solution: np.ndarray, problem_size: int):
+    def _check_solution_validity(self, solution: np.ndarray, problem_size: int):
+        """Check if the passed in solution is in correct format (binary 0-1 vector) for Biqbin solver."""
         fatal_error = False
         error_msg = ''
-        if initial_solution.ndim != 1 or initial_solution.shape[0] != problem_size:
-            error_msg += f'Solution vector must be a 1D vector of size {problem_size}, but got shape {initial_solution.shape}! '
+        if solution.ndim != 1 or solution.shape[0] != problem_size:
+            error_msg += f'Solution vector must be a 1D vector of size {problem_size}, but got shape {solution.shape}! '
             fatal_error = True
-        if not ((initial_solution == 0) | (initial_solution == 1)).all():
+        if not ((solution == 0) | (solution == 1)).all():
             error_msg += 'Solution vector must be a binary [0, 1] vector!'
             fatal_error = True
 
@@ -615,7 +669,7 @@ class QUBOSolver(MaxCutSolver):
         """Computes the solution to the QUBO using Biqbin, only MPI rank == 0 returns Solution
 
         Returns:
-            SolutionQubo: Solution class for QUBO problem. returns None if MPI rank != 0.
+            SolutionQubo: solution class for QUBO problem. returns None if MPI rank != 0.
         """
         biqbin_result = self._run_solver()
 

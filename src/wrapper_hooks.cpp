@@ -15,7 +15,6 @@ void set_node_evaluation_override(py::object func) { python_node_evaluation_over
 /// @param P0 is the original Problem *SP in global_var.h
 /// @param P  current subproblem Problem *PP in global_var.h
 /// @param node current branch and bound node
-/// @param x stores the best solution nodes found the by the heuristic function
 /// @return best lower bound of the current subproblem found by the heuristic used
 double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node)
 {

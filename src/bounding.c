@@ -76,22 +76,6 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     // store basic SDP bound to compute diff in the root node
     double basic_bound = f + fixedvalue;
 
-    // Store the fractional solution in the node
-    index = 0;
-    for (int i = 0; i < BabPbSize; ++i)
-    {
-        if (node->xfixed[i])
-        {
-            node->fracsol[i] = (double)node->sol.X[i];
-        }
-        else
-        {
-            // convert x (last column X) from {-1,1} to {0,1}
-            node->fracsol[i] = 0.5 * (X[(PP->n - 1) + index * PP->n] + 1.0);
-            ++index;
-        }
-    }
-
     /* run heuristic */
     runHeuristic(SP, PP, node);
 
@@ -240,22 +224,6 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
         done =
             prune || // can prune the B&B tree
             giveup;  // upper bound to far away from lower bound
-
-        // Store the fractional solution in the node
-        index = 0;
-        for (int i = 0; i < BabPbSize; ++i)
-        {
-            if (node->xfixed[i])
-            {
-                node->fracsol[i] = (double)node->sol.X[i];
-            }
-            else
-            {
-                // convert x (last column X) from {-1,1} to {0,1}
-                node->fracsol[i] = 0.5 * (X[(PP->n - 1) + index * PP->n] + 1.0);
-                ++index;
-            }
-        }
 
         /*** bundle update: due to separation of new cutting planes ***/
         if (!done)

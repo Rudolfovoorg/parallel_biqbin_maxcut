@@ -3,6 +3,7 @@
 
 extern BiqBinParameters params;
 extern int BabPbSize;
+extern double *X;
 
 /*
  * Evaluate a specific node.
@@ -18,9 +19,13 @@ double Evaluate(BabNode *node, const Problem *SP, Problem *PP)
     double bound;
 #ifdef PURE_C
     bound = SDPbound(node, SP, PP);
+    update_fractional_solution(node, PP, X);
 #else
     bound = wrapped_sdp_bound(node, SP, PP);
+    // BZ: Might consider moving this into Python, if we need 
+    update_fractional_solution(node, PP, X);
 #endif
+
     return bound;
 }
 
@@ -143,4 +148,31 @@ double getFixedValue(const BabNode *node, const Problem *SP)
     }
 
     return fixedvalue;
+}
+
+/// @brief Stores fractional solution in node->fracsol, used for branching
+/// @param node current B&B node
+/// @param PP subproblem for the current node
+/// @param X primal SDP solution
+void update_fractional_solution(BabNode *node, Problem *PP, double *X)
+{
+    // BZ: We updated node->fracsol in SDPBound multiple times, in the end it was
+    // was always set to the last value of X, so it makes more sense to update it
+    // after nodes evaluation.
+
+    // Store the fractional solution in the node for branching
+    int index = 0;
+    for (int i = 0; i < BabPbSize; ++i)
+    {
+        if (node->xfixed[i])
+        {
+            node->fracsol[i] = (double)node->sol.X[i]; // Fixed are the same as sol.X
+        }
+        else
+        {
+            // convert x (last column of primal solution X) from {-1,1} to {0,1}
+            node->fracsol[i] = 0.5 * (X[(PP->n - 1) + index * PP->n] + 1.0);
+            ++index;
+        }
+    }
 }

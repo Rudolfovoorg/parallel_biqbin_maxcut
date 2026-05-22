@@ -74,4 +74,5 @@ EXTERN_C int process_adj_matrix(const double *Adj, int Adj_N);
 EXTERN_C int Bab_numEvalNodes(void); // returns number of evaluated nodes
 EXTERN_C void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print);
 EXTERN_C double getFixedValue(const BabNode *node, const Problem *SP);
+EXTERN_C void update_fractional_solution(BabNode *node, Problem *PP, double *X);
 #endif

@@ -1,14 +1,14 @@
 __version__ = '2.0.5'
 
 from dataclasses import dataclass
+from gc import isenabled
 from typing import ClassVar
-
 from deprecated import deprecated
+import mpi4py
 import numpy.typing as npt
 import numpy as np
 import logging
 
-import biqbin
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, data_collector
 from biqbin.biqbin_module import (BabNode, Problem, finalize_mpi,
@@ -289,6 +289,7 @@ class MaxCutSolver(PrettyPrint):
         self.initial_estimate_solution: np.ndarray | None = None
 
         self.rank: int = get_rank()
+
         # On root rank
         if self.rank == 0:
             if initial_estimate is not None:
@@ -319,6 +320,7 @@ class MaxCutSolver(PrettyPrint):
         self.collect_sdp_bound_root_data: bool = collect_sdp_bound_root_data if self.rank == 0 else False
         self.sdp_bound_root_data: list[dict] = []
 
+        self.node_evaluation_total_time: float = 0
         # Set the functions in C++ source to be called
         set_node_evaluation(self._bab_node_evaluation)
         set_heuristic(self._call_heuristic)
@@ -445,6 +447,8 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             float: sdp bound value of the current node
         """
+        from mpi4py import MPI
+        t0 = MPI.Wtime()
         self.bab_node_evaluation_call_count += 1
 
         # Check if the primal solution was set for the default GW heuristic,
@@ -458,6 +462,8 @@ class MaxCutSolver(PrettyPrint):
         upper_bound_value = self._call_sdp_bound(node, P0, P)
         if not self._heuristic_was_called:
             self._call_heuristic(node, P0, P)
+        
+        self.node_evaluation_total_time += MPI.Wtime() - t0
         return upper_bound_value
 
     @data_collector(enabled_flag='collect_sdp_bound_root_data', data_box='sdp_bound_root_data')
@@ -588,14 +594,17 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             dict | None: updated result on ``self.rank == 0``; else None
         """
+        from mpi4py import MPI
+        bab_node_call_count_per_rank = MPI.COMM_WORLD.gather(self.bab_node_evaluation_call_count)
+        total_node_eval_times = MPI.COMM_WORLD.gather(self.node_evaluation_total_time, root=0)
         bab_node_call_count_sum = reduce_sum_mpi(
             self.bab_node_evaluation_call_count)
         sdp_call_count_sum = reduce_sum_mpi(self.sdp_bound_call_count)
         heur_call_count_sum = reduce_sum_mpi(self.heuristic_call_count)
-
         if self.rank != 0:
             return None
-
+        raw_result['meta_data']['node_eval_times'] = total_node_eval_times
+        raw_result['meta_data']['node_eval_per_rank'] = bab_node_call_count_per_rank
         raw_result['meta_data']['solver'] = self.solver_name
         raw_result['meta_data']['instance'] = self.problem.problem_name
         raw_result['meta_data']['parameters'] = {

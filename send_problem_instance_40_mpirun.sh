@@ -1,0 +1,10 @@
+SBATCH --ntasks=4 --job-name=problem_instance_40.json-4 --output=problem_instance_40.json-4-stdout job_mpirun.sh problem_instance_40.json 4
+SBATCH --ntasks=8 --job-name=problem_instance_40.json-8 --output=problem_instance_40.json-8-stdout job_mpirun.sh problem_instance_40.json 8
+SBATCH --ntasks=16 --job-name=problem_instance_40.json-16 --output=problem_instance_40.json-16-stdout job_mpirun.sh problem_instance_40.json 16
+SBATCH --ntasks=32 --job-name=problem_instance_40.json-32 --output=problem_instance_40.json-32-stdout job_mpirun.sh problem_instance_40.json 32
+SBATCH --ntasks=64 --job-name=problem_instance_40.json-64 --output=problem_instance_40.json-64-stdout job_mpirun.sh problem_instance_40.json 64
+SBATCH --ntasks=128 --job-name=problem_instance_40.json-128 --output=problem_instance_40.json-128-stdout job_mpirun.sh problem_instance_40.json 128
+SBATCH --ntasks=256 --job-name=problem_instance_40.json-256 --output=problem_instance_40.json-256-stdout job_mpirun.sh problem_instance_40.json 256
+SBATCH --ntasks=512 --job-name=problem_instance_40.json-512 --output=problem_instance_40.json-512-stdout job_mpirun.sh problem_instance_40.json 512
+SBATCH --ntasks=1024 --job-name=problem_instance_40.json-1024 --output=problem_instance_40.json-1024-stdout job_mpirun.sh problem_instance_40.json 1024
+SBATCH --ntasks=2048 --job-name=problem_instance_40.json-2048 --output=problem_instance_40.json-2048-stdout job_mpirun.sh problem_instance_40.json 2048

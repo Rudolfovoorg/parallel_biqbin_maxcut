@@ -1,13 +1,20 @@
 #pragma once
 
+#include <mpi.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-
 namespace py = pybind11;
 
 // From NumPy C API — stable ABI value, never changes
 static constexpr int NPY_WRITEABLE_FLAG = 0x0400;
+
+[[noreturn]] static void fatal_error(const std::string &message, int abort_code = 10)
+{
+    fprintf(stderr, "Fatal error: %s\n", message.c_str());
+    MPI_Abort(MPI_COMM_WORLD, abort_code);
+    throw std::runtime_error(message); // never reached, but satisfies [[noreturn]] for compilers
+}
 
 template <typename T>
 void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, int size, const std::string &np_array_name)
@@ -15,7 +22,7 @@ void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, int
     // Check number of dimensions
     if (np_in.ndim() != expected_ndim)
     {
-        throw py::type_error(np_array_name + " must have " + std::to_string(expected_ndim) +
+        fatal_error(np_array_name + " must have " + std::to_string(expected_ndim) +
                              " dimensions, got " + std::to_string(np_in.ndim()));
     }
     // If 2D, check if square
@@ -23,20 +30,20 @@ void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, int
     {
         if (np_in.shape(0) != np_in.shape(1))
         {
-            throw py::type_error(np_array_name + " must be square (shape[0] == shape[1]), got shape (" +
+            fatal_error(np_array_name + " must be square (shape[0] == shape[1]), got shape (" +
                                  std::to_string(np_in.shape(0)) + ", " + std::to_string(np_in.shape(1)) + ")");
         }
     }
 
     if (np_in.shape(0) != size)
     {
-        throw py::type_error(np_array_name + " must be of size " + std::to_string(size) + ", got " + std::to_string(np_in.shape(0)));
+        fatal_error(np_array_name + " must be of size " + std::to_string(size) + ", got " + std::to_string(np_in.shape(0)));
     }
 
     // Ensure the array is row-major (C-contiguous)
     if (!(np_in.flags() & py::array::c_style))
     {
-        throw py::type_error(np_array_name + " must be row-major (C-contiguous).");
+        fatal_error(np_array_name + " must be row-major (C-contiguous).");
     }
 }
 
@@ -48,7 +55,7 @@ void check_np_array_validity(const py::array_t<T> &np_in, int expected_ndim, int
     // Ensure the array is writable
     if (np_in.writeable() != expected_writable)
     {
-        throw py::type_error(np_array_name + " has wrong writeable flag.");
+        fatal_error(np_array_name + " has wrong writeable flag.");
     }
 }
 

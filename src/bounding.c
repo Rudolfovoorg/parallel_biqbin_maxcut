@@ -24,8 +24,6 @@ extern double diff; // difference between basic SDP relaxation and bound with ad
 /******** main bounding routine calling bundle method ********/
 double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
 {
-
-    int index;          // helps to store the fractional solution in the node
     double bound;       // f + fixedvalue
     double gap;         // difference between best lower bound and upper bound
     double oldf;        // stores f from previous iteration

@@ -55,3 +55,15 @@
 - added checks to get_rank() and run_py in wrapper.cpp to notify the user if they forgot to initialize mpi
 - various format and small bug fixes
 - added Dockerfile.dev for full testing environment, added make docker-dev command
+- MPI_Datatype in src/main.c fixed last variable from integer to double (node->upper_bound is a double)
+- exposed SDPBound to python as "node_evaluation" (as it computes both bounds internally)
+- Root (rank 0) now communicates both bounds (heuristic solution obj value and sdp bound) to workers
+- SDPBound simplified by removing int rank as parameter as it is already a global variable
+- SDP primal solution matrix can now be passed in through Python (obligatory for custom sdp_bound with default heuristic)
+- MPI_Abort, MPI_Reduce sum, MPI_Finalize all exposed to Python for communication and proper finalization
+- On all fatal errors (Python/C/C++) MPI_Abort is now called
+- added more safety checks for arrays the users can pass in
+- BIG bugfixes from overlooked edge cases in the original solver,
+    checking IF we can still branch at the end of the B&B tree, checks if we CAN do the bundle method after basic SDP bound,
+    this should (or could) fix the numerical instability that was detected on some problems
+- tests for all custom permutations of the solver implemented

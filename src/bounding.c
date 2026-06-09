@@ -110,8 +110,15 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     }
 
     // t = 0.5 * (f - fh) / (PP->NIneq * viol3^2)
-    t = 0.5 * (bound - Bab_LBGet()) / (PP->NIneq * viol3 * viol3);
-
+    if (PP->NIneq > 0 && viol3 > params.violated_TriIneq)
+    {
+        t = 0.5 * (bound - Bab_LBGet()) / (PP->NIneq * viol3 * viol3);
+    }
+    else
+    {
+        printf("PP->n = %i, PP->NIneq = %i, viol3 = %f\n", PP->n, PP->NIneq, viol3);
+        goto END;
+    }
     // first evaluation at dual_gamma: f = fct_eval(PP, dual_gamma, X, g)
     // since dual_gamma = 0, this is just basic SDP relaxation
     // --> only need to compute subgradient
@@ -204,11 +211,15 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
             viol3 = updateTriangleInequalities(PP, dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
 
             /* include pentagonal and heptagonal inequalities */
-            if (params.include_Pent && (count > params.triag_iter || viol3 < 0.2))
+            if (PP->n > 5 && params.include_Pent && (count > params.triag_iter || viol3 < 0.2))
+            {
                 viol5 = updatePentagonalInequalities(PP, dual_gamma, &Pent_NumAdded, &Pent_NumSubtracted, triag);
+            }
 
-            if (params.include_Hepta && ((count > params.triag_iter + params.pent_iter) || (viol3 < 0.2 && (1 - viol5 < 0.4))))
+            if (PP->n > 7 && params.include_Hepta && ((count > params.triag_iter + params.pent_iter) || (viol3 < 0.2 && (1 - viol5 < 0.4))))
+            {
                 viol7 = updateHeptagonalInequalities(PP, dual_gamma, &Hepta_NumAdded, &Hepta_NumSubtracted, triag + penta);
+            }
         }
         else
         {

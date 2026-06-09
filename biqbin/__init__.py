@@ -39,13 +39,28 @@ __all__ = [
     'QuboFromQPLIB'
 ]
 
+import atexit
+
 _initialized = False
+
 
 def init():
     """Initialize the MPI environment. Must be called before creating any solver."""
+    from biqbin.biqbin_module import init_mpi
     global _initialized
     if not _initialized:
-        from biqbin.biqbin_module import init_mpi
         init_mpi()
         _initialized = True
-        
+
+
+def finalize():
+    """Finalize MPI if initialized, is called atexit"""
+    from biqbin.biqbin_module import finalize_mpi
+    global _initialized
+
+    if _initialized:
+        finalize_mpi()
+    _initialized = False
+
+
+atexit.register(finalize)

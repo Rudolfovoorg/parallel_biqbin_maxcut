@@ -176,12 +176,44 @@ test-bqp-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j -c > /dev/null 2>&1
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json
 
+test-modular-combos: clean-output
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_0.json.output --test-case 0 -c > /dev/null 2>&1 
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_1.json.output --test-case 1 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_2.json.output --test-case 2 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_3.json.output --test-case 3 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_4.json.output --test-case 4 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_5.json.output --test-case 5 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_6.json.output --test-case 6 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_7.json.output --test-case 7 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_8.json.output --test-case 8 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_9.json.output --test-case 9 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_10.json.output --test-case 10 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_11.json.output --test-case 11 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_12.json.output --test-case 12 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_13.json.output --test-case 13 -c > /dev/null 2>&1
+	$(RUN_ENVS) mpirun -n 3 python3 tests/biqbin_custom_solvers.py tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_14.json.output --test-case 14 -c > /dev/null 2>&1
+
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances  tests/custom_solvers_results/small_example_qubo_test_case_0.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_1.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_2.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_3.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_4.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_5.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_6.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_7.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_8.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_9.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_10.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_11.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_12.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_13.json \
+																				tests/custom_solvers_results/small_example_qubo_test_case_14.json \
 
 test-parsers:
 	python -m pytest tests/test_data_parsers.py -v --no-header
 
 
-test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers
+test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers test-modular-combos
 
 docker: 
 	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 

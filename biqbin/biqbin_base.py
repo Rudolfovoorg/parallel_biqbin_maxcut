@@ -1,23 +1,19 @@
 __version__ = '2.0.5'
 
-from dataclasses import dataclass
 from typing import ClassVar
 
-from deprecated import deprecated
 import numpy.typing as npt
 import numpy as np
 import logging
 
-import biqbin
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, data_collector
-from biqbin.biqbin_module import (BabNode, Problem, finalize_mpi,
+from biqbin.biqbin_module import (BabNode, Problem,
                                   reduce_sum_mpi, abort_mpi, run,
                                   update_mc_lower_bound_solution,
                                   set_heuristic, goemans_williamson_heuristic,
                                   set_primal_solution, set_node_evaluation, sdp_bound,
                                   get_rank, get_fixed_value)
-
 
 # Initialize MPI at start
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
@@ -575,7 +571,6 @@ class MaxCutSolver(PrettyPrint):
                           self.time_limit)
 
         result = self._update_result_dict(raw_results)
-        finalize_mpi()
         return result
 
     def _update_result_dict(self, raw_result: dict) -> dict | None:

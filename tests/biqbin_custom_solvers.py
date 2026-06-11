@@ -26,8 +26,9 @@ class TestTrackerSolver(QUBOSolver):
     def __init__(self, problem: ProblemQubo, params: str = 'params',
                  time_limit: int = 0,
                  initial_estimate: np.ndarray | None = None,
-                 collect_heur_data: bool = False):
-        super().__init__(problem, params, time_limit, initial_estimate, collect_heur_data)
+                 collect_heur_root_data: bool = False,
+                 collect_sdp_root_data: bool = False):
+        super().__init__(problem, params, time_limit, initial_estimate, collect_heur_root_data, collect_sdp_root_data)
 
         # Call counts of custom methods
         self.custom_root_sdp_call_count = 0
@@ -38,7 +39,8 @@ class TestTrackerSolver(QUBOSolver):
     def _update_result_dict(self, raw_result: dict) -> dict | None:
         updated_results = super()._update_result_dict(raw_result)
         self.custom_sdp_call_count = reduce_sum_mpi(self.custom_sdp_call_count)
-        self.custom_heuristic_call_count = reduce_sum_mpi(self.custom_heuristic_call_count)
+        self.custom_heuristic_call_count = reduce_sum_mpi(
+            self.custom_heuristic_call_count)
         if updated_results:
             updated_results['meta_data']['custom_solver_tests'] = {
                 'root_sdp_calls': self.custom_root_sdp_call_count,
@@ -189,7 +191,8 @@ if __name__ == '__main__':
                                params=args.params,
                                time_limit=args.time,
                                initial_estimate=initial_estimate,
-                               collect_heur_data=args.collect_heur_data
+                               collect_heur_root_data=args.collect_root_data,
+                               collect_sdp_root_data=args.collect_root_data
                                )
 
     # Run biqbin solver to solve the qubo, passing in the problem

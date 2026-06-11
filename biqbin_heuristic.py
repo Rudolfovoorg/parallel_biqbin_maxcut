@@ -11,10 +11,11 @@ class QuboDwaveSampler(QUBOSolver):
                  params: str,
                  time_limit: int,
                  initial_estimate: np.ndarray | None,
-                 collect_heuristic_data: bool,
+                 collect_heuristic_root_data: bool,
+                 collect_sdp_bound_root_data: bool,
                  sampler, **sampler_kwargs):
         super().__init__(problem, params, time_limit,
-                         initial_estimate, collect_heuristic_data)
+                         initial_estimate, collect_heuristic_root_data, collect_sdp_bound_root_data)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
 
@@ -52,7 +53,8 @@ if __name__ == '__main__':
                               params=args.params,
                               time_limit=args.time,
                               initial_estimate=initial_solution,
-                              collect_heuristic_data=args.collect_heur_data,
+                              collect_heuristic_root_data=args.collect_root_data,
+                              collect_sdp_bound_root_data=args.collect_root_data,
                               sampler=SimulatedAnnealingSampler(),
                               num_reads=10)
 

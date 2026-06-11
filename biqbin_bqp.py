@@ -48,12 +48,13 @@ class SolutionBQP(SolutionMaxCut):
 class BQPSolver(MaxCutSolver):
     solver_name = 'PyBiqBin-BQP-PLACEHOLDER'
 
-    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_data=False):
+    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_root_data=False, collect_sdp_bound_root_data=False):
         super().__init__(problem=problem,
                          params=params,
                          time_limit=time_limit,
                          initial_estimate=initial_estimate,
-                         collect_heuristic_data=collect_heuristic_data)
+                         collect_heuristic_root_data=collect_heuristic_root_data,
+                         collect_sdp_bound_root_data=collect_sdp_bound_root_data)
         self.__problem: ProblemBQP = problem
 
     @property
@@ -96,6 +97,7 @@ class BQPFromJson(FromFile):
     def read_bqp_json(self, filename):
         with open(filename, 'r') as file:
             instance = json.load(file)
+
         def f(F):
             for i, j, v in F:
                 if i == j:
@@ -178,7 +180,9 @@ if __name__ == '__main__':
     else:
         initial_estimate = None
 
-    solver = BQPSolver(problem, args.params, args.time, initial_estimate, collect_heuristic_data=args.collect_heur_data)
+    solver = BQPSolver(problem, args.params, args.time, initial_estimate,
+                       collect_heuristic_root_data=args.collect_root_data,
+                       collect_sdp_bound_root_data=args.collect_root_data)
 
     solution = solver.compute()  # run the solver
 

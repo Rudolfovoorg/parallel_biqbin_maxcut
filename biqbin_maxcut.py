@@ -31,7 +31,8 @@ if __name__ == '__main__':
         params=args.params,
         time_limit=args.time,
         initial_estimate=initial_estimate,
-        collect_heuristic_data=args.collect_heur_data)
+        collect_heuristic_root_data=args.collect_root_data,
+        collect_sdp_bound_root_data=args.collect_root_data)
 
     # Compute the solution for the given problem
     solution = solver.compute()

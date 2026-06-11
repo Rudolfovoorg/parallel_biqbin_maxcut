@@ -153,7 +153,7 @@ class SolutionMaxCut(PrettyPrint):
     def _get_verbose_metadata_string(self, verbose: bool) -> str:
         if verbose:
             return (f'B&B nodes evaluated   = {self.meta_data['eval_bab_nodes']}\n'
-                    f'Heurist run count     = {self.meta_data['heuristic_run_count']}\n'
+                    f'Heurist run count     = {self.meta_data['heuristic_call_count']}\n'
                     f'Optimized input       = {self.meta_data['parameters']['optimized']}\n'
                     f'gcd = {self.meta_data['parameters']['gcd']}\n'
                     f'Worker processes used = {self.meta_data['num_workers_used']}\n')
@@ -268,8 +268,8 @@ class MaxCutSolver(PrettyPrint):
                  params: str = 'params',
                  time_limit: int = 0,
                  initial_estimate: np.ndarray | None = None,
-                 collect_heuristic_data: bool = False,
-                 collect_sdp_bound_root_data: bool = True):
+                 collect_heuristic_root_data: bool = False,
+                 collect_sdp_bound_root_data: bool = False):
         """Initialize the solver
 
         Args:
@@ -306,10 +306,10 @@ class MaxCutSolver(PrettyPrint):
             self._sdp_bound_fn = self.sdp_bound
 
         # Data collection
-        # BZ TODO: Enable non-root data collection, might get complicated on 2000+ processes
+        # BZ TODO: Enable non-root data collection
         self.bab_node_evaluation_call_count = 0
         self.heuristic_call_count = 0
-        self.collect_heuristic_root_data: bool = collect_heuristic_data if self.rank == 0 else False
+        self.collect_heuristic_root_data: bool = collect_heuristic_root_data if self.rank == 0 else False
         self.heuristic_root_data: list[dict] = []
         self.sdp_bound_call_count = 0
         self.collect_sdp_bound_root_data: bool = collect_sdp_bound_root_data if self.rank == 0 else False
@@ -346,7 +346,6 @@ class MaxCutSolver(PrettyPrint):
 
         Override in subclasses to use a custom bounding strategy.
         """
-        logger.debug(f'[rank {self.rank}]: CALLED UPPER BOUND')
         self._primal_solution_set = True
         return sdp_bound(node, P0, P)
 
@@ -458,14 +457,20 @@ class MaxCutSolver(PrettyPrint):
 
     @data_collector(enabled_flag='collect_sdp_bound_root_data', data_box='sdp_bound_root_data')
     def _call_sdp_bound(self, node: BabNode, P0: Problem, P: Problem) -> float:
-        """Wrapper around sdp bound function call in case we want to add, check or collect additional data.
+        """Wrapper around sdp bound function call.
+
+        Contains validity checks and optional runtime data.
         This is the function native Biqbin calls from C.
 
         Returns:
             float: SDP value
         """
         self.sdp_bound_call_count += 1
-        return self._sdp_bound_fn(node, P0, P)
+        sdp_bound_value = self._sdp_bound_fn(node, P0, P)
+        if not np.isfinite(sdp_bound_value):
+            logger.fatal("sdp_bound must return a finite float")
+            abort_mpi(10)
+        return sdp_bound_value
 
     @data_collector(enabled_flag='collect_heuristic_root_data', data_box='heuristic_root_data')
     def _call_heuristic(self, node: BabNode, P0: Problem, P: Problem) -> float:
@@ -503,7 +508,7 @@ class MaxCutSolver(PrettyPrint):
         if logger.isEnabledFor(logging.DEBUG):
             if self._primal_solution_set:
                 default_gw_value = goemans_williamson_heuristic(
-                    P0.L, P.L, node.xfixed, node.sol.x, np.zeros(P0.n)
+                    P0.L, P.L, node.xfixed, node.sol.x, np.zeros(P0.n - 1)
                 )
                 logger.debug(
                     f'Custom heuristic: {heur_value}; default gw heuristic: {default_gw_value}'
@@ -517,11 +522,11 @@ class MaxCutSolver(PrettyPrint):
         fatal_error = False
         if kwargs['P0'].L.shape != L.shape:
             logger.fatal(
-                f"Original problem shape {kwargs['L0'].shape} != Subproblem shape {L.shape}!")
+                f"Original problem shape {kwargs['P0'].L.shape} != Subproblem shape {L.shape}!")
             fatal_error = True
         if kwargs['P'].L.shape != self.problem.maxcut_adjacency_matrix.shape:
             logger.fatal(
-                f"Original problem shape {kwargs['L0'].shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
+                f"Original problem shape {kwargs['P0'].L.shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
             fatal_error = True
         if np.any(kwargs['node'].xfixed):
             logger.fatal("xfixed is nonzero!")
@@ -598,6 +603,8 @@ class MaxCutSolver(PrettyPrint):
             'optimized': self.problem.optimize_mc_adj_matrix,
             'gcd': self.problem.gcd
         }
+        if self.initial_estimate_solution is not None:
+            raw_result['meta_data']['initial_estimate_solution'] = self.initial_estimate_solution.tolist()
 
         raw_result['meta_data']['bab_node_evaluation_call_count'] = bab_node_call_count_sum
         raw_result['meta_data']['sdp_call_count'] = sdp_call_count_sum
@@ -642,7 +649,9 @@ class QUBOSolver(MaxCutSolver):
                  params: str = 'params',
                  time_limit: int = 0,
                  initial_estimate: np.ndarray | None = None,
-                 collect_heur_data: bool = False):
+                 collect_heuristic_root_data: bool = False,
+                 collect_sdp_bound_root_data: bool = False
+                 ):
 
         mc_initial_solution = None
         if get_rank() == 0 and initial_estimate is not None:
@@ -652,7 +661,9 @@ class QUBOSolver(MaxCutSolver):
             mc_initial_solution = np.append(initial_estimate, 0)
 
         super().__init__(problem, params, time_limit,
-                         mc_initial_solution, collect_heur_data)
+                         mc_initial_solution,
+                         collect_heuristic_root_data,
+                         collect_sdp_bound_root_data)
 
         self.__problem: ProblemQubo = problem
 

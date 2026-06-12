@@ -423,6 +423,11 @@ class MaxCutSolver(PrettyPrint):
             logger.fatal(
                 'The primal_solution must be in the {-1, 1} range!')
             abort_mpi(10)
+            
+        if not np.all(np.isfinite(primal_solution)):
+            logger.fatal("The primal_solution must contain only finite values!")
+            abort_mpi(10)
+        
         set_primal_solution(primal_solution)
         self._primal_solution_set = True
 

@@ -19,8 +19,8 @@ class CustomSolver(QUBOSolver):
     - custom sdp bound on non-root nodes (minimization lower bound)
     - custom heuristic on non-root nodes (minimization upper bound)
 
-    Because both SDP and heuristic callbacks are overridden, this class does
-    not need to call set_sdp_primal_solution().
+    NOTE: Custom `sdp_bound` needs to set the SDP primal solution by calling `self.set_sdp_primal_solution`,
+    passing in a PSD matrix of shape (P.n, P.n).
 
     The example implementations return hardcoded values in place of an actual sdp or heuristic 
     and are meant for demonstration purposes only.
@@ -30,7 +30,8 @@ class CustomSolver(QUBOSolver):
         """Custom SDP bound routine on the root node.
 
         By overriding this method you can use a custom SDP routine only on the root node.
-
+        NOTE: You need to set the SDP primal solution by calling `self.set_sdp_primal_solution`.
+        
         Args:
             node (BabNode): Current B&B node
             P0 (Problem): Original (full) problem
@@ -39,8 +40,11 @@ class CustomSolver(QUBOSolver):
         Returns:
             float: SDP value
         """
-        # No call to set_sdp_primal_solution() is needed here because
-        # root_heuristic is also overridden in this example.
+        # SDP primal solution must be of shape (P.n, P.n) or P.L.shape
+        X = np.identity(P.n)
+        # Set the primal solution inside native Biqbin
+        self.set_sdp_primal_solution(X)
+        
         sdp_value: float = 10000 # some computed SDP value
         return sdp_value
 
@@ -87,7 +91,7 @@ class CustomSolver(QUBOSolver):
 class CustomSDPSolver(QUBOSolver):
     """Example of a solver with only a custom SDP routine.
 
-    Default Biqbin ``heuristic`` requires an SDP primal solution PSD matrix to be set. 
+    Biqbin requires an SDP primal solution PSD matrix to be set. 
     The default ``sdp_routine`` does this internally, but should we use a custom sdp routine, 
     we need to set it manually with ``self.set_sdp_primal_solution``.
 
@@ -107,5 +111,5 @@ class CustomSDPSolver(QUBOSolver):
         # Set the primal solution inside native Biqbin
         self.set_sdp_primal_solution(X)
 
-        sdp_value: float = 10000 # some computed SDP value
+        sdp_value: float = 10000 # some computed SDP relaxation value
         return sdp_value

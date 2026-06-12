@@ -1,7 +1,11 @@
 #include "biqbin.h"
 
-extern BiqBinParameters params;
+
+#ifdef PURE_C
 extern FILE *output;
+#endif
+
+extern BiqBinParameters params;
 extern int BabPbSize;
 extern int rank;
 

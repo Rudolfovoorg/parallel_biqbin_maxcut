@@ -17,7 +17,9 @@ If `root_sdp_bound` is not overridden, `sdp_bound` is used on the root node too.
 
 ## The `set_sdp_primal_solution` Requirement
 
-Biqbin requires a primal SDP solution matrix (a PSD matrix `X` in {-1, 1} range) to be set before it runs. The default `sdp_bound` sets this internally. **If you override `sdp_bound`, you must call `self.set_sdp_primal_solution` before returning.**
+Biqbin requires a primal SDP solution matrix (a PSD matrix `X` in {-1, 1} range) to be set before it runs. The default `sdp_bound` sets this internally. 
+
+**If you override `sdp_bound`, you must call `self.set_sdp_primal_solution` before returning.**
 
 ```python
 def sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
@@ -61,8 +63,8 @@ class CustomSolver(QUBOSolver):
     def root_sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
         # Compute the SDP relaxation value and SDP primal solution X
         self.set_sdp_primal_solution(X) # set it before leaving the function
-        return sdp_value # replaced by root_heuristic, so no primal needed
-
+        return sdp_value
+        
     def root_heuristic(self, L, *args, **kwargs) -> npt.NDArray[np.int32]:
         # Run heuristic on root and return a binary 0-1 solution vector of size L.shape[0] - 1
         x = np.zeros(L.shape[0] - 1, dtype=np.int32)

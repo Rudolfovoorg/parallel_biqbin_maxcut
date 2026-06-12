@@ -21,9 +21,6 @@ extern int num_workers;
 extern int num_workers_used;
 extern int time_limit_reached;
 
-extern int heuristic_counter;
-extern int heuristic_sum;
-
 // Root data
 extern double root_lower_bound;
 extern double root_upper_bound;

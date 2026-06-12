@@ -9,8 +9,9 @@ from pathlib import Path
 import pytest
 
 
-MPIEXEC = os.environ.get("MPIEXEC", shutil.which("mpirun") or "mpirun")
-
+MPIEXEC = os.environ.get("MPIEXEC") or shutil.which("mpirun") or shutil.which("mpiexec")
+if MPIEXEC is None:
+    raise RuntimeError("mpirun/mpiexec not found")
 
 FAILURE_CASES = {
     "sdp_returns_nan": "BIQBIN_TEST_SDP_RETURNS_NAN",

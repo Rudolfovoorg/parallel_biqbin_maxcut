@@ -59,7 +59,7 @@ Heuristic return values must be integer binary vectors (`dtype=np.int32`).
 ```python
 class CustomSolver(QUBOSolver):
     def root_sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
-        # Compute the SDP value and SDP primal solution X
+        # Compute the SDP relaxation value and SDP primal solution X
         self.set_sdp_primal_solution(X) # set it before leaving the function
         return sdp_value # replaced by root_heuristic, so no primal needed
 

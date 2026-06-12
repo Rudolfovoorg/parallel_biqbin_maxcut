@@ -15,7 +15,7 @@ double Evaluate(BabNode *node, const Problem *SP, Problem *PP)
     // create subproblem PP
     createSubproblem(node, SP, PP);
 
-    // compute the SDP upper bound and run heuristic
+    // compute the SDP relaxation value and run heuristic
     double bound;
 #ifdef PURE_C
     bound = SDPbound(node, SP, PP);

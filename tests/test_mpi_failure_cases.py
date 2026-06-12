@@ -73,15 +73,14 @@ def test_mpi_failure_case(case: str, marker: str, tmp_path: Path) -> None:
 
     markers = marker_files(log_dir, marker)
 
-    diagnostics = (
-        f"case: {case}\n"
-        f"marker: {marker}\n"
-        f"returncode: {cp.returncode}\n"
-        f"log_dir: {log_dir}\n"
-        f"marker_files: {[str(path) for path in markers]}\n\n"
-        f"stdout:\n{cp.stdout}\n\n"
-        f"stderr:\n{cp.stderr}\n"
-    )
+    diagnostics = (f"case: {case}\n"
+                   f"marker: {marker}\n"
+                   f"returncode: {cp.returncode}\n"
+                   f"log_dir: {log_dir}\n"
+                   f"marker_files: {[str(path) for path in markers]}\n\n"
+                   f"stdout:\n{cp.stdout}\n\n"
+                   f"stderr:\n{cp.stderr}\n"
+                   )
 
     assert cp.returncode != 0,  diagnostics
     assert markers, diagnostics

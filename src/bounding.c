@@ -314,6 +314,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
 
 END:
 
-    // return the bound without the fixed value, this will be added in Evaluate function
+    // return the SDP relaxation value without the fixed contribution value
+    // The fixed contribution will be added in Evaluate function
     return f;
 }

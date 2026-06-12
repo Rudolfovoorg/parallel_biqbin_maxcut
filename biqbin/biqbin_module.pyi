@@ -22,13 +22,13 @@ def set_heuristic(heuristic_function: Callable[[BabNode, Problem, Problem], floa
 def set_primal_solution(primal_solution: npt.NDArray[np.float64]) -> None:
     """Sets the SDP primal solution matrix ``X`` in C.
     
-    Vital step before running the default GW heuristic,
+    Vital step before running the default GW heuristic or branching,
     default SDPBound routine does this automatically, but if we overwrite ``sdp_bound`` with a 
-    custom implementation, we need to manually set the primal solution X before running
+    custom implementation, we need to manually set the primal solution X
 
     Args:
         primal_solution (np.ndarray): shape (P.n, P.n) where n is the size of the subproblem P passed into
-        ``heuristic`` and ``sdp_bound`` solver callbacks.
+        ``heuristic`` and ``sdp_bound`` solver callbacks. It is in {-1, 1} range.
     """
     ...
 
@@ -77,7 +77,7 @@ def sdp_bound(node: BabNode, P0: Problem, P: Problem) -> float:
         P (Problem): Subproblem constructed for the current node
 
     Returns:
-        float: SDP bound value, which BabNode.upper_bound will be set to after node evaluation
+        float: SDP relaxation value
     """
     ...
 

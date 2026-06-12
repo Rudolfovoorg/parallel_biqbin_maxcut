@@ -153,7 +153,8 @@ def test_biqbin_output(problem_instance, request, subtests):
                 if exp_cs_tests[key] != comp_cs_tests[key]:
                     if exp_cs_tests['sdp_calls'] == 0 and key == 'heuristic_calls':
                         # 4 test cases include the default SDPBound and custom heuristic
-                        # in these cases the heuristic calls are too random to test properly
+                        # in these cases the heuristic calls are called a indeterminant amount
+                        # based on the which worker get's which problem with what RNG
                         pytest.xfail(f'(exp - comp) {exp_cs_tests[key]}-{comp_cs_tests[key]}')
                     else:
                         raise ValueError(f'(exp - comp) {exp_cs_tests[key]}-{comp_cs_tests[key]}')

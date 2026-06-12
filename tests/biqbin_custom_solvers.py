@@ -162,7 +162,7 @@ class ArgParserCustom(ArgParserQubo):
         super().__init__(prog, description)
         self.add_argument('--test-case',
                           type=int,
-                          choices=range(15),
+                          choices=range(len(CUSTOM_CONFIGS)),
                           help=f'Custom solvers')
 
 

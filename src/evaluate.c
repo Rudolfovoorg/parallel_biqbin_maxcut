@@ -22,8 +22,15 @@ double Evaluate(BabNode *node, const Problem *SP, Problem *PP)
 #else
     bound = wrapped_sdp_bound(node, SP, PP);
 #endif
+
+    // Fractional solution is updated after B&B node is evaluated
+    // This is needed for branching, fracsol is set to the last column of X
+    // in the {0, 1} .. X is in {-1, 1}
     update_fractional_solution(node, PP, X);
 
+    // Fixed value (objective contribution of the fixed part) is added after
+    // node evaluation as well, as this will simplify the custom sdp bound
+    // implementations significantly
     return bound + getFixedValue(node, SP);
 }
 

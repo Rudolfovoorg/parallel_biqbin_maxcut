@@ -13,7 +13,7 @@ from biqbin.biqbin_module import (BabNode, Problem,
                                   update_mc_lower_bound_solution,
                                   set_heuristic, goemans_williamson_heuristic,
                                   set_primal_solution, set_node_evaluation, sdp_bound,
-                                  get_rank, get_fixed_value)
+                                  get_rank)
 
 # Initialize MPI at start
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
@@ -377,7 +377,7 @@ class MaxCutSolver(PrettyPrint):
 
         if not self._primal_solution_set:
             logger.fatal(
-                f'SDP primal solution was not set {self.rank}!')
+                f'SDP primal solution was not set before calling the default heuristc!')
             abort_mpi(10)
 
         # biqbin GW implementation expects a full solution vector
@@ -407,27 +407,24 @@ class MaxCutSolver(PrettyPrint):
         """
         return self.heuristic(L, *args, **kwargs)
 
-    def set_sdp_primal_solution(self, primal_solution: np.ndarray):
+    def set_sdp_primal_solution(self, primal_solution: npt.NDArray[np.float64]):
         """Sets the SDP primal solution matrix X.
 
-        Vital step before running the default GW heuristic, default SDPBound routine in C does this automatically, 
+        Vital for branching and the GW heuristic, default SDPBound routine in C does this automatically, 
         but if we overwrite ``sdp_bound`` with a custom implementation, we need to manually set the primal solution X before running.
+
+        NOTE: The matrix should be in {-1, 1} range.
 
         Args:
             primal_solution (np.ndarray): shape (P.n, P.n) where n is the size of the subproblem P passed into
             ``heuristic`` and ``sdp_bound`` solver callbacks.
         """
+        if np.any(primal_solution < -1.0) or np.any(primal_solution > 1.0):
+            logger.fatal(
+                'The primal_solution must be in the {-1, 1} range!')
+            abort_mpi(10)
         set_primal_solution(primal_solution)
         self._primal_solution_set = True
-
-    def get_fixed_value(self, node: BabNode, P0: Problem) -> float:
-        """Get the contribution to the objective value of the fixed variables
-
-        Args:
-            node (BabNode): current B&B node
-            P0 (Problem): main (full) problem
-        """
-        return get_fixed_value(node, P0)
 
     def _bab_node_evaluation(self, node: BabNode, P0: Problem, P: Problem) -> float:
         """ Compute the upper and lower bound of the current B&B node
@@ -451,8 +448,10 @@ class MaxCutSolver(PrettyPrint):
         self._heuristic_was_called = False
 
         upper_bound_value = self._call_sdp_bound(node, P0, P)
+
         if not self._heuristic_was_called:
             self._call_heuristic(node, P0, P)
+
         return upper_bound_value
 
     @data_collector(enabled_flag='collect_sdp_bound_root_data', data_box='sdp_bound_root_data')
@@ -467,9 +466,16 @@ class MaxCutSolver(PrettyPrint):
         """
         self.sdp_bound_call_count += 1
         sdp_bound_value = self._sdp_bound_fn(node, P0, P)
+        
+        if not self._primal_solution_set:
+            logger.fatal(
+                f'SDP primal solution was not set before leaving `self.sdp_bound`!\n'
+                f'Please set the primal solution with `self.set_primal_solution` method!')
+            abort_mpi(10)
         if not np.isfinite(sdp_bound_value):
             logger.fatal("sdp_bound must return a finite float")
             abort_mpi(10)
+        
         return sdp_bound_value
 
     @data_collector(enabled_flag='collect_heuristic_root_data', data_box='heuristic_root_data')

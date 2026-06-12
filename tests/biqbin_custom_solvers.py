@@ -2,11 +2,6 @@ import json
 import numpy.typing as npt
 import numpy as np
 
-import sys
-import os
-# Placeholder until biqbin is a pip installable package
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
 from biqbin import QUBOSolver, ProblemQubo, QuboSolutionToJson, init, get_rank, logger
 from biqbin.argparsers import ArgParserQubo
 from biqbin.biqbin_module import BabNode, Problem, reduce_sum_mpi
@@ -28,7 +23,8 @@ class TestTrackerSolver(QUBOSolver):
                  initial_estimate: np.ndarray | None = None,
                  collect_heur_root_data: bool = False,
                  collect_sdp_root_data: bool = False):
-        super().__init__(problem, params, time_limit, initial_estimate, collect_heur_root_data, collect_sdp_root_data)
+        super().__init__(problem, params, time_limit, initial_estimate,
+                         collect_heur_root_data, collect_sdp_root_data)
 
         # Call counts of custom methods
         self.custom_root_sdp_call_count = 0
@@ -52,7 +48,7 @@ class TestTrackerSolver(QUBOSolver):
 
 
 def custom_root_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
-    """Custom SDP bound routine on root B&B node with default Biqbin heuristic.
+    """Custom SDP bound routine on root B&B node.
 
     Before returning we call ``set_sdp_primal_solution`` passing in a
     PSD matrix of the same size as subproblem Laplacean (P.L).
@@ -67,19 +63,8 @@ def custom_root_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, *
     return sdp_value
 
 
-def custom_root_sdp_bound_ch(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
-    """SDP bound routine on root B&B node with a custom heuristic.
-
-    We do not need ``set_sdp_primal_solution`` if the default native heuristic is not used.
-    """
-    self.custom_root_sdp_call_count += 1
-
-    sdp_value: float = 1000
-    return sdp_value
-
-
 def custom_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
-    """Custom SDP bound routine with default Biqbin heuristic.
+    """Custom SDP bound routine.
 
     Before returning we call ``set_sdp_primal_solution`` passing in a
     PSD matrix of the same size as subproblem Laplacean (P.L).
@@ -89,17 +74,6 @@ def custom_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwar
     # P0.L and P.L are of the same shape on the root node
     X = np.identity(P.n)
     self.set_sdp_primal_solution(X)
-
-    sdp_value: float = 1e15
-    return sdp_value
-
-
-def custom_sdp_bound_ch(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
-    """Custom SDP bound routine with a custom heuristic.
-
-    We do not need ``set_sdp_primal_solution`` if the default native heuristic is not used.
-    """
-    self.custom_sdp_call_count += 1
 
     sdp_value: float = 1e15
     return sdp_value
@@ -130,18 +104,18 @@ CUSTOM_CONFIGS = [
     (None, None, custom_sdp_bound, None),
     (None, None, custom_sdp_bound, custom_root_sdp_bound),
     (None, custom_root_heuristic, None, None),
-    (None, custom_root_heuristic, None, custom_root_sdp_bound_ch),
+    (None, custom_root_heuristic, None, custom_root_sdp_bound),
     (None, custom_root_heuristic, custom_sdp_bound, None),
-    (None, custom_root_heuristic, custom_sdp_bound, custom_root_sdp_bound_ch),
+    (None, custom_root_heuristic, custom_sdp_bound, custom_root_sdp_bound),
     (custom_heuristic, None, None, None),
-    (custom_heuristic, None, None, custom_root_sdp_bound_ch),
-    (custom_heuristic, None, custom_sdp_bound_ch, None),
-    (custom_heuristic, None, custom_sdp_bound_ch, custom_root_sdp_bound_ch),
+    (custom_heuristic, None, None, custom_root_sdp_bound),
+    (custom_heuristic, None, custom_sdp_bound, None),
+    (custom_heuristic, None, custom_sdp_bound, custom_root_sdp_bound),
     (custom_heuristic, custom_root_heuristic, None, None),
-    (custom_heuristic, custom_root_heuristic, None, custom_root_sdp_bound_ch),
-    (custom_heuristic, custom_root_heuristic, custom_sdp_bound_ch, None),
+    (custom_heuristic, custom_root_heuristic, None, custom_root_sdp_bound),
+    (custom_heuristic, custom_root_heuristic, custom_sdp_bound, None),
     (custom_heuristic, custom_root_heuristic,
-     custom_sdp_bound_ch, custom_root_sdp_bound_ch),
+     custom_sdp_bound, custom_root_sdp_bound),
 ]
 
 

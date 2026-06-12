@@ -17,6 +17,7 @@ extern Problem *PP;
 
 extern double TIME;
 extern int stopped;
+extern int rank;
 
 extern int num_workers_used;
 extern double root_upper_bound;
@@ -151,7 +152,6 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int num_work
     // If the algorithm stops before finding the optimal solution
     if (!stopped && (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit))
     {
-
         // signal to printFinalOutput that algorihtm stopped early
         stopped = 1;
     }
@@ -162,14 +162,14 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int num_work
     {
 
     case IDLE:
-
+    {
         busyWorkers[source] = 0;
         ++(*numbFreeWorkers);
         break;
+    }
 
     case NEW_VALUE:
     {
-
         // receive best lower bound and corresponding feasible solution
         double g_lowerBound;
         BabSolution solx;
@@ -233,7 +233,7 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int num_work
     }
     }
 }
-extern int rank;
+
 /* WORKER process main routine */
 void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
 {

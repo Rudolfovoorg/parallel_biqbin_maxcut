@@ -59,7 +59,11 @@ def finalize():
     global _initialized
 
     if _initialized:
-        finalize_mpi()
+        try:
+            finalize_mpi()
+        except Exception as e:
+            logger.warning(e)
+            pass  # MPI may already be in a bad state
     _initialized = False
 
 

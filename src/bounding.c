@@ -27,7 +27,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     double bound;       // f + fixedvalue
     double gap;         // difference between best lower bound and upper bound
     double oldf;        // stores f from previous iteration
-    double viol3;       // maximum violation of triangle inequalities
+    double viol3 = 0.0; // maximum violation of triangle inequalities
     double viol5 = 0.0; // maximum violation of pentagonal inequalities
     double viol7 = 0.0; // maximum violation of heptagonal inequalities
     int count = 0;      // number of iterations (adding and purging of cutting planes)
@@ -314,5 +314,6 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
 
 END:
 
-    return bound;
+    // return the bound without the fixed value, this will be added in Evaluate function
+    return f;
 }

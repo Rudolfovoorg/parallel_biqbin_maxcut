@@ -19,14 +19,12 @@ double Evaluate(BabNode *node, const Problem *SP, Problem *PP)
     double bound;
 #ifdef PURE_C
     bound = SDPbound(node, SP, PP);
-    update_fractional_solution(node, PP, X);
 #else
     bound = wrapped_sdp_bound(node, SP, PP);
-    // BZ: Might consider moving this into Python, if we need 
-    update_fractional_solution(node, PP, X);
 #endif
+    update_fractional_solution(node, PP, X);
 
-    return bound;
+    return bound + getFixedValue(node, SP);
 }
 
 /**

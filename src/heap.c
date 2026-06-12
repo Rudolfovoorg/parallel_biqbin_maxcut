@@ -144,10 +144,8 @@ void Bab_PQInsert(BabNode *node)
 // NOTE: Bab_GenChild will place created child node in priority queue
 BabNode *newNode(const BabNode *parentNode)
 {
-
     // allocate memory for the new child node
-    // BZ calloc is needed as malloc can cause a double free() error with -O3 optimization
-    BabNode *node = calloc(1, sizeof(BabNode));
+    BabNode *node = malloc(sizeof(BabNode));
     if (node == NULL)
     {
         fprintf(stderr, "Error: Not enough memory for creating new node.\n");

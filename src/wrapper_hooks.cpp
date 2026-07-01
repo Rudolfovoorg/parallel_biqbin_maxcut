@@ -1,9 +1,10 @@
+#include "wrapper.h"
 #include "wrapper_hooks.h"
 #include "wrapper_utils.h"
 
+extern int rank;
 py::object python_heuristic_override;
 py::object python_node_evaluation_override;
-
 
 /// @brief set heuristic function to a Python function
 void set_heuristic_override(py::object func) { python_heuristic_override = func; }
@@ -18,12 +19,33 @@ void set_node_evaluation_override(py::object func) { python_node_evaluation_over
 /// @return best lower bound of the current subproblem found by the heuristic used
 double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node)
 {
-    // Call Python override
-    return python_heuristic_override(
-                                py::cast(node, py::return_value_policy::reference),
-                                py::cast(P0, py::return_value_policy::reference),
-                                py::cast(P, py::return_value_policy::reference))
-                                .cast<double>();
+    try
+    {
+        // Call Python override
+        return python_heuristic_override(
+                   py::cast(node, py::return_value_policy::reference),
+                   py::cast(P0, py::return_value_policy::reference),
+                   py::cast(P, py::return_value_policy::reference))
+            .cast<double>();
+    }
+    catch (const py::error_already_set &e)
+    {
+        fprintf(stderr,
+                "[rank %d] Python exception in sdp_bound callback:\n%s\n",
+                rank,
+                e.what());
+
+        MPI_Abort(MPI_COMM_WORLD, 10);
+    }
+    catch (const std::exception &e)
+    {
+        fprintf(stderr,
+                "[rank %d] C++ exception in sdp_bound callback:\n%s\n",
+                rank,
+                e.what());
+
+        MPI_Abort(MPI_COMM_WORLD, 10);
+    }
 }
 
 /// @brief SDPBound in bounding.c originally, called in Evaluate in evaluate.c it internally calls wrapped_heuristic many times
@@ -34,9 +56,30 @@ double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *nod
 /// @return best upper bound of the current subproblem found by the heuristic used
 double wrapped_sdp_bound(BabNode *node, const Problem *P0, Problem *P)
 {
-    return python_node_evaluation_override(
-               py::cast(node, py::return_value_policy::reference),
-               py::cast(P0, py::return_value_policy::reference),
-               py::cast(P, py::return_value_policy::reference))
-        .cast<double>();
+    try
+    {
+        return python_node_evaluation_override(
+                   py::cast(node, py::return_value_policy::reference),
+                   py::cast(P0, py::return_value_policy::reference),
+                   py::cast(P, py::return_value_policy::reference))
+            .cast<double>();
+    }
+    catch (const py::error_already_set &e)
+    {
+        fprintf(stderr,
+                "[rank %d] Python exception in sdp_bound callback:\n%s\n",
+                rank,
+                e.what());
+
+        MPI_Abort(MPI_COMM_WORLD, 10);
+    }
+    catch (const std::exception &e)
+    {
+        fprintf(stderr,
+                "[rank %d] C++ exception in sdp_bound callback:\n%s\n",
+                rank,
+                e.what());
+
+        MPI_Abort(MPI_COMM_WORLD, 10);
+    }
 }

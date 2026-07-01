@@ -9,11 +9,13 @@ from pathlib import Path
 import pytest
 
 
-MPIEXEC = os.environ.get("MPIEXEC") or shutil.which("mpirun") or shutil.which("mpiexec")
+MPIEXEC = os.environ.get("MPIEXEC") or shutil.which(
+    "mpirun") or shutil.which("mpiexec")
 if MPIEXEC is None:
     raise RuntimeError("mpirun/mpiexec not found")
 
 FAILURE_CASES = {
+    "callback_exception_rank0": "BIQBIN_TEST_CALLBACK_EXCEPTION_RANK0",
     "sdp_returns_nan": "BIQBIN_TEST_SDP_RETURNS_NAN",
     "sdp_returns_inf": "BIQBIN_TEST_SDP_RETURNS_INF",
     "sdp_wrong_primal_shape": "BIQBIN_TEST_SDP_WRONG_PRIMAL_SHAPE",

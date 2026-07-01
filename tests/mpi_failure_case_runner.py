@@ -61,6 +61,17 @@ def solver_class_for(case: str, log_dir: Path):
             P = kwargs["P"]
             return np.zeros(P.n - self._MC_OFFSET, dtype=np.int32)
 
+    if case == "callback_exception_rank0":
+        class Solver(BaseSolver):  # type: ignore
+            def sdp_bound(self, node, P0, P, *args, **kwargs):
+                if self.rank == 0:
+                    self.mark("BIQBIN_TEST_CALLBACK_EXCEPTION_RANK0")
+                    raise RuntimeError("BIQBIN_TEST_CALLBACK_EXCEPTION_RANK0")
+
+                return self.good_sdp_bound(node, P0, P)
+
+        return Solver
+
     if case == "sdp_returns_nan":
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
@@ -71,7 +82,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_returns_inf":
-        class Solver(BaseSolver): # type: ignore
+        class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_RETURNS_INF")
                 self.set_sdp_primal_solution(np.eye(P.n, dtype=np.float64))
@@ -115,7 +126,7 @@ def solver_class_for(case: str, log_dir: Path):
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 return self.good_sdp_bound(node, P0, P)
 
-            def heuristic(self, L, *args, **kwargs): # type: ignore ... BZ: the typechecker knows that the ndarray is not np.int32
+            def heuristic(self, L, *args, **kwargs):  # type: ignore
                 self.mark("BIQBIN_TEST_HEURISTIC_NON_INTEGER")
                 P = kwargs["P"]
                 return np.full(P.n - self._MC_OFFSET, 0.5, dtype=np.float64)

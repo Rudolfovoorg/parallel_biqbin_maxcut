@@ -349,8 +349,7 @@ class MaxCutSolver(PrettyPrint):
         self._primal_solution_set = True
         return sdp_bound(node, P0, P)
 
-    # TODO: rename to initial, throw warning about if it is a true lower bound, 
-    # throw error if bellow heuristic solution
+    # TODO: throw warning about if it is a true lower bound, throw error if bellow heuristic solution
     def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """Compute the SDP bound on the root node. 
         By default it will call ``self.upper_bound``, same as the leaf B&B nodes.
@@ -390,7 +389,7 @@ class MaxCutSolver(PrettyPrint):
 
         # return only where solution variables are not fixed
         return x[node.xfixed == 0]
-    # TODO: rename to initial
+
     def initial_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
         """Finds a heuristic solution binary vector on the root B&B node.
         By default it calls ``self.heuristic``, same as the leaf B&B nodes.
@@ -425,11 +424,12 @@ class MaxCutSolver(PrettyPrint):
             logger.fatal(
                 'The primal_solution must be in the {-1, 1} range!')
             abort_mpi(10)
-            
+
         if not np.all(np.isfinite(primal_solution)):
-            logger.fatal("The primal_solution must contain only finite values!")
+            logger.fatal(
+                "The primal_solution must contain only finite values!")
             abort_mpi(10)
-        
+
         set_primal_solution(primal_solution)
         self._primal_solution_set = True
 
@@ -473,7 +473,7 @@ class MaxCutSolver(PrettyPrint):
         """
         self.sdp_bound_call_count += 1
         sdp_bound_value = self._sdp_bound_fn(node, P0, P)
-        
+
         if not self._primal_solution_set:
             logger.fatal(
                 f'SDP primal solution was not set before leaving `self.sdp_bound`!\n'
@@ -482,7 +482,7 @@ class MaxCutSolver(PrettyPrint):
         if not np.isfinite(sdp_bound_value):
             logger.fatal("sdp_bound must return a finite float")
             abort_mpi(10)
-        
+
         return sdp_bound_value
 
     @data_collector(enabled_flag='collect_heuristic_root_data', data_box='heuristic_root_data')

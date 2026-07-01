@@ -292,12 +292,12 @@ class MaxCutSolver(PrettyPrint):
                 self._check_solution_validity(
                     initial_estimate, problem.maxcut_adjacency_matrix.shape[0])
                 self.initial_estimate_solution = initial_estimate
-                self.root_heuristic = self._use_initial_estimate_on_root
+                self.initial_heuristic = self._use_initial_estimate_on_root
                 logger.info(
                     f'Using an initial estimate solution: {self.initial_estimate_solution}')
 
-            self._heuristic_fn = self.root_heuristic
-            self._sdp_bound_fn = self.root_sdp_bound
+            self._heuristic_fn = self.initial_heuristic
+            self._sdp_bound_fn = self.initial_sdp_bound
 
         # On worker rank
         else:
@@ -349,7 +349,9 @@ class MaxCutSolver(PrettyPrint):
         self._primal_solution_set = True
         return sdp_bound(node, P0, P)
 
-    def root_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
+    # TODO: rename to initial, throw warning about if it is a true lower bound, 
+    # throw error if bellow heuristic solution
+    def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """Compute the SDP bound on the root node. 
         By default it will call ``self.upper_bound``, same as the leaf B&B nodes.
 
@@ -388,8 +390,8 @@ class MaxCutSolver(PrettyPrint):
 
         # return only where solution variables are not fixed
         return x[node.xfixed == 0]
-
-    def root_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
+    # TODO: rename to initial
+    def initial_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
         """Finds a heuristic solution binary vector on the root B&B node.
         By default it calls ``self.heuristic``, same as the leaf B&B nodes.
 

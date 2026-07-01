@@ -26,7 +26,7 @@ class CustomSolver(QUBOSolver):
     and are meant for demonstration purposes only.
     """
 
-    def root_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
+    def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """Custom SDP bound routine on the root node.
 
         By overriding this method you can use a custom SDP routine only on the root node.
@@ -48,7 +48,7 @@ class CustomSolver(QUBOSolver):
         sdp_value: float = 10000 # some computed SDP value
         return sdp_value
 
-    def root_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
+    def initial_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
         """Custom root node heuristic.
 
         By overriding the heuristic method you can use a custom heuristic only on the root node. 
@@ -61,7 +61,7 @@ class CustomSolver(QUBOSolver):
     def sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """Custom SDP bound routine on non-root B&B nodes
 
-        If ``root_sdp_bound`` is not overwritten, this will also be used on the root node.
+        If ``initial_sdp_bound`` is not overwritten, this will also be used on the root node.
 
         Args:
             node (BabNode): Current B&B node
@@ -81,7 +81,7 @@ class CustomSolver(QUBOSolver):
     def heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
         """Custom heuristic on non-root B&B nodes. 
 
-        If ``root_heuristic`` is not overwritten, this function will also be used on the root node.
+        If ``initial_heuristic`` is not overwritten, this function will also be used on the root node.
         """
 
         x: npt.ArrayLike = np.zeros(L.shape[0] - 1, dtype=np.int32)

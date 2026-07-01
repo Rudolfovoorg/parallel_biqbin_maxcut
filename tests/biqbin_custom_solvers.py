@@ -9,9 +9,9 @@ from biqbin.biqbin_module import BabNode, Problem, reduce_sum_mpi
 """
 Bellow are mix-and-match classes built for testing purposes.
 
-- Custom root_sdp_bound returns 1000.
+- Custom initial_sdp_bound returns 1000.
 - Custom sdp_bound returns 1e15 and will explore the entire B&B tree.
-- Custom root_heuristic returns an all ones vector.
+- Custom initial_heuristic returns an all ones vector.
 - Custom heuristic returns an all zero vector.
 - Custom SDP primal solution matrix is set to identity matrix.
 """
@@ -46,8 +46,8 @@ class TestTrackerSolver(QUBOSolver):
             }
         return updated_results
 
-
-def custom_root_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
+# custom to initial
+def custom_initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
     """Custom SDP bound routine on root B&B node.
 
     Before returning we call ``set_sdp_primal_solution`` passing in a
@@ -78,11 +78,11 @@ def custom_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwar
     sdp_value: float = 1e15
     return sdp_value
 
-
-def custom_root_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
+# custom to initual
+def custom_initial_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
     """Custom heuristic on root B&B nodes. 
 
-    If ``root_heuristic`` is not overwritten, this function will also be used on the root node.
+    If ``initial_heuristic`` is not overwritten, this function will also be used on the root node.
     """
     self.custom_root_heuristic_call_count += 1
     x: npt.ArrayLike = np.ones(kwargs['P'].n - 1, dtype=np.int32)
@@ -92,7 +92,7 @@ def custom_root_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[n
 def custom_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
     """Custom heuristic on non-root B&B nodes. 
 
-    If ``root_heuristic`` is not overwritten, this function will also be used on the root node.
+    If ``initial_heuristic`` is not overwritten, this function will also be used on the root node.
     """
     self.custom_heuristic_call_count += 1
     x: npt.ArrayLike = np.zeros(kwargs['P'].n - 1, dtype=np.int32)
@@ -100,35 +100,35 @@ def custom_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int
 
 
 CUSTOM_CONFIGS = [
-    (None, None, None, custom_root_sdp_bound),
+    (None, None, None, custom_initial_sdp_bound),
     (None, None, custom_sdp_bound, None),
-    (None, None, custom_sdp_bound, custom_root_sdp_bound),
-    (None, custom_root_heuristic, None, None),
-    (None, custom_root_heuristic, None, custom_root_sdp_bound),
-    (None, custom_root_heuristic, custom_sdp_bound, None),
-    (None, custom_root_heuristic, custom_sdp_bound, custom_root_sdp_bound),
+    (None, None, custom_sdp_bound, custom_initial_sdp_bound),
+    (None, custom_initial_heuristic, None, None),
+    (None, custom_initial_heuristic, None, custom_initial_sdp_bound),
+    (None, custom_initial_heuristic, custom_sdp_bound, None),
+    (None, custom_initial_heuristic, custom_sdp_bound, custom_initial_sdp_bound),
     (custom_heuristic, None, None, None),
-    (custom_heuristic, None, None, custom_root_sdp_bound),
+    (custom_heuristic, None, None, custom_initial_sdp_bound),
     (custom_heuristic, None, custom_sdp_bound, None),
-    (custom_heuristic, None, custom_sdp_bound, custom_root_sdp_bound),
-    (custom_heuristic, custom_root_heuristic, None, None),
-    (custom_heuristic, custom_root_heuristic, None, custom_root_sdp_bound),
-    (custom_heuristic, custom_root_heuristic, custom_sdp_bound, None),
-    (custom_heuristic, custom_root_heuristic,
-     custom_sdp_bound, custom_root_sdp_bound),
+    (custom_heuristic, None, custom_sdp_bound, custom_initial_sdp_bound),
+    (custom_heuristic, custom_initial_heuristic, None, None),
+    (custom_heuristic, custom_initial_heuristic, None, custom_initial_sdp_bound),
+    (custom_heuristic, custom_initial_heuristic, custom_sdp_bound, None),
+    (custom_heuristic, custom_initial_heuristic,
+     custom_sdp_bound, custom_initial_sdp_bound),
 ]
 
 
 def configure_solver(index: int):
-    (heur, root_heur, sdp, root_sdp) = CUSTOM_CONFIGS[index]
+    (heur, root_heur, sdp, initial_sdp) = CUSTOM_CONFIGS[index]
     if heur:
         TestTrackerSolver.heuristic = heur
     if root_heur:
-        TestTrackerSolver.root_heuristic = root_heur
+        TestTrackerSolver.initial_heuristic = root_heur
     if sdp:
         TestTrackerSolver.sdp_bound = sdp
-    if root_sdp:
-        TestTrackerSolver.root_sdp_bound = root_sdp
+    if initial_sdp:
+        TestTrackerSolver.initial_sdp_bound = initial_sdp
 
 
 class ArgParserCustom(ArgParserQubo):

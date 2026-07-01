@@ -6,12 +6,12 @@
 
 | Method | When it runs | Purpose |
 |---|---|---|
-| `root_sdp_bound` | Root node only | Lower bound (SDP relaxation) |
-| `root_heuristic` | Root node only | Upper bound (feasible solution) |
+| `initial_sdp_bound` | Root node only | Lower bound (SDP relaxation) |
+| `initial_heuristic` | Root node only | Upper bound (feasible solution) |
 | `sdp_bound` | All non-root nodes | Lower bound (SDP relaxation) |
 | `heuristic` | All non-root nodes | Upper bound (feasible solution) |
 
-If `root_sdp_bound` is not overridden, `sdp_bound` is used on the root node too. Same applies to `root_heuristic` / `heuristic`.
+If `initial_sdp_bound` is not overridden, `sdp_bound` is used on the root node too. Same applies to `initial_heuristic` / `heuristic`.
 
 ---
 
@@ -34,13 +34,13 @@ def sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
 ## Method Signatures
 
 ```python
-def root_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
+def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
     ...
 
 def sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
     ...
 
-def root_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
+def initial_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
     ...
 
 def heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
@@ -60,12 +60,12 @@ Heuristic return values must be integer binary vectors (`dtype=np.int32`).
 
 ```python
 class CustomSolver(QUBOSolver):
-    def root_sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
+    def initial_sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
         # Compute the SDP relaxation value and SDP primal solution X
         self.set_sdp_primal_solution(X) # set it before leaving the function
         return sdp_value
         
-    def root_heuristic(self, L, *args, **kwargs) -> npt.NDArray[np.int32]:
+    def initial_heuristic(self, L, *args, **kwargs) -> npt.NDArray[np.int32]:
         # Run heuristic on root and return a binary 0-1 solution vector of size L.shape[0] - 1
         x = np.zeros(L.shape[0] - 1, dtype=np.int32)
         return x

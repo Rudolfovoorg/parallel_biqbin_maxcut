@@ -60,6 +60,7 @@ int get_rank()
     return rank;
 }
 int get_time_limit() { return time_limit; }
+double get_root_sdp_bound() { return root_upper_bound; }
 
 /// @brief Run the solver, retrieve the solution
 /// @param prog_name argv[0] "biqbin_*.py"
@@ -258,6 +259,7 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
     m.def("sdp_bound", &SDPbound, "Default C-implemented SDPbound");
     m.def("set_primal_solution", &set_primal_solution, "Set the primal solution before running default GW");
     m.def("get_fixed_value", &getFixedValue);
+    m.def("get_root_sdp_bound", &get_root_sdp_bound);
 
     // C-structs
     py::class_<BabSolution>(m, "BabSolution")

@@ -43,9 +43,6 @@ void allocMemory(void) {
 
 
 void freeMemory(void) {
-//    #ifndef PURE_C
-//    clean_python_references();
-//    #endif
     free(SP->L);
     free(SP);
     free(PP->L);

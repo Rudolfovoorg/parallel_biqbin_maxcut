@@ -19,14 +19,15 @@ void set_node_evaluation_override(py::object func) { python_node_evaluation_over
 /// @return best lower bound of the current subproblem found by the heuristic used
 double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *node)
 {
+    double heuristic_value = 0;
     try
     {
         // Call Python override
-        return python_heuristic_override(
-                   py::cast(node, py::return_value_policy::reference),
-                   py::cast(P0, py::return_value_policy::reference),
-                   py::cast(P, py::return_value_policy::reference))
-            .cast<double>();
+        heuristic_value = python_heuristic_override(
+                              py::cast(node, py::return_value_policy::reference),
+                              py::cast(P0, py::return_value_policy::reference),
+                              py::cast(P, py::return_value_policy::reference))
+                              .cast<double>();
     }
     catch (const py::error_already_set &e)
     {
@@ -46,6 +47,7 @@ double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *nod
 
         MPI_Abort(MPI_COMM_WORLD, 10);
     }
+    return heuristic_value;
 }
 
 /// @brief SDPBound in bounding.c originally, called in Evaluate in evaluate.c it internally calls wrapped_heuristic many times
@@ -56,13 +58,14 @@ double wrapped_heuristic(const Problem *P0, const Problem *P, const BabNode *nod
 /// @return best upper bound of the current subproblem found by the heuristic used
 double wrapped_sdp_bound(BabNode *node, const Problem *P0, Problem *P)
 {
+    double sdp_value = 0.0;
     try
     {
-        return python_node_evaluation_override(
-                   py::cast(node, py::return_value_policy::reference),
-                   py::cast(P0, py::return_value_policy::reference),
-                   py::cast(P, py::return_value_policy::reference))
-            .cast<double>();
+        sdp_value = python_node_evaluation_override(
+                        py::cast(node, py::return_value_policy::reference),
+                        py::cast(P0, py::return_value_policy::reference),
+                        py::cast(P, py::return_value_policy::reference))
+                        .cast<double>();
     }
     catch (const py::error_already_set &e)
     {
@@ -82,4 +85,5 @@ double wrapped_sdp_bound(BabNode *node, const Problem *P0, Problem *P)
 
         MPI_Abort(MPI_COMM_WORLD, 10);
     }
+    return sdp_value;
 }

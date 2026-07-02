@@ -1,6 +1,5 @@
 #include "biqbin.h"
 
-
 #ifdef PURE_C
 extern FILE *output;
 #endif
@@ -72,6 +71,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     int Hepta_NumAdded = 0;
     int Hepta_NumSubtracted = 0;
     double t;
+
     /* solve basic SDP relaxation with interior-point method */
     ipm_mc_pk(PP->L, PP->n, X, &f, 0);
 
@@ -118,7 +118,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     }
     else
     {
-        printf("PP->n = %i, PP->NIneq = %i, viol3 = %f\n", PP->n, PP->NIneq, viol3);
+        // TODO: If verbose print that we have done only the basic bound
         goto END;
     }
     // first evaluation at dual_gamma: f = fct_eval(PP, dual_gamma, X, g)
@@ -174,9 +174,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
         /******** heuristic ********/
         if (!prune)
         {
-
             runHeuristic(SP, PP, node);
-
             prune = (bound < Bab_LBGet() + 1.0) ? 1 : 0;
         }
         /***************************/

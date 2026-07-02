@@ -21,7 +21,7 @@ def set_heuristic(heuristic_function: Callable[[BabNode, Problem, Problem], floa
 
 def set_primal_solution(primal_solution: npt.NDArray[np.float64]) -> None:
     """Sets the SDP primal solution matrix ``X`` in C.
-    
+
     Vital step before running the default GW heuristic or branching,
     default SDPBound routine does this automatically, but if we overwrite ``sdp_bound`` with a 
     custom implementation, we need to manually set the primal solution X
@@ -31,6 +31,7 @@ def set_primal_solution(primal_solution: npt.NDArray[np.float64]) -> None:
         ``heuristic`` and ``sdp_bound`` solver callbacks. It is in {-1, 1} range.
     """
     ...
+
 
 def get_fixed_value(node: BabNode, P0: Problem) -> float:
     """Calculate the objective value contribution of the "fixed" part,
@@ -44,6 +45,7 @@ def get_fixed_value(node: BabNode, P0: Problem) -> float:
         float: Fixed value
     """
     ...
+
 
 def update_mc_lower_bound_solution(new_solution_x: npt.NDArray[np.int32]) -> bool:
     """Update Max-Cut global lower-bound solution, if it is better than the current one
@@ -82,6 +84,15 @@ def sdp_bound(node: BabNode, P0: Problem, P: Problem) -> float:
     ...
 
 
+def get_root_sdp_bound() -> float:
+    """Get the sdp bound value computed on the root node,
+    used to check the validity of a custom sdp bound.
+
+    Returns:
+        float: sdp bound value saved in the native solver as double
+    """
+
+
 def get_rank() -> int:
     """Returns the MPI rank."""
     ...
@@ -94,10 +105,12 @@ def init_mpi() -> Tuple[int, int]:
         (int, int): MPI (size, rank) tuple 
     """
     ...
-    
+
+
 def finalize_mpi() -> None:
     """Finalize MPI protocol after running the solver
     """
+
 
 def abort_mpi(abort_code: int):
     """Abort solver execution on fatal errors
@@ -106,6 +119,7 @@ def abort_mpi(abort_code: int):
         abort_code (int)
     """
     ...
+
 
 def reduce_sum_mpi(number: int | float) -> int | float:
     """Reduce sum the input number of all ranks

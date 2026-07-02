@@ -9,11 +9,11 @@ import logging
 
 from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, data_collector
 from biqbin.biqbin_module import (BabNode, Problem,
-                                  reduce_sum_mpi, abort_mpi, run,
+                                  reduce_sum_mpi, abort_mpi, get_rank, run,
                                   update_mc_lower_bound_solution,
                                   set_heuristic, goemans_williamson_heuristic,
                                   set_primal_solution, set_node_evaluation, sdp_bound,
-                                  get_rank)
+                                  get_fixed_value, get_root_sdp_bound)
 
 # Initialize MPI at start
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
@@ -323,6 +323,24 @@ class MaxCutSolver(PrettyPrint):
         self._primal_solution_set: bool = False
         # SDPBound calls heuristic by itself, if that is overwritten, we need to call it manually
         self._heuristic_was_called: bool = False
+        # if the sdp bound is overridden we need to compare the current nodes sdp value with
+        # the sdp bound to assure optimality
+        self._latest_heuristic_value: float = 0
+
+        # Warnings about the validity of the solution
+        self._overridden_sdp = []
+        if type(self).sdp_bound is not MaxCutSolver.sdp_bound:
+            self._overridden_sdp.append('sdp_bound')
+        if type(self).initial_sdp_bound is not MaxCutSolver.initial_sdp_bound:
+            self._overridden_sdp.append('initial_sdp_bound')
+
+        if self.rank == 0:
+            if self._overridden_sdp:
+                logger.warning(
+                    f'{type(self).__name__} overrides {" and ".join(self._overridden_sdp)}. '
+                    f'Biqbin is an exact solver thus the returned value must be a valid upper bound '
+                    f'on the subproblem optimal value. A bound that is too low will cause incorrect '
+                    f'branch pruning and an invalid optimal solution. ')
 
     @property
     def problem(self) -> ProblemMaxCut:
@@ -459,6 +477,28 @@ class MaxCutSolver(PrettyPrint):
         if not self._heuristic_was_called:
             self._call_heuristic(node, P0, P)
 
+        if self._overridden_sdp:
+            # If any of the sdp bound computations were overridden,
+            # we need to do a runtime check to see if the computed bounds are valid
+            fatal_error = False
+            
+            fixed_value = get_fixed_value(node, P0)
+            if (self._latest_heuristic_value > upper_bound_value + fixed_value):
+                logger.fatal((f"[rank {self.rank}] SDP bound is greater than heuristic bound, "
+                              f"custom SDP bound confirmed to not give a true bound!\n"
+                              f"Heuristic value = {self._latest_heuristic_value}; SDP bound {upper_bound_value + fixed_value}"))
+                fatal_error = True
+                
+            initial_sdp_bound = get_root_sdp_bound()
+            if (self.rank != 0 and self._latest_heuristic_value > initial_sdp_bound):
+                logger.fatal((f"[rank {self.rank}] Initial SDP bound is greater than heuristic bound, "
+                              f"custom SDP bound confirmed to not give a true bound!\n"
+                              f"Heuristic value = {self._latest_heuristic_value}; initial SDP bound {initial_sdp_bound}"))
+                fatal_error = True
+
+            if fatal_error:
+                abort_mpi(10)
+
         return upper_bound_value
 
     @data_collector(enabled_flag='collect_sdp_bound_root_data', data_box='sdp_bound_root_data')
@@ -515,7 +555,7 @@ class MaxCutSolver(PrettyPrint):
         x = node.sol.x.copy()
         x[node.xfixed == 0] = heur_sol
 
-        heur_value = self._evaluate_solution(P0.L, x)
+        self._latest_heuristic_value = self._evaluate_solution(P0.L, x)
         update_mc_lower_bound_solution(x)
 
         if logger.isEnabledFor(logging.DEBUG):
@@ -524,10 +564,10 @@ class MaxCutSolver(PrettyPrint):
                     P0.L, P.L, node.xfixed, node.sol.x, np.zeros(P0.n - 1)
                 )
                 logger.debug(
-                    f'Custom heuristic: {heur_value}; default gw heuristic: {default_gw_value}'
+                    f'Custom heuristic: {self._latest_heuristic_value}; default gw heuristic: {default_gw_value}'
                 )
 
-        return heur_value
+        return self._latest_heuristic_value
 
     def _use_initial_estimate_on_root(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
         """ Heuristic call on root node if initial estimate solution is used

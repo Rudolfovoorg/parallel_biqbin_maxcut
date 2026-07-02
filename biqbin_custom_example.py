@@ -34,8 +34,8 @@ class CustomSolver(QUBOSolver):
         
         Args:
             node (BabNode): Current B&B node
-            P0 (Problem): Original (full) problem
-            P (Problem): Subproblem of the current node
+            P0   (Problem): Original (full) problem
+            P    (Problem): Subproblem of the current node
 
         Returns:
             float: SDP value

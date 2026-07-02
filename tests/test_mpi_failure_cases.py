@@ -16,6 +16,8 @@ if MPIEXEC is None:
 
 FAILURE_CASES = {
     "callback_exception_rank0": "BIQBIN_TEST_CALLBACK_EXCEPTION_RANK0",
+    "initial_sdp_returns_invalid_bound": "BIQBIN_TEST_INITIAL_SDP_RETURNS_INVALID_BOUND",
+    "sdp_rank1_rank2_returns_invalid_bound":"BIQBIN_TEST_RANK1_RANK2_SDP_RETURNS_INVALID_BOUND" ,
     "sdp_returns_nan": "BIQBIN_TEST_SDP_RETURNS_NAN",
     "sdp_returns_inf": "BIQBIN_TEST_SDP_RETURNS_INF",
     "sdp_wrong_primal_shape": "BIQBIN_TEST_SDP_WRONG_PRIMAL_SHAPE",

@@ -72,6 +72,27 @@ def solver_class_for(case: str, log_dir: Path):
 
         return Solver
 
+    if case == "initial_sdp_returns_invalid_bound":
+        class Solver(BaseSolver):  # type: ignore
+            def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
+                self.mark("BIQBIN_TEST_INITIAL_SDP_RETURNS_INVALID_BOUND")
+                self.set_sdp_primal_solution(np.eye(P.n, dtype=np.float64))
+                return float("nan")
+
+        return Solver
+
+    if case == "sdp_rank1_rank2_returns_invalid_bound":
+        class Solver(BaseSolver):  # type: ignore
+            def initial_sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
+                return self.good_sdp_bound(node, P0, P, *args, **kwargs)
+
+            def sdp_bound(self, node, P0, P, *args, **kwargs):
+                self.mark("BIQBIN_TEST_RANK1_RANK2_SDP_RETURNS_INVALID_BOUND")
+                self.set_sdp_primal_solution(np.eye(P.n, dtype=np.float64))
+                return -10
+
+        return Solver
+
     if case == "sdp_returns_nan":
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):

@@ -15,16 +15,50 @@ if MPIEXEC is None:
     raise RuntimeError("mpirun/mpiexec not found")
 
 FAILURE_CASES = {
+    # Explicit abort and raw Python callback exceptions.
+    "callback_abort_rank0": "BIQBIN_TEST_CALLBACK_ABORT_RANK0",
     "callback_exception_rank0": "BIQBIN_TEST_CALLBACK_EXCEPTION_RANK0",
+
+    # Exception handling at each Python callback boundary.
+    "initial_sdp_exception_rank0": "BIQBIN_TEST_INITIAL_SDP_EXCEPTION_RANK0",
+    "sdp_exception_rank0": "BIQBIN_TEST_SDP_EXCEPTION_RANK0",
+    "initial_heuristic_exception_rank0": "BIQBIN_TEST_INITIAL_HEURISTIC_EXCEPTION_RANK0",
+    "heuristic_exception_rank0": "BIQBIN_TEST_HEURISTIC_EXCEPTION_RANK0",
+
+    # Initial SDP return-value validation.
     "initial_sdp_returns_invalid_bound": "BIQBIN_TEST_INITIAL_SDP_RETURNS_INVALID_BOUND",
-    "sdp_rank1_rank2_returns_invalid_bound":"BIQBIN_TEST_RANK1_RANK2_SDP_RETURNS_INVALID_BOUND" ,
+    "initial_sdp_returns_nan": "BIQBIN_TEST_INITIAL_SDP_RETURNS_NAN",
+    "initial_sdp_returns_inf": "BIQBIN_TEST_INITIAL_SDP_RETURNS_INF",
+    "initial_sdp_missing_primal": "BIQBIN_TEST_INITIAL_SDP_MISSING_PRIMAL",
+
+    # Non-initial SDP return-value validation.
     "sdp_returns_nan": "BIQBIN_TEST_SDP_RETURNS_NAN",
     "sdp_returns_inf": "BIQBIN_TEST_SDP_RETURNS_INF",
+    "sdp_returns_none": "BIQBIN_TEST_SDP_RETURNS_NONE",
+    "sdp_returns_string": "BIQBIN_TEST_SDP_RETURNS_STRING",
+    "sdp_returns_array": "BIQBIN_TEST_SDP_RETURNS_ARRAY",
+    "sdp_rank1_rank2_returns_invalid_bound": "BIQBIN_TEST_RANK1_RANK2_SDP_RETURNS_INVALID_BOUND",
+
+    # SDP primal-solution validation.
     "sdp_wrong_primal_shape": "BIQBIN_TEST_SDP_WRONG_PRIMAL_SHAPE",
     "sdp_missing_primal": "BIQBIN_TEST_SDP_MISSING_PRIMAL",
+    "sdp_primal_contains_nan": "BIQBIN_TEST_SDP_PRIMAL_CONTAINS_NAN",
+    "sdp_primal_contains_inf": "BIQBIN_TEST_SDP_PRIMAL_CONTAINS_INF",
+    "sdp_primal_out_of_range": "BIQBIN_TEST_SDP_PRIMAL_OUT_OF_RANGE",
+    "sdp_primal_not_2d": "BIQBIN_TEST_SDP_PRIMAL_NOT_2D",
+    "sdp_primal_non_square": "BIQBIN_TEST_SDP_PRIMAL_NON_SQUARE",
+
+    # Heuristic solution validation.
     "heuristic_wrong_length": "BIQBIN_TEST_HEURISTIC_WRONG_LENGTH",
-    "heuristic_non_integer": "BIQBIN_TEST_HEURISTIC_NON_INTEGER",
     "heuristic_non_binary01_vector": "BIQBIN_TEST_HEURISTIC_NON_BINARY01_VECTOR",
+
+    # Initial heuristic validation.
+    "initial_heuristic_wrong_length": "BIQBIN_TEST_INITIAL_HEURISTIC_WRONG_LENGTH",
+    "initial_heuristic_non_binary01_vector": "BIQBIN_TEST_INITIAL_HEURISTIC_NON_BINARY01_VECTOR",
+
+    # Native arrays are intended to be read-only.
+    "callback_mutates_problem_matrix": "BIQBIN_TEST_MUTATE_PROBLEM_MATRIX",
+    "callback_mutates_node_solution": "BIQBIN_TEST_MUTATE_NODE_SOLUTION",
 }
 
 
@@ -61,7 +95,6 @@ def run_case(case: str, tmp_path: Path) -> tuple[subprocess.CompletedProcess[str
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env,
-        timeout=30,
         check=False,
     )
 

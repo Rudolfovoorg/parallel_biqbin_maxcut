@@ -238,6 +238,22 @@ double reduce_sum_mpi_python(double number)
     return rank == 0 ? summation : 0.0;
 }
 
+
+py::tuple ipm_mc_pk_python(py::array_t<double> &input_matrix)
+{
+    const py::ssize_t n = input_matrix.shape(0);
+    py::array_t<double> output_matrix({n, n});
+    double f = 0.0;
+
+    ipm_mc_pk(input_matrix.data(),
+              static_cast<int>(n),
+              output_matrix.mutable_data(),
+              &f,
+              0);
+
+    return py::make_tuple(f, output_matrix);
+}
+
 PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
 {
     // MPI functions
@@ -260,6 +276,9 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
     m.def("set_primal_solution", &set_primal_solution, "Set the primal solution before running default GW");
     m.def("get_fixed_value", &getFixedValue);
     m.def("get_root_sdp_bound", &get_root_sdp_bound);
+
+    // BQP only needs ipm_mc_pk to work
+    m.def("interior_point_method_maxcut", &ipm_mc_pk_python);
 
     // C-structs
     py::class_<BabSolution>(m, "BabSolution")

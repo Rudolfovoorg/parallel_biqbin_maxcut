@@ -15,7 +15,6 @@ from biqbin.biqbin_module import (BabNode, Problem,
                                   set_primal_solution, set_node_evaluation, sdp_bound,
                                   get_fixed_value, get_root_sdp_bound)
 
-# Initialize MPI at start
 # https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
 logging.basicConfig()
 logger = logging.getLogger(__name__)

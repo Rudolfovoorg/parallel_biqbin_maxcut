@@ -5,10 +5,23 @@ extern BiqBinParameters params;
 extern int BabPbSize;
 extern double *X;
 
-/*
- * Evaluate a specific node.
- * This function computes the upper and lower bounds of a specific node
- * (calls SDP bound function) and returns the upper bound of the node
+/**
+ * Evaluate a B&B node and return the full upper bound in the original
+ * objective scale.
+ *
+ * SDPbound(...) returns only the reduced-subproblem relaxation value f.
+ * Therefore this function adds the fixed-variable contribution:
+ *
+ *     full_UB(node) = SDPbound(node, SP, PP) + getFixedValue(node, SP).
+
+ * Side effects:
+ *   - createSubproblem(...) rebuilds PP from SP and node;
+ *   - SDPbound(...) may update the global lower bound through the heuristic;
+ *   - update_fractional_solution(...) extracts branching scores from X.
+ *
+ * @param node Current B&B node
+ * @param SP   Original problem
+ * @param PP   Subproblem for the current B&B node
  */
 double Evaluate(BabNode *node, const Problem *SP, Problem *PP)
 {

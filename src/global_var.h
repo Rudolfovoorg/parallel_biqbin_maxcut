@@ -1,5 +1,3 @@
-// NOTE: this file is only included in allocate_free.c !
-#include "biqbin.h"
 /********************************************************/
 /************ List of all global variables **************/
 /********************************************************/
@@ -8,13 +6,13 @@ BiqBinParameters params; // BiqBin parameters
 FILE *output;            // output file
 #endif                   //
 Problem *SP;             // original problem instance
-Problem *PP;             // subproblem instance
-int stopped = 0;         // true if the algorithm stopped at root node or after a time limit
+Problem *PP;             // subproblem instance for the current B&B node
+int stopped = 0;         // 1 if the algorithm stopped at root node or after a time limit
 double root_upper_bound; // SDP upper bound at root node
-double root_lower_bound;
-double root_eval_time;
-double TIME; // CPU time
-double diff; // difference between basic SDP relaxation and bound with added cutting planes
+double root_lower_bound; // objective value of the root heuristic solution
+double root_eval_time;   // evaluation time of the root node
+double TIME;             // CPU start time
+double diff;             // difference between basic SDP relaxation and bound with added cutting planes
 
 /********************************************************/
 /******************** Tracking **************************/
@@ -28,12 +26,17 @@ int time_limit_reached; // 1 if solver timed out, 0 otherwise
 /*************** Specific to node ***********************/
 /********************************************************/
 /* PRIMAL variables */
-double *X;        // Stores current (psd) X (primal solution). Violated inequalities are computed from X.
-double *Z;        // Cholesky factorization: X = ZZ^T (used for heuristic)
-double *X_bundle; // containts bundle matrices as columns
+double *X; // Stores current (psd) X (primal solution). Violated inequalities are computed from X.
+double *Z; // Cholesky factorization: X = ZZ^T (used for heuristic)
+double f;  // objective value of relaxation
+
+/********************************************************/
+/************ Bundle method variables ********************/
+/********************************************************/
+
+double *X_bundle; // Containts bundle matrices as columns
 double *X_test;   // matching pair X for gamma_test
 
-/* DUAL variables */
 double *dual_gamma; // (nonnegative) dual multiplier to cutting planes
 double *dgamma;     // step direction vector
 double *gamma_test;
@@ -42,8 +45,6 @@ double *eta;    // dual multiplier to dual_gamma >= 0 constraint
 double *F;      // vector of values <L,X_i>
 double *g;      // subgradient
 double *G;      // matrix of subgradients
-
-double f; // objective value of relaxation
 
 /* Triangle Inequalities variables */
 Triangle_Inequality *Cuts; // vector (MaxTriIneqAdded) of current triangle inequality constraints

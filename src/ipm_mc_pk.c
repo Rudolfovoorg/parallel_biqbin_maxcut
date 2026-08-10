@@ -10,8 +10,6 @@
  *         print... print level                                          *
  * output: phi  ... optimal value of SDP (value of the dual problem)     *
  *         X    ... optimal primal matrix                                *
- *         y    ... optimal dual vector                                  *
- *         Z    ... optimal dual matrix                                  *
  *************************************************************************/
 
 #include <stdio.h>
@@ -21,9 +19,12 @@
 
 #include "biqbin.h"
 
-/* NOTE: C uses row-major, but blas and lapack routines (written in Fortran)
- * use column-major --> be careful when multiplying non-symmetric matrices) */
-
+/// @brief Primal-dual predictor-corrector interior-point method for basic SDP relaxation for Max-Cut
+/// @param L Objective  PSD matrix
+/// @param n Size of L matrix (n*n)
+/// @param X Stores the primal solution matrix
+/// @param phi Optimal value of SDP (value of the dual problem)
+/// @param print
 void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print)
 {
 

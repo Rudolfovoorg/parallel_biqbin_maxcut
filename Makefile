@@ -39,11 +39,6 @@ PYMOD_OUT = $(WRAPPER_BUILD_DIR)/$(PYMODULE)
 BIQBIN_BINARY = biqbin_executable
 BINS =  $(C_BUILD_DIR)/$(BIQBIN_BINARY)
 
-# BQP module (Pybind11)
-BQP_BUILD_DIR = build/bqp_PLACEHOLDER
-BQPMODULE = bqp_data_processing_PLACEHOLDER.so
-BQPMOD_OUT = $(BQP_BUILD_DIR)/$(BQPMODULE)
-
 RUN_ENVS = OPENBLAS_NUM_THREADS=1 GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1
 
 # BiqBin objects
@@ -71,11 +66,9 @@ CPPFLAGS = $(CPPOPTI) -Wall -W -pedantic
 .PHONY : all clean test tests
 
 # Default rule is to create all binaries #
-all: clean $(BINS) $(PYMOD_OUT) $(BQPMOD_OUT)
+all: clean $(BINS) $(PYMOD_OUT)
 	cp $(PYMOD_OUT) biqbin/
 	cp $(BINS) .
-	cp $(BQPMOD_OUT) biqbin/
-
 	
 clean-output:
 	rm -f rudy/*.output*
@@ -90,10 +83,9 @@ clean: clean-output
 	rm -rf build/
 	rm -rf $(BIQBIN_BINARY)
 	rm -rf biqbin/$(PYMODULE)
-	rm -rf biqbin/$(BQPMODULE)
 
 # Ensure output directories exist
-$(WRAPPER_BUILD_DIR) $(C_BUILD_DIR) $(BQP_BUILD_DIR):
+$(WRAPPER_BUILD_DIR) $(C_BUILD_DIR):
 	mkdir -p build
 	mkdir -p $@
 
@@ -113,13 +105,6 @@ $(WRAPPER_BUILD_DIR)/%.o: src/%.cpp  | $(WRAPPER_BUILD_DIR)
 
 # Python module rule
 $(PYMOD_OUT): $(OBJS)
-	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
-
-# bqp module build
-$(BQP_BUILD_DIR)/bqp_data_processing.o: src/bqp_PLACEHOLDER/bqp_data_processing.cpp | $(BQP_BUILD_DIR)
-	$(CPP) $(CPPFLAGS) $(INCLUDES) -c -o $@ $<
-
-$(BQPMOD_OUT): $(BQP_BUILD_DIR)/bqp_data_processing.o | $(BQP_BUILD_DIR)
 	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
 
 # Tests

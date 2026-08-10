@@ -130,6 +130,32 @@ def reduce_sum_mpi(number: int | float) -> int | float:
     ...
 
 
+def interior_point_method_maxcut(L: np.ndarray) -> tuple[float, np.ndarray]:
+    """
+    Solves the basic SDP relaxation of Max-Cut using the IPM_MC_PK
+    primal-dual predictor-corrector interior-point method.
+
+    Primal:
+        maximize    np.trace(L @ X)
+        subject to  np.diag(X) == np.ones(n)
+                    X is positive semidefinite
+
+    Dual:
+        minimize    np.ones(n) @ y
+        subject to  np.diag(y) - L is positive semidefinite
+                    y is unrestricted
+
+    Args:
+        L (np.ndarray): Symmetric objective PSD matrix.
+
+    Returns:
+        tuple[float, np.ndarray]:
+            Optimal SDP value, given by the dual objective, and the
+            corresponding optimal primal matrix X.
+    """
+    ...
+
+
 class BabSolution:
     """Solution data attached to a branch-and-bound node.
 

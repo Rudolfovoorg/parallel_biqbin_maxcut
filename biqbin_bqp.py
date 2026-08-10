@@ -28,7 +28,7 @@ class ProblemBQP(ProblemMaxCut):
     ```
     min         x.T @ F @ x + c.T @ x
     subject to  A @ x = b
-                x in {0, 1}^1
+                x_i in {0, 1}
     ```
     """
 
@@ -84,7 +84,7 @@ class ProblemBQP(ProblemMaxCut):
         e = np.ones(n)
 
         # Change problem variables from {0, 1} to {-1, 1}
-        constant = 0.25 * e @ self.F @ e + 0.5 * self.c @ e
+        sdp_constant = 0.25 * e @ self.F @ e + 0.5 * self.c @ e
 
         # Computing the penalty parameter
         A_scaled = 0.5 * self.A
@@ -92,10 +92,10 @@ class ProblemBQP(ProblemMaxCut):
         c_shifted = 0.5 * (self.F @ e + self.c)
         F_scaled = 0.25 * self.F
 
-        # SDP matrix.
+        # SDP matrix
         C = np.block([
-            [F_scaled,                  0.5 * c_shifted[:, None]],
-            [0.5 * c_shifted[None, :],  np.array([[constant]])],
+            [F_scaled,                 0.5 * c_shifted[:, None]],
+            [0.5 * c_shifted[None, :], np.array([[sdp_constant]])],
         ])
 
         # SDP maximum and minimum.
@@ -108,7 +108,7 @@ class ProblemBQP(ProblemMaxCut):
         # Penalized quadratic matrix.
         top_left = F_scaled + penalty * A_scaled.T @ A_scaled
         top_right = 0.5 * c_shifted - penalty * A_scaled.T @ b_shifted
-        bottom_right = constant + penalty * (b_shifted @ b_shifted)
+        bottom_right = sdp_constant + penalty * (b_shifted @ b_shifted)
 
         B = np.block([
             [top_left,                 top_right[:, None]],
@@ -116,15 +116,25 @@ class ProblemBQP(ProblemMaxCut):
         ])
 
         # original_value = const_val - max_cut_value
+        #
+        # Derivation: maxcut_adjacency = 4*B with zero diagonal, and for such a
+        # zero-diagonal weight matrix M, cut_value = 1/4 * (M.sum() - y.T @ M @ y)
+        # where y = (x, 1).
+        #
+        # Substituting M = 4*B (diagonal cancels since y_i**2 == 1) gives
+        # y.T @ B @ y == B.sum() - cut_value, i.e. B.sum() is exactly the
+        # constant to recover the original objective.
+        
         const_val = B.sum()
-        assert const_val == int(
-            const_val), f"Constant must be an integer, got {const_val}"
+        if not np.isclose(const_val, round(const_val)):
+            raise ValueError(f'Constant must be an integer, got {const_val}')
+        const_val = round(const_val)
 
         # Standard weighted Max-Cut adjacency matrix.
         maxcut_adjacency = 4 * B
         np.fill_diagonal(maxcut_adjacency, 0)
 
-        return maxcut_adjacency, int(const_val), penalty, rho
+        return maxcut_adjacency, const_val, penalty, rho
 
 
 class SolutionBQP(SolutionMaxCut):

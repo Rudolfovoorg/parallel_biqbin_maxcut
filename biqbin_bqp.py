@@ -1,24 +1,17 @@
-import biqbin.external.pyqplib as pyqplib
-import numpy.typing as npt
 import json
 from typing import Any
+import warnings
 import numpy as np
 from typing import Literal
+from argparse import ArgumentTypeError, SUPPRESS
 
 from biqbin.utils import convert_numpy_to_json_serializable, check_matrix_validity
 from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank, init, logger
 from biqbin.argparsers import ArgParserBase
 from biqbin.data_parsers import FromFile, ToFile
-from biqbin.biqbin_module import interior_point_method_maxcut
+from biqbin.biqbin_module import interior_point_method_maxcut, abort_mpi
 
 FileDataSection = Literal['F', 'c', 'A', 'b']
-
-
-class ParserBQP(ArgParserBase):
-    def __init__(self):
-        super().__init__(prog='biqbin_bqp.py', description='Biqbin BQP solver')
-        self.add_argument('-j', '--json', action='store_true',
-                          help='use json input file')
 
 
 class ProblemBQP(ProblemMaxCut):
@@ -124,7 +117,7 @@ class ProblemBQP(ProblemMaxCut):
         # Substituting M = 4*B (diagonal cancels since y_i**2 == 1) gives
         # y.T @ B @ y == B.sum() - cut_value, i.e. B.sum() is exactly the
         # constant to recover the original objective.
-        
+
         const_val = B.sum()
         if not np.isclose(const_val, round(const_val)):
             raise ValueError(f'Constant must be an integer, got {const_val}')
@@ -150,10 +143,9 @@ class SolutionBQP(SolutionMaxCut):
     def get_bqp_solution(self, biqbin_result: dict, problem: ProblemBQP) -> dict[str, Any]:
         bqp_result: dict[str, Any] = {'rho': problem.rho,
                                       'const_value': problem.const_value,
-                                      # 'penalty': problem.penalty
+                                      # TODO: add penalty when expanding tests!!! 'penalty': problem.penalty
                                       }
         biqbin_result['bqp'] = bqp_result
-
         mc_obj_value = biqbin_result['maxcut']['computed_val']
         # Max-Cut solution vector is larger by 1 than BQP, this last MC elemnt is always 0
         mc_x = np.array(biqbin_result['maxcut']['x'])[:-1]
@@ -194,13 +186,19 @@ class BQPSolver(MaxCutSolver):
     solver_name = 'PyBiqBin-BQP-PLACEHOLDER'
 
     def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_root_data=False, collect_sdp_bound_root_data=False):
+        self.__problem: ProblemBQP = problem
+
+        if initial_estimate is not None:
+            # Transform BQP solution to Biqbin Max-Cut solution vector, throwing error if not feasible
+            initial_estimate = self._initial_estimate_bqp_to_maxcut(
+                initial_estimate)
+
         super().__init__(problem=problem,
                          params=params,
                          time_limit=time_limit,
                          initial_estimate=initial_estimate,
                          collect_heuristic_root_data=collect_heuristic_root_data,
                          collect_sdp_bound_root_data=collect_sdp_bound_root_data)
-        self.__problem: ProblemBQP = problem
 
     @property
     def problem(self) -> ProblemBQP:
@@ -211,8 +209,38 @@ class BQPSolver(MaxCutSolver):
         if result is not None:
             return SolutionBQP(result, self.problem)
 
+    def _initial_estimate_bqp_to_maxcut(self, bqp_x):
+        """Transforms the BQP solution vector to a Max-Cut vector.
 
-class BQPFromFile(FromFile):
+        Args:
+            bqp_x (np.ndarray): BQP binary vector solution
+
+        Raises:
+            ValueError: bqp_x must be a feasable solution to the problem
+
+        Returns:
+            np.ndarray: Max-Cut solution vector
+        """
+        bqp_x = np.asarray(bqp_x)
+        bqp_obj = bqp_x @ self.__problem.F @ bqp_x + self.__problem.c @ bqp_x
+
+        for candidate in (bqp_x, 1 - bqp_x):
+            # append the fixed auxiliary coordinate
+            mc_candidate = np.append(candidate, 0)
+            y = 1 - 2 * mc_candidate  # 0/1 partition -> {-1, 1}
+            cut_value = 0.25 * (self.__problem.maxcut_adjacency_matrix.sum() -
+                                y @ self.__problem.maxcut_adjacency_matrix @ y)
+
+            if np.isclose(problem.const_value - cut_value, bqp_obj):
+                return mc_candidate
+
+        logger.fatal(
+            'initial estimate solution is not a feasible solution to the problem.\n'
+            'Please input a feasible initial estimate or run without passing one in.', stack_info=True)
+        abort_mpi(10)
+
+
+class BQPFromBQPFile(FromFile):
     """
     Read the custom BQP file format, defined in https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/doc/BQP_INPUT_EXAMPLE.md
     """
@@ -350,24 +378,55 @@ class BQPToJson(ToFile):
                       default=convert_numpy_to_json_serializable)
 
 
+class ParserBQP(ArgParserBase):
+    FORMAT_CHOICES = {
+        'json': BQPFromJson,
+        'bqp': BQPFromBQPFile
+    }
+
+    def __init__(self):
+        super().__init__(prog='biqbin_bqp.py', description='Biqbin BQP solver')
+        self.add_argument('-j', '--json', action='store_true',
+                          help=SUPPRESS)
+        self.add_argument(
+            '--format',
+            default=self.FORMAT_CHOICES["bqp"],
+            type=self.parse_format,
+            help=f'BQP problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}; Defaults to \'bqp\'')
+
+    def parse_args(self, *args, **kwargs):
+        ns = super().parse_args(*args, **kwargs)
+        if ns.json:
+            warnings.warn(
+                "[DEPRECATED] `-j`, `--json` is deprecated, please use --format json",
+                UserWarning
+            )
+            ns.format = BQPFromJson
+        return ns
+
+    def parse_format(self, fmt: str) -> FromFile:
+        fmt = fmt.lower()
+        if fmt not in self.FORMAT_CHOICES:
+            raise ArgumentTypeError(
+                f'invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}')
+
+        return self.FORMAT_CHOICES[fmt]
+
+
 if __name__ == '__main__':
     init()
     parser = ParserBQP()
     args = parser.parse_args()
 
-    # Get the file reader for the BQP instance
-    if args.json:
-        problem_reader = BQPFromJson(
-            args.problem_instance, optimize_input=args.optimize)
-    else:
-        problem_reader = BQPFromFile(
-            args.problem_instance, optimize_input=args.optimize)
-
+    problem_reader_cls = args.format
+    problem_reader = problem_reader_cls(
+        args.problem_instance, optimize_input=args.optimize)
     problem = problem_reader.read()
 
     if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
             initial_estimate = np.array(json.load(f)['initial_estimate'])
+        print(initial_estimate)
     else:
         initial_estimate = None
 

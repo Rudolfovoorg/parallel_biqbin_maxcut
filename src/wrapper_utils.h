@@ -115,7 +115,7 @@ namespace detail
 
     inline py::array_t<double> babnode_get_fracsol(BabNode &self)
     {
-        return wrapped_array(self.fracsol, BabPbSize, true);
+        return wrapped_array(self.fracsol, BabPbSize, false);
     }
 
     inline BabSolution &babnode_get_sol(BabNode &self)

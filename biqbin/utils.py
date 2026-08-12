@@ -63,7 +63,7 @@ def qubo_to_biqbin_representation(qubo: npt.ArrayLike, offset: float = 0.0, mini
     }
 
 
-def check_matrix_validity(input_matrix: np.ndarray, square_matrix: bool = True) -> npt.NDArray[np.float64]:
+def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
     if not isinstance(input_matrix, np.ndarray):
         raise TypeError(
             f"Input matrix must be a numpy.ndarray, got {type(input_matrix)}")
@@ -72,15 +72,14 @@ def check_matrix_validity(input_matrix: np.ndarray, square_matrix: bool = True) 
         raise TypeError(
             f'Input matrix must use a numeric dtype (int or float), got {input_matrix.dtype}')
 
-    if square_matrix and input_matrix.ndim != 2:
+    if input_matrix.ndim != 2:
         raise ValueError(
             'Dimension of the input matrix needs to be 2!')
 
-    if square_matrix:
-        n, m = input_matrix.shape
-        if n != m:
-            raise ValueError(
-                f'Input matrix shape must be square (n, n), but got ({n}, {m})')
+    n, m = input_matrix.shape
+    if n != m:
+        raise ValueError(
+            f'Input matrix shape must be square (n, n), but got ({n}, {m})')
 
     adj_int = np.array(input_matrix, dtype=np.int64)
     if not np.all(input_matrix == adj_int):

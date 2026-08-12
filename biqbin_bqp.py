@@ -5,7 +5,7 @@ import numpy as np
 from typing import Literal
 from argparse import ArgumentTypeError, SUPPRESS
 
-from biqbin.utils import convert_numpy_to_json_serializable, check_matrix_validity
+from biqbin.utils import convert_numpy_to_json_serializable
 from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank, init, logger
 from biqbin.argparsers import ArgParserBase
 from biqbin.data_parsers import FromFile, ToFile
@@ -43,10 +43,55 @@ class ProblemBQP(ProblemMaxCut):
             problem_name (str): Human-readable name of the problem.
             optimize_input (bool): Optimizes the input for the solver.
         """
-        self.F: np.ndarray = check_matrix_validity(F)
-        self.c: np.ndarray = check_matrix_validity(c, False)
-        self.A: np.ndarray = check_matrix_validity(A, False)
-        self.b: np.ndarray = check_matrix_validity(b, False)
+        fatal_error = False
+
+        if F.ndim != 2 or F.shape[0] != F.shape[1]:
+            logger.fatal(f'Matrix F must be square, got {F.shape}')
+            fatal_error = True
+            n = None
+        else:
+            n = F.shape[0]
+            if not np.allclose(F, F.T):
+                logger.fatal('Matrix F must be symmetric')
+                fatal_error = True
+
+        if not np.allclose(F, np.round(F)):
+            logger.fatal('All values in matrix F must be integers!')
+            fatal_error = True
+
+        if n is not None and (c.ndim != 1 or c.shape != (n,)):
+            logger.fatal(f'Vector c expected shape is ({n},), got {c.shape}')
+            fatal_error = True
+        if not np.allclose(c, np.round(c)):
+            logger.fatal('All values in vector c must be integers!')
+            fatal_error = True
+
+        if A.ndim != 2:
+            logger.fatal(f'Matrix A must be 2-dimensional, got {A.shape}')
+            fatal_error = True
+        elif n is not None and A.shape[1] != n:
+            logger.fatal(f'Matrix A expected {n} columns, got {A.shape}')
+            fatal_error = True
+
+        if not np.allclose(A, np.round(A)):
+            logger.fatal('All values in matrix A must be integers!')
+            fatal_error = True
+
+        if A.ndim == 2 and (b.ndim != 1 or b.shape != (A.shape[0],)):
+            logger.fatal(
+                f'Vector b expected shape is ({A.shape[0]},), got {b.shape}')
+            fatal_error = True
+        if not np.allclose(b, np.round(b)):
+            logger.fatal('All values in vector b must be integers!')
+            fatal_error = True
+
+        if fatal_error:
+            raise ValueError('Invalid BQP problem.')
+
+        self.F: np.ndarray = F.astype(np.int64)
+        self.c: np.ndarray = c.astype(np.int64)
+        self.A: np.ndarray = A.astype(np.int64)
+        self.b: np.ndarray = b.astype(np.int64)
 
         maxcut_adj, const_val, penalty, rho = self.process_bqp_input()
 
@@ -140,37 +185,78 @@ class SolutionBQP(SolutionMaxCut):
     def solution(self):
         return self.__solution
 
-    def get_bqp_solution(self, biqbin_result: dict, problem: ProblemBQP) -> dict[str, Any]:
-        bqp_result: dict[str, Any] = {'rho': problem.rho,
-                                      'const_value': problem.const_value,
-                                      # TODO: add penalty when expanding tests!!! 'penalty': problem.penalty
-                                      }
-        biqbin_result['bqp'] = bqp_result
-        mc_obj_value = biqbin_result['maxcut']['computed_val']
-        # Max-Cut solution vector is larger by 1 than BQP, this last MC elemnt is always 0
-        mc_x = np.array(biqbin_result['maxcut']['x'])[:-1]
+    def get_bqp_solution(self, biqbin_result: dict,
+                         problem: ProblemBQP) -> dict[str, Any]:
+        """Construct BQP solution from Biqbins Max-Cut solution
 
+        Args:
+            biqbin_result (dict): raw result retrieved from native Biqbin solver
+            problem (ProblemBQP): BQP problem being solved
+
+        Raises:
+            ValueError: If the penalty test says the solution should be feasible but 
+                        neither Max-Cut orientation maps back to a valid BQP solution
+
+        Returns:
+            dict[str, Any]: Result dict with added BQP solution under the 'bqp' key
+        """
+
+        bqp_result: dict[str, Any] = {
+            'rho': problem.rho,
+            'const_value': problem.const_value,
+            'penalty': problem.penalty,
+            'feasible_solution': False,
+            'computed_val': None,
+            'x': None,
+        }
+
+        biqbin_result['bqp'] = bqp_result
+
+        mc_obj_value = biqbin_result['maxcut']['computed_val']
+
+        # The Max-Cut solution has one additional auxiliary variable.
+        # Remove it to recover the BQP-sized vector.
+        mc_x = np.asarray(biqbin_result['maxcut']['x'])[:-1]
+
+        # Recover the objective value of the penalized BQP from Max-Cut.
         bqp_obj_value = problem.const_value - mc_obj_value
+
+        # By construction of the exact penalty, a value above rho means that
+        # the returned solution corresponds to an infeasible BQP assignment.
         if bqp_obj_value > problem.rho:
-            bqp_result['feasible_solution'] = False
             return bqp_result
 
-        bqp_result['feasible_solution'] = True
-        bqp_result['computed_val'] = bqp_obj_value
+        # A Max-Cut partition is invariant under a global bit flip:
+        # x and 1 - x represent the same cut.
+        #
+        # The original BQP is not invariant under this flip, so try both
+        # orientations and select the one that satisfies the original
+        # constraints and reproduces the recovered BQP objective.
+        for candidate in (mc_x, 1 - mc_x):
+            constraints_ok = np.array_equal(problem.A @ candidate,
+                                            problem.b)
 
-        opt_value = mc_x @ problem.F @ mc_x + mc_x @ problem.c
-        if np.isclose(opt_value, bqp_result['computed_val']):
-            bqp_x = mc_x.tolist()
-        else:
-            bqp_x = (1 - mc_x).tolist()
+            if not constraints_ok:
+                continue
 
-        solution_check = bqp_x @ problem.F @ bqp_x + bqp_x @ problem.c
-        if not np.isclose(solution_check, bqp_obj_value):
-            raise ValueError(
-                'Solution vector does not match the computed solution')
+            objective = (
+                candidate @ problem.F @ candidate
+                + problem.c @ candidate
+            )
 
-        bqp_result['x'] = bqp_x
-        return bqp_result
+            if np.isclose(objective, bqp_obj_value):
+                bqp_result['x'] = candidate.tolist()
+                bqp_result['computed_val'] = bqp_obj_value
+                bqp_result['feasible_solution'] = True
+                return bqp_result
+
+        # If the penalty test says the solution should be feasible but neither
+        # Max-Cut orientation maps back to a valid BQP solution, something is
+        # inconsistent in the transformation/reconstruction.
+        raise ValueError(
+            'Max-Cut solution could not be mapped back to a feasible BQP '
+            'solution with the expected objective value.'
+        )
 
     def __str__(self) -> str:
         return (f'{super().__str__()}\n'
@@ -231,7 +317,8 @@ class BQPSolver(MaxCutSolver):
             cut_value = 0.25 * (self.__problem.maxcut_adjacency_matrix.sum() -
                                 y @ self.__problem.maxcut_adjacency_matrix @ y)
 
-            if np.isclose(problem.const_value - cut_value, bqp_obj):
+            cut_value *= self.__problem.gcd  # undo Max-cut adjacency matrix optimization
+            if np.isclose(self.__problem.const_value - cut_value, bqp_obj):
                 return mc_candidate
 
         logger.fatal(

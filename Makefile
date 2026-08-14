@@ -122,12 +122,14 @@ test-maxcut-python: clean-output
 		tests/rudy/g05_60.0.json \
 		tests/rudy/g05_80.0.json \
 		tests/rudy/g05_100.4.json
+	python -m pytest tests/test_maxcut.py -v -s --no-header
 
 test-qubo-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c > /dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c > /dev/null
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c > /dev/null
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json tests/qplib/5881.qplib
+	python -m pytest tests/test_qubo.py -v -s --no-header
 
 test-qubo-qplib: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --format=qplib -c > /dev/null
@@ -160,6 +162,7 @@ test-bqp-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data -c > /dev/null 2>&1
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j -c > /dev/null 2>&1
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json
+	python -m pytest tests/test_bqp.py -v -s --no-header
 
 test-modular-combos: clean-output
 	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_0.json.output --test-case 0 -c > /dev/null 2>&1 
@@ -195,7 +198,7 @@ test-modular-combos: clean-output
 																				tests/custom_solvers_results/small_example_qubo_test_case_14.json \
 
 test-parsers:
-	python -m pytest tests/test_data_parsers.py -v --no-header
+	python -m pytest tests/data_parsers -v --no-header
 
 test-expected-failure:
 	python3 -m pytest tests/test_mpi_failure_cases.py -v -s

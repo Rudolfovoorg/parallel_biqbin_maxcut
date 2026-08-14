@@ -7,7 +7,10 @@ import numpy as np
 import logging
 
 
-from biqbin.utils import check_matrix_validity_wrap, divide_matrix_by_gcd, data_collector
+from biqbin.utils import (check_matrix_validity_setter_wrap,
+                          check_matrix_validity_wrap,
+                          divide_matrix_by_gcd, 
+                          data_collector)
 from biqbin.biqbin_module import (BabNode, Problem,
                                   reduce_sum_mpi, abort_mpi, get_rank, run,
                                   update_mc_lower_bound_solution,
@@ -40,7 +43,6 @@ class ProblemMaxCut(PrettyPrint):
         self.maxcut_adjacency_matrix = maxcut_adjacency_matrix
 
     @property
-    @check_matrix_validity_wrap
     def maxcut_adjacency_matrix(self) -> npt.NDArray[np.floating | np.integer]:
         """Returns the valid input which Biqbin can solve.
         Checks if the input is valid for Biqbin (if all values are integers).
@@ -52,6 +54,7 @@ class ProblemMaxCut(PrettyPrint):
         return self._maxcut_adjacency_matrix
 
     @maxcut_adjacency_matrix.setter
+    @check_matrix_validity_setter_wrap
     def maxcut_adjacency_matrix(self, value: npt.NDArray[np.floating | np.integer]):
         """Sets Biqbin input which is an adjacency matrix for the MaxCut problem.
         Optionally optimizes the input (divides the values of the matrix by their greatest common divisor).
@@ -92,7 +95,7 @@ class ProblemQubo(ProblemMaxCut):
         else:
             super().__init__(self.qubo2maxcut(-Q), problem_name, optimize_input)
 
-    @check_matrix_validity_wrap
+    @check_matrix_validity_setter_wrap
     def qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
         """Convert qubo to adjacency matrix that biqbin can read.
         Checks if the input qubo is valid (all values integers).

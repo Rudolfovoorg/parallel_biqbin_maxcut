@@ -38,7 +38,7 @@ def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float64]:
         (sparse_matrix['data'],
             (sparse_matrix['row'], sparse_matrix['col'])),
         shape=sparse_matrix['shape'], dtype='float'
-    ).todense().getA()
+    ).toarray()
 
 
 def qubo_to_biqbin_representation(qubo: npt.ArrayLike, offset: float = 0.0, minimization: bool = True) -> dict:
@@ -80,9 +80,8 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
     if n != m:
         raise ValueError(
             f'Input matrix shape must be square (n, n), but got ({n}, {m})')
-
-    adj_int = np.array(input_matrix, dtype=np.int64)
-    if not np.all(input_matrix == adj_int):
+        
+    if not np.allclose(input_matrix, np.round(input_matrix)) or not np.all(np.isfinite(input_matrix)):
         raise ValueError(
             f'All values in the input matrix need to be integers!\nmatrix = \n{input_matrix}')
 
@@ -90,13 +89,38 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
 
 
 def check_matrix_validity_wrap(func):
+    """Validates np.ndarray returned by the wrapped function for the
+    Biqbin solver.
+    
+    Functions runs first -> then validate.
+    
+    Checks for:
+    - is a 2D matrix
+    - is square matrix (n, n) shape
+    - all integer values
+    """
     @wraps(func)
     def wrapper(*args, **kwargs) -> npt.NDArray[np.float64]:
-        matrix_to_validate = func(*args, **kwargs)
-        return check_matrix_validity(matrix_to_validate)
-
+        value = func(*args, **kwargs)
+        return check_matrix_validity(value)
     return wrapper
 
+def check_matrix_validity_setter_wrap(setter):
+    """Validates np.ndarray passed into the wrapped function
+    Biqbin solver.
+    
+    Validate -> Then run the wrapped function.
+    
+    Checks for:
+    - is a 2D matrix
+    - is square matrix (n, n) shape
+    - all integer values
+    """
+    @wraps(setter)
+    def wrapper(self, value):
+        value = check_matrix_validity(value)
+        return setter(self, value)
+    return wrapper
 
 def data_collector(enabled_flag, data_box):
     """Collects heuristic data on root node if enabled
@@ -146,7 +170,8 @@ def divide_matrix_by_gcd(matrix: np.ndarray) -> int:
     """
     greatest_common_divisor = np.gcd.reduce(matrix.astype(int).flatten())
     if greatest_common_divisor > 1:
-        matrix /= greatest_common_divisor
+        # BZ: perform integer division so it works on np.int64 dtypes as well
+        matrix //= greatest_common_divisor
 
     return int(greatest_common_divisor)
 

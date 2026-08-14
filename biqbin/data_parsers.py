@@ -78,16 +78,44 @@ class MaxCutFromEdgeWeights(FromFile):
             adj_matrix = np.zeros(
                 (num_vertices, num_vertices), dtype=np.float64)
 
-            edges = np.loadtxt(f, max_rows=num_edges)
+            edges = np.atleast_2d(np.loadtxt(f, max_rows=num_edges))
 
-            i = edges[:, 0].astype(int) - 1
-            j = edges[:, 1].astype(int) - 1
-            w = edges[:, 2]
-
-            adj_matrix[i, j] = w
-            adj_matrix[j, i] = w
+        i, j, w = self.edge_weights_checks(edges, num_vertices)
+        adj_matrix[i, j] = w
+        adj_matrix[j, i] = w
 
         return ProblemMaxCut(adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input)
+
+    def edge_weights_checks(self, edges: np.ndarray, num_vertices: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        i = edges[:, 0].astype(int) - 1
+        j = edges[:, 1].astype(int) - 1
+
+        bad_vert_mask = ((i < 0) | (i >= num_vertices) |
+                         (j < 0) | (j >= num_vertices))
+
+        if np.any(bad_vert_mask):
+            bad_rows = np.where(bad_vert_mask)[0] + 1
+            raise IndexError(
+                f'{self.filename}: Row(s): {[int(row) for row in bad_rows]} vertex indices '
+                f'out of range (must be between 1 and {num_vertices})'
+            )
+        w = edges[:, 2]
+        
+        if not np.all(np.isfinite(w)):
+            bad_rows = np.where(~np.isfinite(w))[0] + 1
+            raise ValueError(
+                f'{self.filename}: Row(s): {[int(row) for row in bad_rows]} '
+                f'have non-finite weight(s), all weights need to have valid integer values!'
+            )
+        bad_weights_mask = w % 1 != 0
+
+        if np.any(bad_weights_mask):
+            bad_rows = np.where(bad_weights_mask)[0] + 1
+            raise ValueError(
+                f'{self.filename}: Row(s) {[int(row) for row in bad_rows]} '
+                f'have non-integer weight(s), all weights need to have valid integer values!'
+            )
+        return i, j, w
 
 
 class QuboFromJson(FromFile):
@@ -106,7 +134,7 @@ class QuboFromJson(FromFile):
         qubo = from_sparse(qubo_data["qubo"])
         offset = qubo_data.get('offset', 0)
         minimization = qubo_data.get('is_minimization', True)
-        
+
         return ProblemQubo(Q=qubo,
                            offset=offset,
                            problem_name=self.problem_name,
@@ -131,7 +159,7 @@ class QuboFromMatrixMarket(FromFile):
         return ProblemQubo(Q=Q, offset=0.0, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
 
 
-class QuboFromEdgeWeights(FromFile):
+class QuboFromEdgeWeights(MaxCutFromEdgeWeights):
     """Qubo data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/
     """
 
@@ -147,13 +175,10 @@ class QuboFromEdgeWeights(FromFile):
             Q = np.zeros(
                 (num_vertices, num_vertices), dtype=np.float64)
 
-            edges = np.loadtxt(f, max_rows=num_edges)
+            edges = np.atleast_2d(np.loadtxt(f, max_rows=num_edges))
 
-            i = edges[:, 0].astype(int) - 1
-            j = edges[:, 1].astype(int) - 1
-            w = edges[:, 2]
-
-            Q[i, j] = w
+        i, j, w = self.edge_weights_checks(edges, num_vertices)
+        Q[i, j] = w
 
         return ProblemQubo(Q=Q,
                            offset=0.0,
@@ -203,9 +228,10 @@ class QuboFromQPLIB(FromFile):
 
         # QPLIB definition is 1/2 Quadratic + Linear + Offset
         Q /= 2
-        np.fill_diagonal(Q, objective.lin) # pyright: ignore[reportAttributeAccessIssue]
+        np.fill_diagonal(Q, objective.lin)  # pyright: ignore[reportAttributeAccessIssue]
+        
+        return ProblemQubo(Q=Q, offset=objective.offset, problem_name=self.problem_name, is_minimization=sense, optimize_input=self.optimize_input)  # pyright: ignore[reportAttributeAccessIssue]
 
-        return ProblemQubo(Q=Q, offset=objective.offset, problem_name=self.problem_name, is_minimization=sense, optimize_input=self.optimize_input) # pyright: ignore[reportAttributeAccessIssue]
 
 
 class ToFile(ABC):

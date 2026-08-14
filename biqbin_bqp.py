@@ -54,15 +54,14 @@ class ProblemBQP(ProblemMaxCut):
             if not np.allclose(F, F.T):
                 logger.fatal('Matrix F must be symmetric')
                 fatal_error = True
-
-        if not np.allclose(F, np.round(F)):
+        if not np.all(np.isfinite(F)) or not np.allclose(F, np.round(F)):
             logger.fatal('All values in matrix F must be integers!')
             fatal_error = True
 
         if n is not None and (c.ndim != 1 or c.shape != (n,)):
             logger.fatal(f'Vector c expected shape is ({n},), got {c.shape}')
             fatal_error = True
-        if not np.allclose(c, np.round(c)):
+        if not np.all(np.isfinite(c)) or not np.allclose(c, np.round(c)):
             logger.fatal('All values in vector c must be integers!')
             fatal_error = True
 
@@ -73,7 +72,7 @@ class ProblemBQP(ProblemMaxCut):
             logger.fatal(f'Matrix A expected {n} columns, got {A.shape}')
             fatal_error = True
 
-        if not np.allclose(A, np.round(A)):
+        if not np.all(np.isfinite(A)) or not np.allclose(A, np.round(A)):
             logger.fatal('All values in matrix A must be integers!')
             fatal_error = True
 
@@ -81,7 +80,7 @@ class ProblemBQP(ProblemMaxCut):
             logger.fatal(
                 f'Vector b expected shape is ({A.shape[0]},), got {b.shape}')
             fatal_error = True
-        if not np.allclose(b, np.round(b)):
+        if not np.all(np.isfinite(b)) or not np.allclose(b, np.round(b)):
             logger.fatal('All values in vector b must be integers!')
             fatal_error = True
 
@@ -194,7 +193,7 @@ class SolutionBQP(SolutionMaxCut):
             problem (ProblemBQP): BQP problem being solved
 
         Raises:
-            ValueError: If the penalty test says the solution should be feasible but 
+            ValueError: If the penalty test says the solution should be feasible but
                         neither Max-Cut orientation maps back to a valid BQP solution
 
         Returns:
@@ -356,7 +355,7 @@ class BQPFromBQPFile(FromFile):
 
         def check_index(name: str, i: int, upper: int) -> None:
             if not (1 <= i <= upper):
-                raise ValueError(
+                raise IndexError(
                     f'{name} index {i} out of range (must be 1..{upper})')
 
         for lineno, raw_line in enumerate(lines[1:], start=2):
@@ -375,7 +374,7 @@ class BQPFromBQPFile(FromFile):
                     case 'F':
                         i, j, v = map(int, line.split())
                         check_index('F row', i, n)
-                        check_index('F col', j, n)
+                        check_index('F column', j, n)
                         i, j = i - 1, j - 1
                         F[i, j] = v
                         if i != j:
@@ -387,7 +386,7 @@ class BQPFromBQPFile(FromFile):
                     case 'A':
                         i, j, v = map(int, line.split())
                         check_index('A row', i, m)
-                        check_index('A col', j, n)
+                        check_index('A column', j, n)
                         A[i - 1, j - 1] = v
                     case 'b':
                         i, v = map(int, line.split())
@@ -410,28 +409,41 @@ class BQPFromJson(FromFile):
     def read(self) -> ProblemBQP:
         """Read the bqp json file and return a ProblemBQP class instance that SolverBQP can read.
         """
+
         with open(self.filename, 'r') as file:
             instance = json.load(file)
 
         n = instance["number_of_variables"]
         m = instance["number_of_constraints"]
 
+        def check_index(name: str, i: int, upper: int):
+            if not 0 <= i < upper:
+                raise IndexError(
+                    f'{name} index {i} out of range (must be 0..{upper - 1})'
+                )
+
         F = np.zeros((n, n))
         for i, j, v in instance["F"]:
+            check_index('F row', i, n)
+            check_index('F column', j, n)
             F[i, j] = v
             if i != j:
                 F[j, i] = v
 
         A = np.zeros((m, n))
         for i, j, v in instance["A"]:
+            check_index('A row', i, m)
+            check_index('A column', j, n)
             A[i, j] = v
 
         c = np.zeros(n)
         for i, v in instance["c"]:
+            check_index('c', i, n)
             c[i] = v
 
         b = np.zeros(m)
         for i, v in instance["b"]:
+            check_index('b', i, m)
             b[i] = v
 
         return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)

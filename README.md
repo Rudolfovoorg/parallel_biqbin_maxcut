@@ -144,7 +144,7 @@ General command:
 mpirun -n N python3 biqbin_qubo.py problem_instance [-optional]
 ```
 
-- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
+- `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
 - `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
 - `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
@@ -206,7 +206,7 @@ General command:
 mpirun -n N python3 biqbin_bqp.py problem_instance [-optional]
 ```
 
-- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
+- `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
 - `problem_instance`: .
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
 - `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.

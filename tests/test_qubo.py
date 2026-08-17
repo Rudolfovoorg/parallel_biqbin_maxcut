@@ -98,11 +98,10 @@ def test_qubo_solution_conversion(maxcut_solution):
     assert solution.solution['minimization']
 
 
-@pytest.mark.parametrize('Q', [
-    np.array(1),
-    np.array([1, 2]),
-    np.array([[1, 2, 3], [2, 3, 4]]),
-])
+@pytest.mark.parametrize('Q', [np.array(1),
+                               np.array([1, 2]),
+                               np.array([[1, 2, 3], [2, 3, 4]]),],
+                         ids=['scalar', 'vector', 'non-square'])
 def test_qubo_rejects_invalid_shapes(Q):
     with pytest.raises(ValueError, match=r"(shape|Dimension)"):
         make_qubo(Q=Q)
@@ -111,8 +110,8 @@ def test_qubo_rejects_invalid_shapes(Q):
 @pytest.mark.parametrize('Q', [
     np.array([[1, 0.5], [0, 1]]),
     np.array([[1, np.nan], [0, 1]]),
-    np.array([[1, np.inf], [0, 1]]),
-])
+    np.array([[1, np.inf], [0, 1]]),],
+    ids=['non-integer', 'nan', 'inf'])
 def test_qubo_rejects_invalid_values(Q):
     with pytest.raises(ValueError, match="integer"):
         make_qubo(Q=Q)

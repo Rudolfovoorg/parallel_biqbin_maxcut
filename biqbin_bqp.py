@@ -54,14 +54,14 @@ class ProblemBQP(ProblemMaxCut):
             if not np.allclose(F, F.T):
                 logger.fatal('Matrix F must be symmetric')
                 fatal_error = True
-        if not np.all(np.isfinite(F)) or not np.allclose(F, np.round(F)):
+        if not np.all(np.isfinite(F)) or not np.array_equal(F, np.round(F)):
             logger.fatal('All values in matrix F must be integers!')
             fatal_error = True
 
         if n is not None and (c.ndim != 1 or c.shape != (n,)):
             logger.fatal(f'Vector c expected shape is ({n},), got {c.shape}')
             fatal_error = True
-        if not np.all(np.isfinite(c)) or not np.allclose(c, np.round(c)):
+        if not np.all(np.isfinite(c)) or not np.array_equal(c, np.round(c)):
             logger.fatal('All values in vector c must be integers!')
             fatal_error = True
 
@@ -72,7 +72,7 @@ class ProblemBQP(ProblemMaxCut):
             logger.fatal(f'Matrix A expected {n} columns, got {A.shape}')
             fatal_error = True
 
-        if not np.all(np.isfinite(A)) or not np.allclose(A, np.round(A)):
+        if not np.all(np.isfinite(A)) or not np.array_equal(A, np.round(A)):
             logger.fatal('All values in matrix A must be integers!')
             fatal_error = True
 
@@ -80,7 +80,7 @@ class ProblemBQP(ProblemMaxCut):
             logger.fatal(
                 f'Vector b expected shape is ({A.shape[0]},), got {b.shape}')
             fatal_error = True
-        if not np.all(np.isfinite(b)) or not np.allclose(b, np.round(b)):
+        if not np.all(np.isfinite(b)) or not np.array_equal(b, np.round(b)):
             logger.fatal('All values in vector b must be integers!')
             fatal_error = True
 

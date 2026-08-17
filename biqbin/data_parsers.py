@@ -79,6 +79,11 @@ class MaxCutFromEdgeWeights(FromFile):
                 (num_vertices, num_vertices), dtype=np.float64)
 
             edges = np.atleast_2d(np.loadtxt(f, max_rows=num_edges))
+            if edges.shape != (num_edges, 3):
+                raise ValueError(
+                    f'Expected {num_edges} edge rows with 3 columns, '
+                    f'got {edges.shape}'
+                )
 
         i, j, w = self.edge_weights_checks(edges, num_vertices)
         adj_matrix[i, j] = w
@@ -87,33 +92,45 @@ class MaxCutFromEdgeWeights(FromFile):
         return ProblemMaxCut(adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input)
 
     def edge_weights_checks(self, edges: np.ndarray, num_vertices: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        i = edges[:, 0].astype(int) - 1
-        j = edges[:, 1].astype(int) - 1
+        """Safety checks for the edges and weights
 
-        bad_vert_mask = ((i < 0) | (i >= num_vertices) |
-                         (j < 0) | (j >= num_vertices))
+        Args:
+            edges (np.ndarray): Row, column, weights
+            num_vertices (int): Number of vertices in the graph
 
-        if np.any(bad_vert_mask):
-            bad_rows = np.where(bad_vert_mask)[0] + 1
+        Raises:
+            IndexError: If indices are not integers between 1 and num_verts
+            ValueError: If weigths are not integers
+
+        Returns:
+            tuple[np.ndarray, np.ndarray, np.ndarray]: rows, columns, weights
+        """
+        vertices = edges[:, :2]
+
+        bad_rows = np.where(
+            ~np.all(np.isfinite(vertices), axis=1)
+            | ~np.all(vertices == np.round(vertices), axis=1)
+            | np.any(vertices < 1, axis=1)
+            | np.any(vertices > num_vertices, axis=1)
+        )[0]
+
+        if bad_rows.size:
             raise IndexError(
-                f'{self.filename}: Row(s): {[int(row) for row in bad_rows]} vertex indices '
-                f'out of range (must be between 1 and {num_vertices})'
+                f'Invalid vertices in rows {[int(row) + 1 for row in bad_rows]}: '
+                f'vertices must be integers between 1 and {num_vertices}'
             )
+        
+        i = vertices[:, 0].astype(int) - 1
+        j = vertices[:, 1].astype(int) - 1
+
         w = edges[:, 2]
         
-        if not np.all(np.isfinite(w)):
-            bad_rows = np.where(~np.isfinite(w))[0] + 1
-            raise ValueError(
-                f'{self.filename}: Row(s): {[int(row) for row in bad_rows]} '
-                f'have non-finite weight(s), all weights need to have valid integer values!'
-            )
-        bad_weights_mask = w % 1 != 0
-
+        bad_weights_mask = ~np.isfinite(w) | (w != np.round(w))
         if np.any(bad_weights_mask):
             bad_rows = np.where(bad_weights_mask)[0] + 1
             raise ValueError(
                 f'{self.filename}: Row(s) {[int(row) for row in bad_rows]} '
-                f'have non-integer weight(s), all weights need to have valid integer values!'
+                f'have invalid weight(s), all weights must be finite integers!'
             )
         return i, j, w
 
@@ -176,7 +193,11 @@ class QuboFromEdgeWeights(MaxCutFromEdgeWeights):
                 (num_vertices, num_vertices), dtype=np.float64)
 
             edges = np.atleast_2d(np.loadtxt(f, max_rows=num_edges))
-
+            if edges.shape != (num_edges, 3):
+                raise ValueError(
+                    f'Expected {num_edges} edge rows with 3 columns, '
+                    f'got {edges.shape}'
+                )
         i, j, w = self.edge_weights_checks(edges, num_vertices)
         Q[i, j] = w
 

@@ -25,7 +25,23 @@ from biqbin import (
     '2 1\n3 1 4\n',
     '2 1\n1 0 4\n',
     '2 1\n1 3 4\n',
-])
+    '2 1\n1.3 2 4\n',
+    '2 1\n1 2.1 4\n',
+    '2 1\ninf 2 4\n',
+    '2 1\nnan 2 4\n',
+    '2 1\n1 inf 4\n',
+    '2 1\n1 nan 4\n',
+],
+    ids=['0-index-row',
+         'n+1_row',
+         '0-index-col',
+         'n+1_col',
+         'non-int-col',
+         'non-int-row',
+         'nan-row',
+         'nan-col',
+         'inf-row',
+         'inf-col'])
 def test_edge_reader_rejects_invalid_indices(
     tmp_path, parser, content
 ):

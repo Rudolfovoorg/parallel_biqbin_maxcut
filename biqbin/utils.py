@@ -81,7 +81,7 @@ def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
         raise ValueError(
             f'Input matrix shape must be square (n, n), but got ({n}, {m})')
         
-    if not np.allclose(input_matrix, np.round(input_matrix)) or not np.all(np.isfinite(input_matrix)):
+    if not np.array_equal(input_matrix, np.round(input_matrix)) or not np.all(np.isfinite(input_matrix)):
         raise ValueError(
             f'All values in the input matrix need to be integers!\nmatrix = \n{input_matrix}')
 

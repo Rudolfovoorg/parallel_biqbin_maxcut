@@ -395,7 +395,7 @@ def solver_class_for(case: str, log_dir: Path):
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_MUTATE_NODE_SOLUTION")
 
-                node.sol[0] = 1  # type: ignore
+                node.sol.x[0] = 1
 
                 return self.good_sdp_bound(node, P0, P)
 

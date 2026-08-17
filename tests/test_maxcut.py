@@ -4,12 +4,10 @@ import pytest
 from biqbin import ProblemMaxCut, SolutionMaxCut
 
 
-@pytest.mark.parametrize('matrix', [
-    np.array(1),
-    np.array([1, 2]),
-    np.array([[1, 2, 3], [2, 3, 4]]),
-],
-    ids=['scalar', '1d', 'non_square'])
+@pytest.mark.parametrize('matrix', [np.array(1),
+                                    np.array([1, 2]),
+                                    np.array([[1, 2, 3], [2, 3, 4]]),],
+                         ids=['scalar', 'vector', 'non-square'])
 def test_maxcut_rejects_invalid_shapes(matrix):
     with pytest.raises(ValueError, match=r'(shape|Dimension)'):
         ProblemMaxCut(matrix, problem_name='test')

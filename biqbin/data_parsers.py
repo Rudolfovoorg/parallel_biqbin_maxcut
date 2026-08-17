@@ -245,7 +245,7 @@ class QuboFromQPLIB(FromFile):
         if obj_type in [pyqplib.ProblemObjType.CONVEX, pyqplib.ProblemObjType.GENERAL]:
             Q: np.ndarray = to_coo_matrix(problem.obj.mat).toarray() # pyright: ignore[reportAttributeAccessIssue]
         else:
-            Q = np.zeros(problem.description.num_vars)
+            Q = np.zeros((problem.description.num_vars, problem.description.num_vars))
 
         # QPLIB definition is 1/2 Quadratic + Linear + Offset
         Q /= 2

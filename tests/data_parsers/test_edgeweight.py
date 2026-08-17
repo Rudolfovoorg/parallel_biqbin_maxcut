@@ -1,18 +1,10 @@
-from types import SimpleNamespace
-
-import json
 import numpy as np
 import pytest
 
 import biqbin.data_parsers as data_parsers
 from biqbin import (
     MaxCutFromEdgeWeights,
-    MaxCutFromJson,
-    MaxCutFromMatrixMarket,
     QuboFromEdgeWeights,
-    QuboFromJson,
-    QuboFromMatrixMarket,
-    QuboFromQPLIB,
 )
 
 

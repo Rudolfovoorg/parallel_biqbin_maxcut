@@ -401,6 +401,63 @@ def solver_class_for(case: str, log_dir: Path):
 
         return Solver
 
+    if case == "sdp_bound_below_heuristic":
+        class Solver(BaseSolver):  # type: ignore
+            def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
+                return self.good_sdp_bound(node, P0, P)
+
+            def sdp_bound(self, node, P0, P, *args, **kwargs):
+                self.mark("BIQBIN_TEST_SDP_BOUND_BELOW_HEURISTIC")
+                self.set_sdp_primal_solution(
+                    np.eye(P.n, dtype=np.float64)
+                )
+                return -1.0e9
+
+            def heuristic(self, L, *args, **kwargs):
+                P = kwargs["P"]
+                return np.zeros(
+                    P.n - self._MC_OFFSET,
+                    dtype=np.int32,
+                )
+
+        return Solver
+
+    if case == "initial_sdp_bound_below_heuristic":
+        class Solver(BaseSolver):  # type: ignore
+            def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
+                self.set_sdp_primal_solution(
+                    np.eye(P.n, dtype=np.float64)
+                )
+                return 1
+
+            def initial_heuristic(self, L, *args, **kwargs):
+                P = kwargs["P"]
+                return np.zeros(
+                    P.n - self._MC_OFFSET,
+                    dtype=np.int32,
+                )
+
+            def sdp_bound(self, node, P0, P, *args, **kwargs):
+                return self.good_sdp_bound(node, P0, P)
+
+            def heuristic(self, L, *args, **kwargs):
+                self.mark(
+                    "BIQBIN_TEST_INITIAL_SDP_BOUND_BELOW_HEURISTIC"
+                )
+                node = kwargs["node"]
+                P = kwargs["P"]
+
+                fixed = node.sol.x[node.xfixed != 0]
+                value = 1 - fixed[0] if fixed.size else 1
+
+                return np.full(
+                    P.n - self._MC_OFFSET,
+                    value,
+                    dtype=np.int32,
+                )
+
+        return Solver
+
     raise ValueError(f"unknown failure case: {case}")
 
 

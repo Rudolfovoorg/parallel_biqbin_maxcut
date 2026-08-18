@@ -59,9 +59,10 @@ int Init_PQ(void)
     // save upper bound
     BabRoot->upper_bound = root_upper_bound;
 
-    /* insert node into the priority queue or prune */
+    // Insert node into the priority queue or prune
     // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
-    if (Bab_LBGet() + 1.0 < BabRoot->upper_bound)
+    //       branch if LB + 1 <= UB;
+    if (Bab_LBGet() + 1.0 <= BabRoot->upper_bound)
     {
         Bab_PQInsert(BabRoot);
     }
@@ -271,7 +272,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
      * and we are not max depth, we must branch since there could be a better feasible
      * solution in this subproblem
      */
-    if (Bab_LBGet() + 1.0 < fmin(root_upper_bound, node->upper_bound) && node->level < BabPbSize)
+    if (Bab_LBGet() + 1.0 <= fmin(root_upper_bound, node->upper_bound) && node->level < BabPbSize)
     {
         /***** branch *****/
         // Determine the variable x[ic] to branch on

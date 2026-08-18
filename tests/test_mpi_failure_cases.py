@@ -59,6 +59,10 @@ FAILURE_CASES = {
     # Native arrays are intended to be read-only.
     "callback_mutates_problem_matrix": "BIQBIN_TEST_MUTATE_PROBLEM_MATRIX",
     "callback_mutates_node_solution": "BIQBIN_TEST_MUTATE_NODE_SOLUTION",
+
+    # SDP returns a bound that is proved wrong by the heuristic
+    "sdp_bound_below_heuristic": "BIQBIN_TEST_SDP_BOUND_BELOW_HEURISTIC",
+    "initial_sdp_bound_below_heuristic": "BIQBIN_TEST_INITIAL_SDP_BOUND_BELOW_HEURISTIC",
 }
 
 

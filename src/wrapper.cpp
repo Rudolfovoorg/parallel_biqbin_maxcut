@@ -241,7 +241,9 @@ double reduce_sum_mpi_python(double number)
 
 py::tuple ipm_mc_pk_python(py::array_t<double> &input_matrix)
 {
-    const py::ssize_t n = input_matrix.shape(0);
+    const int n = input_matrix.shape(0);
+    check_np_array_validity(input_matrix, 2, n, "ipm input matrix");
+
     py::array_t<double> output_matrix({n, n});
     double f = 0.0;
 

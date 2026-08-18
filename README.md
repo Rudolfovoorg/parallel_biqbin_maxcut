@@ -71,6 +71,9 @@ There are detailed descriptions on two seperate setup instruction, either [**Ana
 > **NOTE:** Biqbin can only solve problem instances with **integer edge weight**!  
 > This applies both to the Maxcut and Qubo solvers.
 
+> **NOTE**: QUBO instances must transform to integer-valued Max-Cut edge weights.
+> For triangular QUBO matrices, off-diagonal coefficients must therefore be even.
+
 > **Min Processes:** Biqbin requires needs at least **3 mpi processes to run**!
 
 > **Over Concurrency:** Depending on your system you must set `OpenBlas` environment variables, to prevent over threading which can **significantly** slow down your system:

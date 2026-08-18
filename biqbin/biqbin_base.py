@@ -97,11 +97,18 @@ class ProblemQubo(ProblemMaxCut):
 
     @check_matrix_validity_setter_wrap
     def qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
-        """Convert qubo to adjacency matrix that biqbin can read.
-        Checks if the input qubo is valid (all values integers).
+        """Convert a QUBO matrix to a Max-Cut instance.
+
+        QUBO coefficients must be integer-valued. Since the conversion
+        symmetrizes Q as (Q + Q.T) / 2, triangular QUBO inputs must have
+        even off-diagonal coefficients so that the resulting Max-Cut
+        weights remain integer-valued.
+
+        Raises:
+            ValueError: If the resulting Max-Cut matrix is not integer-valued.
 
         Args:
-            qubo (np.ndarray): qubo as 2d numpy array
+            qubo (np.ndarray): qubo as 2D numpy array
         Returns:
             np.ndarray: adjacency matrix for max cut problem
         """

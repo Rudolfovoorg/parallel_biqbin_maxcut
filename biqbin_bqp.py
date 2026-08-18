@@ -51,7 +51,7 @@ class ProblemBQP(ProblemMaxCut):
             n = None
         else:
             n = F.shape[0]
-            if not np.allclose(F, F.T):
+            if not np.array_equal(F, F.T):
                 logger.fatal('Matrix F must be symmetric')
                 fatal_error = True
         if not np.all(np.isfinite(F)) or not np.array_equal(F, np.round(F)):

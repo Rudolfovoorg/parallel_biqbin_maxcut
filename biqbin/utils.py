@@ -219,7 +219,7 @@ def qubo_to_qplib_str(qubo: np.ndarray, offset: float, minimize: bool, problem_n
     """
     # QPLIB expects a lower triangular matrix
     diag = np.diag(qubo)
-    if np.allclose(qubo, qubo.T):
+    if np.array_equal(qubo, qubo.T):
         qubo = np.tril(qubo * 2)
     else:
         qubo = np.tril(qubo + qubo.T)

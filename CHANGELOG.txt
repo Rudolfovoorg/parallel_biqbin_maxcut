@@ -69,3 +69,25 @@
     this should (or could) fix the numerical instability that was detected on some problems
 - tests for all custom permutations of the solver implemented
 - tests for custom solvers that must fail have been added
+- added tests for root/non-root SDP and heuristic callback combinations
+- added MPI failure-path tests for callback exceptions, invalid return values,
+  invalid primal/heuristic solutions, read-only native data, and inconsistent bounds
+- added separate root and non-root callback hooks for SDP bounds and heuristics
+  (`initial_sdp_bound`, `sdp_bound`, `initial_heuristic`, `heuristic`)
+- added validation for custom SDP callbacks: finite real scalar return value,
+  mandatory primal solution, and consistency checks against heuristic/root bounds
+- exposed additional BabNode/Problem state to Python callbacks and made native-backed
+  callback arrays read-only
+- improved BQP support: input validation, integer/finiteness checks, initial-estimate
+  conversion, GCD handling, and Max-Cut-to-BQP solution reconstruction with constraint checks
+- added BQP JSON and text parser validation, including explicit index and missing-key errors
+- hardened Max-Cut/QUBO parsers with finite/integer/index validation and single-edge
+  Edge-Weight input support
+- added unit tests for ProblemMaxCut, ProblemQubo, ProblemBQP and their solution conversions
+- reorganized parser tests by input format and added malformed-input/error-path coverage
+- added additional MPI failure tests for invalid callback results and inconsistent SDP/
+  heuristic bounds
+- added documentation for replacing SDP bounds, root SDP bounds, heuristics and root heuristics
+- updated README and problem-format documentation for BQP, parser formats, callback API,
+  input restrictions and MPI process requirements
+- fixed QPLIB linear-objective parsing and multiple parser/input-validation edge cases

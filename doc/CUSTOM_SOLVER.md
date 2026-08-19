@@ -17,7 +17,7 @@ If `initial_sdp_bound` is not overridden, `sdp_bound` is used on the root node t
 
 ## The `set_sdp_primal_solution` Requirement
 
-Biqbin requires a primal SDP solution matrix (a PSD matrix `X` in {-1, 1} range) to be set before it runs. The default `sdp_bound` sets this internally. 
+Biqbin requires a primal SDP solution matrix (a PSD matrix `X` with entries in the range [-1, 1]) to be set before it runs. The default `sdp_bound` sets this internally. 
 
 **If you override `sdp_bound`, you must call `self.set_sdp_primal_solution` before returning.**
 
@@ -56,25 +56,31 @@ Heuristic return values must be integer binary vectors (`dtype=np.int32`).
 
 ---
 
-## Examples
+## Example
+
+The example shows if all of the options are overwritten, but any of these can be used or not
 
 ```python
 class CustomSolver(QUBOSolver):
     def initial_sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
         # Compute the SDP relaxation value and SDP primal solution X
+        bound, X = custom_root_sdp(P.L)
         self.set_sdp_primal_solution(X) # set it before leaving the function
-        return sdp_value
+        return bound
         
     def initial_heuristic(self, L, *args, **kwargs) -> npt.NDArray[np.int32]:
         # Run heuristic on root and return a binary 0-1 solution vector of size L.shape[0] - 1
-        x = np.zeros(L.shape[0] - 1, dtype=np.int32)
+        x = custom_root_heuristic(L)
         return x
 
     def sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
-        return sdp_value # replaced by heuristic, so no primal needed
+        # Compute the SDP relaxation value and SDP primal solution X
+        bound, X = custom_sdp(P.L)
+        self.set_sdp_primal_solution(X) # set it before leaving the function
+        return bound
 
     def heuristic(self, L, *args, **kwargs) -> npt.NDArray[np.int32]:
         # Run heuristic and return a binary 0-1 solution vector of size L.shape[0] - 1
-        x = np.zeros(L.shape[0] - 1, dtype=np.int32)
+        x = custom_heuristic(L)
         return x
 ```

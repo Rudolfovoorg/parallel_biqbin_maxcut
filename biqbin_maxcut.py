@@ -5,11 +5,11 @@ import json
 
 
 if __name__ == '__main__':
-    init()
     
     parser = ArgParserMaxCut()
     args = parser.parse_args()
 
+    init() # initialize MPI
     # Select the file reader based on the file format
     parser_class = args.format
     file_reader = parser_class(

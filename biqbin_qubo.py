@@ -10,10 +10,10 @@ from biqbin.data_parsers import FromFile
 """
 
 if __name__ == '__main__':
-    init()
     parser = ArgParserQubo()
     args = parser.parse_args()
 
+    init() # initialize MPI
     parser_class = args.format
     file_reader = parser_class(
         args.problem_instance, optimize_input=args.optimize)

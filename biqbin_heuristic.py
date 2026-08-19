@@ -37,10 +37,10 @@ class QuboDwaveSampler(QUBOSolver):
 
 
 if __name__ == '__main__':
-    init()
     parser = ArgParserDWaveHeuristic()
     args = parser.parse_args()
 
+    init() # initialize MPI
     reader = args.format(args.problem_instance, optimize_input=args.optimize)
     problem = reader.read()
     if get_rank() == 0 and args.solution:

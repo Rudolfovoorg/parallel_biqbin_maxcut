@@ -268,7 +268,7 @@ class SolutionBQP(SolutionMaxCut):
 
 
 class BQPSolver(MaxCutSolver):
-    solver_name = 'PyBiqBin-BQP-PLACEHOLDER'
+    solver_name = 'PyBiqBin-BQP'
 
     def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_root_data=False, collect_sdp_bound_root_data=False):
         self.__problem: ProblemBQP = problem
@@ -513,10 +513,10 @@ class ParserBQP(ArgParserBase):
 
 
 if __name__ == '__main__':
-    init()
     parser = ParserBQP()
     args = parser.parse_args()
 
+    init() # initialize MPI
     problem_reader_cls = args.format
     problem_reader = problem_reader_cls(
         args.problem_instance, optimize_input=args.optimize)
@@ -536,7 +536,6 @@ if __name__ == '__main__':
     solution = solver.compute()  # run the solver
 
     if get_rank() == 0:
-        # Convert the Max-Cut solution back to BQP !! PLACEHOLDER FUNCTION !!
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
         print(solution)

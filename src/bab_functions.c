@@ -268,10 +268,11 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
         Bab_LBUpd(g_lowerBound, &solx);
     }
 
-    /* if BabLB + 1.0 <  min of child_node->upper_bound and root upper bound,
-     * and we are not max depth, we must branch since there could be a better feasible
-     * solution in this subproblem
-     */
+    // if BabLB + 1.0 <  min of child_node->upper_bound and root upper bound,
+    // and we are not max depth, we must branch since there could be a better feasible
+    // solution in this subproblem
+
+    // TODO: figure out floating point error
     if (Bab_LBGet() + 1.0 <= fmin(root_upper_bound, node->upper_bound) && node->level < BabPbSize)
     {
         /***** branch *****/

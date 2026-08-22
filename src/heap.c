@@ -24,7 +24,6 @@ void Bab_incEvalNodes(void) { ++Bab_numNodes; }
  */
 static inline int compare_Nodes(const BabNode *node1, const BabNode *node2)
 {
-
     return ((node1->upper_bound > node2->upper_bound) ? 1 : -1);
 }
 
@@ -169,7 +168,12 @@ BabNode *newNode(const BabNode *parentNode)
 
     // child is one level deeper than parent
     node->level = (parentNode == NULL) ? 0 : parentNode->level + 1;
-
+    if (parentNode)
+    {
+        // Set the upper_bound to the parents upper_bound as default
+        // This get's updated it's evaluated
+        node->upper_bound = parentNode->upper_bound;
+    }
     return node;
 }
 
@@ -190,7 +194,6 @@ void Bab_LBInit(double lowerBound, const BabSolution *bs)
 /* If new solution is better than the global solution, update the solution */
 int Bab_LBUpd(double new_LB, const BabSolution *bs)
 {
-
     if (new_LB > BabLB)
     {
         BabLB = new_LB;

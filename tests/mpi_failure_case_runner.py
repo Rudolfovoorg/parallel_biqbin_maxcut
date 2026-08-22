@@ -302,7 +302,7 @@ def solver_class_for(case: str, log_dir: Path):
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_PRIMAL_NOT_2D")
 
-                X = np.zeros(P.n, dtype=np.float64)
+                X = np.ones(P.n, dtype=np.float64)
 
                 self.set_sdp_primal_solution(X)
                 return 1.0e9
@@ -314,8 +314,20 @@ def solver_class_for(case: str, log_dir: Path):
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_PRIMAL_NON_SQUARE")
 
-                X = np.zeros((P.n, P.n + 1), dtype=np.float64)
+                X = np.eye(P.n, P.n + 1, dtype=np.float64)
 
+                self.set_sdp_primal_solution(X)
+                return 1.0e9
+
+        return Solver
+    
+    if case == "sdp_primal_non_one_diagonal":
+        class Solver(BaseSolver):  # type: ignore
+            def sdp_bound(self, node, P0, P, *args, **kwargs):
+                self.mark("BIQBIN_TEST_SDP_PRIMAL_NON_ONE_DIAGONAL")
+
+                X = np.eye(P.n, dtype=np.float64)
+                X *= 0.5
                 self.set_sdp_primal_solution(X)
                 return 1.0e9
 

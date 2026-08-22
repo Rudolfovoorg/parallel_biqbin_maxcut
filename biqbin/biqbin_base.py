@@ -9,7 +9,7 @@ import logging
 
 from biqbin.utils import (check_matrix_validity_setter_wrap,
                           check_matrix_validity_wrap,
-                          divide_matrix_by_gcd, 
+                          divide_matrix_by_gcd,
                           data_collector)
 from biqbin.biqbin_module import (BabNode, Problem,
                                   reduce_sum_mpi, abort_mpi, get_rank, run,
@@ -376,7 +376,6 @@ class MaxCutSolver(PrettyPrint):
         self._primal_solution_set = True
         return sdp_bound(node, P0, P)
 
-    # TODO: throw warning about if it is a true lower bound, throw error if bellow heuristic solution
     def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """Compute the SDP bound on the root node. 
         By default it will call ``self.upper_bound``, same as the leaf B&B nodes.
@@ -447,16 +446,29 @@ class MaxCutSolver(PrettyPrint):
             primal_solution (np.ndarray): shape (P.n, P.n) where n is the size of the subproblem P passed into
             ``heuristic`` and ``sdp_bound`` solver callbacks.
         """
+        fatal_error = False
+        if not primal_solution.ndim == 2:
+            logger.fatal(f'primal_solution must be a 2D matrix, got {primal_solution.ndim}D matrix!')
+            fatal_error = True
+            
+        if not np.allclose(np.diagonal(primal_solution), 1.0):
+            logger.fatal(
+                'All diagonal values in the primal_solution must be 1.0!')
+            fatal_error = True
+            
         if np.any(primal_solution < -1.0) or np.any(primal_solution > 1.0):
             logger.fatal(
                 'The primal_solution must be in the {-1, 1} range!')
-            abort_mpi(10)
+            fatal_error = True
 
         if not np.all(np.isfinite(primal_solution)):
             logger.fatal(
                 "The primal_solution must contain only finite values!")
+            fatal_error = True
+        
+        if fatal_error:
             abort_mpi(10)
-
+        
         set_primal_solution(primal_solution)
         self._primal_solution_set = True
 
@@ -490,14 +502,14 @@ class MaxCutSolver(PrettyPrint):
             # If any of the sdp bound computations were overridden,
             # we need to do a runtime check to see if the computed bounds are valid
             fatal_error = False
-            
+
             fixed_value = get_fixed_value(node, P0)
             if (self._latest_heuristic_value > upper_bound_value + fixed_value):
                 logger.fatal((f"[rank {self.rank}] SDP bound is greater than heuristic bound, "
                               f"custom SDP bound confirmed to not give a true bound!\n"
                               f"Heuristic value = {self._latest_heuristic_value}; SDP bound {upper_bound_value + fixed_value}"))
                 fatal_error = True
-                
+
             initial_sdp_bound = get_root_sdp_bound()
             if (self.rank != 0 and self._latest_heuristic_value > initial_sdp_bound):
                 logger.fatal((f"[rank {self.rank}] Initial SDP bound is greater than heuristic bound, "

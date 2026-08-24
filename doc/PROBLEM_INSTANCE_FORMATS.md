@@ -161,6 +161,4 @@ Python versions of the solver use a `ToFile` class, split into seperate subclass
 
 ## BQP input example
 
-> **NOTE:** BQP is considered to be a placeholder implementation at this time as is the input example provided below.
-
 BQP input is explained [here](BQP_INPUT_EXAMPLE.md).

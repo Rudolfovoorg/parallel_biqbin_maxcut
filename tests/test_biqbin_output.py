@@ -26,7 +26,7 @@ def test_biqbin_output(problem_instance, request, subtests):
     time_diff = expected_result["meta_data"]["time"] - \
         result["meta_data"]["time"]
 
-    with subtests.test(f'Bab nodes diff = {bab_nodes_diff} Time diff = {time_diff:.3f}'):
+    with subtests.test(f'Bab nodes diff (exp - calc) = {bab_nodes_diff} Time diff (exp - calc) = {time_diff:.3f}'):
         # Best way I found to pretty print the bab nodes and time diff
         assert True
 
@@ -116,11 +116,15 @@ def test_biqbin_output(problem_instance, request, subtests):
         )
 
     with subtests.test('Root node heuristic_run_count'):
-        if expected_root["heuristic_run_count"] != computed_root["heuristic_run_count"]:
+        try:
+            expected_root_heur_call_count = expected_root["heuristic_call_count"]
+        except KeyError:
+            expected_root_heur_call_count = expected_root["heuristic_run_count"]
+        if expected_root_heur_call_count != computed_root["heuristic_call_count"]:
             pytest.xfail(
                 f'root heuristic_run_count mismatch!'
-                f'Got:      {computed_root["heuristic_run_count"]}\n'
-                f'Expected: {expected_root["heuristic_run_count"]}'
+                f'Got:      {computed_root["heuristic_call_count"]}\n'
+                f'Expected: {expected_root_heur_call_count}'
             )
 
     with subtests.test('Root node solution'):
@@ -139,3 +143,18 @@ def test_biqbin_output(problem_instance, request, subtests):
                     f'Got:      {len(computed_root["heuristic_data"])}\n'
                     f'Expected: {len(expected_root["heuristic_data"])}'
                 )
+                
+    if 'custom_solver_tests' in expected_result['meta_data']:
+        exp_cs_tests = expected_result['meta_data']['custom_solver_tests']
+        comp_cs_tests = result['meta_data']['custom_solver_tests']
+
+        for key in exp_cs_tests:
+            with subtests.test(key):
+                if exp_cs_tests[key] != comp_cs_tests[key]:
+                    if exp_cs_tests['sdp_calls'] == 0 and key == 'heuristic_calls':
+                        # 4 test cases include the default SDPBound and custom heuristic
+                        # in these cases the heuristic calls are called a indeterminant amount
+                        # based on the which worker get's which problem with what RNG
+                        pytest.xfail(f'(exp - comp) {exp_cs_tests[key]}-{comp_cs_tests[key]}')
+                    else:
+                        raise ValueError(f'(exp - comp) {exp_cs_tests[key]}-{comp_cs_tests[key]}')

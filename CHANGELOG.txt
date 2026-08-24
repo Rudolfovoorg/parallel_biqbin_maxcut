@@ -54,3 +54,40 @@
 - added init() function to biqbin/__init__.py that initializes MPI
 - added checks to get_rank() and run_py in wrapper.cpp to notify the user if they forgot to initialize mpi
 - various format and small bug fixes
+- added Dockerfile.dev for full testing environment, added make docker-dev command
+- MPI_Datatype in src/main.c fixed last variable from integer to double (node->upper_bound is a double)
+- exposed SDPBound to python as "node_evaluation" (as it computes both bounds internally)
+- Root (rank 0) now communicates both bounds (heuristic solution obj value and sdp bound) to workers
+- SDPBound simplified by removing int rank as parameter as it is already a global variable
+- SDPBound now returns the subproblem bound value, the fixed contribution is added after in Evaluate function
+- SDP primal solution matrix can now be passed in through Python (obligatory for custom sdp_bound)
+- MPI_Abort, MPI_Reduce sum, MPI_Finalize all exposed to Python for communication and proper finalization
+- On all fatal errors (Python/C/C++) MPI_Abort is now called
+- added more safety checks for arrays the users can pass in
+- BIG bugfixes from overlooked edge cases in the original solver,
+    checking IF we can still branch at the end of the B&B tree, checks if we CAN do the bundle method after basic SDP bound,
+    this should (or could) fix the numerical instability that was detected on some problems
+- tests for all custom permutations of the solver implemented
+- tests for custom solvers that must fail have been added
+- added tests for root/non-root SDP and heuristic callback combinations
+- added MPI failure-path tests for callback exceptions, invalid return values,
+  invalid primal/heuristic solutions, read-only native data, and inconsistent bounds
+- added separate root and non-root callback hooks for SDP bounds and heuristics
+  (`initial_sdp_bound`, `sdp_bound`, `initial_heuristic`, `heuristic`)
+- added validation for custom SDP callbacks: finite real scalar return value,
+  mandatory primal solution, and consistency checks against heuristic/root bounds
+- exposed additional BabNode/Problem state to Python callbacks and made native-backed
+  callback arrays read-only
+- improved BQP support: input validation, integer/finiteness checks, initial-estimate
+  conversion, GCD handling, and Max-Cut-to-BQP solution reconstruction with constraint checks
+- added BQP JSON and text parser validation, including explicit index and missing-key errors
+- hardened Max-Cut/QUBO parsers with finite/integer/index validation and single-edge
+  Edge-Weight input support
+- added unit tests for ProblemMaxCut, ProblemQubo, ProblemBQP and their solution conversions
+- reorganized parser tests by input format and added malformed-input/error-path coverage
+- added additional MPI failure tests for invalid callback results and inconsistent SDP/
+  heuristic bounds
+- added documentation for replacing SDP bounds, root SDP bounds, heuristics and root heuristics
+- updated README and problem-format documentation for BQP, parser formats, callback API,
+  input restrictions and MPI process requirements
+- fixed QPLIB linear-objective parsing and multiple parser/input-validation edge cases

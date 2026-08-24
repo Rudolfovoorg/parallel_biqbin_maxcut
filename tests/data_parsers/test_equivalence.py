@@ -1,7 +1,6 @@
-from pathlib import Path
-import os
 import pytest
 import numpy as np
+from pathlib import Path
 
 from biqbin import (
     MaxCutFromJson,
@@ -98,8 +97,8 @@ def _assert_same_matrix(A: np.ndarray, B: np.ndarray, parser_name):
         )
 
 
-def _test_parsers_equivalence(json_parser, json_path, other_parser, other_path):
-    base_problem = json_parser(json_path).read()
+def _test_parsers_equivalence(parser, json_path, other_parser, other_path):
+    base_problem = parser(json_path).read()
     other_problem = other_parser(other_path).read()
 
     A = base_problem.maxcut_adjacency_matrix
@@ -110,14 +109,18 @@ def _test_parsers_equivalence(json_parser, json_path, other_parser, other_path):
 
 @pytest.mark.parametrize('json_path, other_parser, other_path', MAXCUT_CASES)
 def test_parsers_maxcut_equivalence(json_path, other_parser, other_path):
-    _test_parsers_equivalence(MaxCutFromJson, json_path,
-                              other_parser, other_path)
+    _test_parsers_equivalence(MaxCutFromJson,
+                              json_path,
+                              other_parser,
+                              other_path)
 
 
 @pytest.mark.parametrize("json_path, other_parser, other_path", QUBO_CASES)
 def test_parsers_qubo_equivalence(json_path, other_parser, other_path):
-    _test_parsers_equivalence(QuboFromJson, json_path,
-                              other_parser, other_path)
+    _test_parsers_equivalence(QuboFromJson,
+                              json_path,
+                              other_parser,
+                              other_path)
 
 
 def _subtest_qplib_writer(save_path: str,
@@ -165,7 +168,7 @@ def test_qplib_writer(json_path, subtests, tmp_path):
         _subtest_qplib_writer(save_path, qT, problem.offset,
                               problem.is_minimization, problem)
 
-    with subtests.test('Symetric'):
+    with subtests.test('Symmetric'):
         sym = (problem.Q + problem.Q.T) / 2
         _subtest_qplib_writer(save_path, sym, problem.offset,
                               problem.is_minimization, problem)
@@ -174,19 +177,24 @@ def test_qplib_writer(json_path, subtests, tmp_path):
 def test_get_output_path(subtests):
     file_with_json = 'tests/rudy/g05_60.0.json'
     file_without_json = 'tests/rudy/g05_60.0'
-    
+
     with subtests.test('with .json with overwrite'):
-        out_file = ToFile.get_output_path(out_file=file_with_json, overwrite=True)
-        assert(out_file.endswith('.json') and out_file == file_with_json)
-        
+        out_file = ToFile.get_output_path(
+            out_file=file_with_json, overwrite=True)
+        assert (out_file.endswith('.json') and out_file == file_with_json)
+
     with subtests.test('with .json without overwrite'):
-        out_file = ToFile.get_output_path(out_file=file_with_json, overwrite=False)
-        assert(out_file.endswith('.json') and out_file != file_with_json)
-        
+        out_file = ToFile.get_output_path(
+            out_file=file_with_json, overwrite=False)
+        assert (out_file.endswith('.json') and out_file != file_with_json)
+
     with subtests.test('without .json with overwrite'):
-        out_file = ToFile.get_output_path(out_file=file_without_json, overwrite=True)
-        assert(out_file.endswith('.json') and out_file == file_without_json + '.json')
-        
+        out_file = ToFile.get_output_path(
+            out_file=file_without_json, overwrite=True)
+        assert (out_file.endswith('.json') and out_file ==
+                file_without_json + '.json')
+
     with subtests.test('without .json without overwrite'):
-        out_file = ToFile.get_output_path(out_file=file_without_json, overwrite=False)
-        assert(out_file.endswith('.json') and out_file != file_without_json)
+        out_file = ToFile.get_output_path(
+            out_file=file_without_json, overwrite=False)
+        assert (out_file.endswith('.json') and out_file != file_without_json)

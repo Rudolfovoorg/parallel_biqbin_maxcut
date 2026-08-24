@@ -1,13 +1,7 @@
 - Create an installable python package
-- Add additional converters and other utilities to utils.py
 - Change the way file parameters are read and set (config file)
-- Change the way tests are handled
 
 - Logging - node rank, dimension type, time value HIGH PRIORITY
-- Documentation QUBO upper triangular divisible by 2
 - Config files for NMAX and other useful parameters
-- Dense represantations of graphs
-- heuristic change in python to have it return the solution
 - figure out the sdp value difference tolerance for tests
-- remove '.output' file created by C from the Python version
 - check what in utils is actually useful or needed

@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#include <mpi.h>
+#include <stdint.h>
 
+#include <mpi.h>
 #include "biqbin.h"
 
 /* defined in heap.c */
@@ -29,7 +30,6 @@ void initializeBabSolution()
 
     BabSolution bs;
 
-    // #ifdef PURE_C
     for (int i = 0; i < BabPbSize; ++i)
     {
         bs.X[i] = 0;
@@ -59,10 +59,12 @@ int Init_PQ(void)
     // save upper bound
     BabRoot->upper_bound = root_upper_bound;
 
-    // Insert node into the priority queue or prune
-    // NOTE: optimal solution has INTEGER value, i.e. add +1 to lower bound
-    //       branch if LB + 1 <= UB;
-    if (Bab_LBGet() + 1.0 <= BabRoot->upper_bound)
+    // Insert node into the priority queue if lower bound < root upper bound or prune
+    // Compare as int64 because Biqbin solves with integer weights
+    int64_t lb = (int64_t)lround(Bab_LBGet());
+    int64_t ub = (int64_t)floor(BabRoot->upper_bound);
+
+    if (lb < ub)
     {
         Bab_PQInsert(BabRoot);
     }
@@ -250,7 +252,7 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
 
     /* compute upper bound (SDP bound) and lower bound (via heuristic) for this node */
     node->upper_bound = Evaluate(node, SP, PP);
-    
+
     // check if better lower bound found --> update info with master
     if (Bab_LBGet() > g_lowerBound)
     {
@@ -268,12 +270,13 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
         Bab_LBUpd(g_lowerBound, &solx);
     }
 
-    // if BabLB + 1.0 <  min of child_node->upper_bound and root upper bound,
+    // if BabLB  <  min of child_node->upper_bound and root upper bound floored,
     // and we are not max depth, we must branch since there could be a better feasible
     // solution in this subproblem
+    int64_t lb = (int64_t)lround(Bab_LBGet());
+    int64_t ub = (int64_t)floor(fmin(root_upper_bound, node->upper_bound));
 
-    // TODO: figure out floating point error
-    if (Bab_LBGet() + 1.0 <= fmin(root_upper_bound, node->upper_bound) && node->level < BabPbSize)
+    if (lb < ub && node->level < BabPbSize)
     {
         /***** branch *****/
         // Determine the variable x[ic] to branch on
@@ -297,7 +300,6 @@ void worker_Bab_Main(MPI_Datatype BabSolutiontype, MPI_Datatype BabNodetype)
         free(node);
 
         /************ distribute subproblems ************/
-
         // leave 1 problem for this worker and the rest is distributed
         int workers_request = heap->used - 1;
         int num_free_workers;

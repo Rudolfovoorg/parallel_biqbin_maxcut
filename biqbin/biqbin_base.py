@@ -440,7 +440,7 @@ class MaxCutSolver(PrettyPrint):
         Vital for branching and the GW heuristic, default SDPBound routine in C does this automatically, 
         but if we overwrite ``sdp_bound`` with a custom implementation, we need to manually set the primal solution X before running.
 
-        NOTE: The matrix should be in {-1, 1} range.
+        NOTE: The matrix must be in [-1, 1] range.
 
         Args:
             primal_solution (np.ndarray): shape (P.n, P.n) where n is the size of the subproblem P passed into
@@ -448,27 +448,24 @@ class MaxCutSolver(PrettyPrint):
         """
         fatal_error = False
         if not primal_solution.ndim == 2:
-            logger.fatal(f'primal_solution must be a 2D matrix, got {primal_solution.ndim}D matrix!')
-            fatal_error = True
-            
-        if not np.allclose(np.diagonal(primal_solution), 1.0):
             logger.fatal(
-                'All diagonal values in the primal_solution must be 1.0!')
+                f'primal_solution must be a 2D matrix, got {primal_solution.ndim}D matrix!')
             fatal_error = True
-            
-        if np.any(primal_solution < -1.0) or np.any(primal_solution > 1.0):
+
+        PRIMAL_SOLUTION_TOL = 1e-5
+        if np.any(primal_solution < -1.0 - PRIMAL_SOLUTION_TOL) or np.any(primal_solution > 1.0 + PRIMAL_SOLUTION_TOL):
             logger.fatal(
-                'The primal_solution must be in the {-1, 1} range!')
+                'The primal_solution must be in the [-1, 1] range!')
             fatal_error = True
 
         if not np.all(np.isfinite(primal_solution)):
             logger.fatal(
                 "The primal_solution must contain only finite values!")
             fatal_error = True
-        
+
         if fatal_error:
             abort_mpi(10)
-        
+
         set_primal_solution(primal_solution)
         self._primal_solution_set = True
 

@@ -1,3 +1,4 @@
+import scipy as sp
 import json
 from typing import Any
 import warnings
@@ -25,12 +26,12 @@ class ProblemBQP(ProblemMaxCut):
     ```
     """
 
-    def __init__(self, F: np.ndarray, c: np.ndarray, A: np.ndarray, b: np.ndarray, problem_name: str, optimize_input: bool):
+    def __init__(self, F: np.ndarray, c: np.ndarray, A: np.ndarray, b: np.ndarray, problem_name: str, offset: int = 0, optimize_input: bool = False):
         """
         All values in the inputs `F`, `c`, `A` and `b` need to have integer values.
 
         ```
-        min         x.T @ F @ x + c.T @ x
+        min         x.T @ F @ x + c.T @ x + offset
         subject to  A @ x = b
                     x_i in {0, 1}
         ```
@@ -92,6 +93,7 @@ class ProblemBQP(ProblemMaxCut):
         self.A: np.ndarray = A.astype(np.int64)
         self.b: np.ndarray = b.astype(np.int64)
 
+        self.offset = offset
         maxcut_adj, const_val, penalty, rho = self.process_bqp_input()
 
         self.penalty: float = penalty
@@ -206,7 +208,7 @@ class SolutionBQP(SolutionMaxCut):
             'penalty': problem.penalty,
             'feasible_solution': False,
             'computed_val': None,
-            'x': None,
+            'x': None
         }
 
         biqbin_result['bqp'] = bqp_result
@@ -245,8 +247,9 @@ class SolutionBQP(SolutionMaxCut):
 
             if np.isclose(objective, bqp_obj_value):
                 bqp_result['x'] = candidate.tolist()
-                bqp_result['computed_val'] = bqp_obj_value
+                bqp_result['computed_val'] = bqp_obj_value + problem.offset
                 bqp_result['feasible_solution'] = True
+                bqp_result['offset'] = problem.offset
                 return bqp_result
 
         # If the penalty test says the solution should be feasible but neither
@@ -264,7 +267,9 @@ class SolutionBQP(SolutionMaxCut):
                 f'       Feasible = {self.__solution["feasible_solution"]}\n'
                 f'              x = {self.__solution["x"]}\n'
                 f'            Rho = {self.__solution["rho"]}\n'
-                f'    Const value = {self.__solution["const_value"]}\n')
+                f'    Const value = {self.__solution["const_value"]}\n'
+                f'        Penalty = {self.__solution["penalty"]}\n'
+                )
 
 
 class BQPSolver(MaxCutSolver):
@@ -307,6 +312,28 @@ class BQPSolver(MaxCutSolver):
             np.ndarray: Max-Cut solution vector
         """
         bqp_x = np.asarray(bqp_x)
+        n = self.__problem.F.shape[0]
+
+        if (
+            bqp_x.ndim != 1
+            or bqp_x.shape != (n,)
+            or not np.all(np.isfinite(bqp_x))
+            or not np.all((bqp_x == 0) | (bqp_x == 1))
+        ):
+            logger.fatal(
+                f'Initial estimate must be a binary vector of length {n}.'
+            )
+            abort_mpi(10)
+
+        if not np.array_equal(
+            self.__problem.A @ bqp_x,
+            self.__problem.b,
+        ):
+            logger.fatal(
+                'Initial estimate does not satisfy A @ x = b.'
+            )
+            abort_mpi(10)
+
         bqp_obj = bqp_x @ self.__problem.F @ bqp_x + self.__problem.c @ bqp_x
 
         for candidate in (bqp_x, 1 - bqp_x):
@@ -326,6 +353,96 @@ class BQPSolver(MaxCutSolver):
         abort_mpi(10)
 
 
+class BQPFromQBODense(FromFile):
+    def read(self) -> ProblemBQP:
+        with open(self.filename) as f:
+            data = json.load(f)
+        for k in data:
+            print(k)
+
+        F = np.array(data['QBO']['Q'])
+        if not np.allclose(F, F.T):
+            F = F + F.T
+        c = F.diagonal().copy()
+        A = np.array(data['QBO']['constraints']['linear'][0])
+        b = np.array(data['QBO']['constraints']['linear'][1])
+
+        return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
+
+
+class BQPFromQBOSparse(FromFile):
+    def read(self):
+        data, Q, lin, quad = self._load_qbo_new_format(self.filename)
+
+        Q_dense = Q.toarray() * 2
+
+        # Scale the original QBO objective by 2:
+        #   2 * x.T @ Q @ x == x.T @ F @ x + c.T @ x
+        c = np.diag(Q_dense).copy()
+        F = (Q_dense + Q_dense.T) * 0.5
+        np.fill_diagonal(F, 0)
+
+        A, b, sense = lin[0]
+
+        if sense != '==':
+            raise ValueError(
+                'BiqBin can only solve equality constraints!'
+            )
+
+        # if data['QBO']['offset'] != 0:
+        #     raise ValueError(
+        #         f"Offset == {data['QBO']['offset']}"
+        #     )
+        offset = data['QBO']['offset']
+        return ProblemBQP(F, c, A.toarray(), b, self.problem_name, offset, self.optimize_input)
+
+    def _load_qbo_new_format(self, path):
+        """
+        NOTE: function taken from https://github.com/Rudolfovoorg/A-Direct-SDP-Approach-for-QBOs/blob/main/WP1-SDP/new_format/qbo_sdp_new_format.py
+
+        Load a new-format QBO JSON instance.
+
+        New sparse matrix format:
+            ((data, (row, col)), shape)
+
+        Returns:
+            data, Q, linear_constraints, quadratic_constraints
+        where
+            Q: scipy sparse COO matrix
+            linear_constraints: [(B, c, sense), ...]
+            quadratic_constraints: [(Qi, ri, sense), ...]
+        """
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        ((Q_data, (Q_row, Q_col)), Q_shape) = data["QBO"]["Q"]
+        Q = sp.sparse.coo_matrix((Q_data, (Q_row, Q_col)), shape=Q_shape)
+
+        linear = [
+            (
+                sp.sparse.coo_matrix(
+                    (Bi_data, (Bi_row, Bi_col)), shape=Bi_shape),
+                np.asarray(Ci, dtype=float),
+                sense,
+            )
+            for ((Bi_data, (Bi_row, Bi_col)), Bi_shape), Ci, sense
+            in data["QBO"]["constraints"]["linear"]
+        ]
+
+        quadratic = [
+            (
+                sp.sparse.coo_matrix(
+                    (Qi_data, (Qi_row, Qi_col)), shape=Qi_shape),
+                float(ri),
+                sense,
+            )
+            for ((Qi_data, (Qi_row, Qi_col)), Qi_shape), ri, sense
+            in data["QBO"]["constraints"]["quadratic"]
+        ]
+
+        return data, Q, linear, quadratic
+
+
 class BQPFromBQPFile(FromFile):
     """
     Read the custom BQP file format, defined in https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/doc/BQP_INPUT_EXAMPLE.md
@@ -340,7 +457,6 @@ class BQPFromBQPFile(FromFile):
 
         try:
             n, m = map(int, lines[0].split())
-
         except ValueError:
             raise ValueError(
                 f'File {self.filename}: first line must be "n m", got: {lines[0]!r}'
@@ -480,7 +596,9 @@ class BQPToJson(ToFile):
 class ParserBQP(ArgParserBase):
     FORMAT_CHOICES = {
         'json': BQPFromJson,
-        'bqp': BQPFromBQPFile
+        'bqp': BQPFromBQPFile,
+        'sparse': BQPFromQBOSparse,
+        'dense': BQPFromQBODense
     }
 
     def __init__(self):
@@ -516,7 +634,7 @@ if __name__ == '__main__':
     parser = ParserBQP()
     args = parser.parse_args()
 
-    init() # initialize MPI
+    init()  # initialize MPI
     problem_reader_cls = args.format
     problem_reader = problem_reader_cls(
         args.problem_instance, optimize_input=args.optimize)

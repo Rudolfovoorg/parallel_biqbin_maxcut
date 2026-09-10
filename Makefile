@@ -161,7 +161,10 @@ test-input-solution: clean-output
 test-bqp-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data -c > /dev/null 2>&1
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j -c > /dev/null 2>&1
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_dense.json --format dense -c > /dev/null 2>&1
+	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_sparse.json --format sparse -c > /dev/null 2>&1
+
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
 	python -m pytest tests/test_bqp.py -v -s --no-header
 
 test-modular-combos: clean-output

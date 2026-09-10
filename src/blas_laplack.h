@@ -29,7 +29,6 @@ extern "C"
                        const void *a, const int *lda, const void *b, const int *ldb, const double *beta, void *c, const int *ldc);
 
     /****** LAPACK  ******/
-
     // computes Cholesky factorization of positive definite matrix
     extern void dpotrf_(const char *uplo, const int *n, double *X, const int *lda, int *info);
 
@@ -43,6 +42,10 @@ extern "C"
 
     // computes solution to a real system of linear equations with positive definite matrix
     extern void dposv_(const char *uplo, const int *n, const int *nrhs, double *A, const int *lda, double *B, const int *ldb, int *info);
+
+    // symmetric eigendecomposition
+    extern void dsyev_(const char *jobz,const char *uplo,const int *n, double *a, const int *lda, double *w, double *work, const int *lwork, int *info);
+
 #ifdef __cplusplus
 }
 #endif

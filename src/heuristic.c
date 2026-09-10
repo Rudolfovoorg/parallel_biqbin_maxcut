@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <float.h> // ADDED: DBL_EPSILON
 
 #include "biqbin.h"
 #include "wrapper_hooks.h"
@@ -26,6 +27,105 @@ double runHeuristic(const Problem *P0, Problem *P, BabNode *node)
 #endif
 }
 
+static void factor_for_gw_inplace(double *Z, int n)
+{
+    int nn = n * n;
+    int inc = 1;
+    char UPLO = 'L';
+    int info = 0;
+
+    // ADDED:
+    // Save a copy because dpotrf overwrites Z even if it fails.
+    double Z_backup[nn];
+    dcopy_(&nn, Z, &inc, Z_backup, &inc);
+
+    // ORIGINAL BEHAVIOR FIRST:
+    // Try Cholesky exactly like before.
+    dpotrf_(&UPLO, &n, Z, &n, &info);
+
+    if (info == 0)
+    {
+        // ORIGINAL BEHAVIOR:
+        // Keep only the lower-triangular Cholesky factor.
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < i; ++j)
+                Z[j + i * n] = 0.0;
+
+        return;
+    }
+
+    // ADDED:
+    // Fallback path only when Cholesky fails.
+    fprintf(stderr,
+            "%s: dpotrf failed: info=%d, n=%d -- falling back to dsyev\n",
+            __func__, info, n);
+
+    // ADDED:
+    // Restore the original matrix before eigendecomposition.
+    dcopy_(&nn, Z_backup, &inc, Z, &inc);
+
+    // ADDED:
+    // Compute eigendecomposition Z = V * diag(eig) * V^T
+    char JOBZ = 'V';
+    int lwork = -1;
+    double work_query;
+    double eig[n];
+    int eig_info = 0;
+
+    // Workspace query
+    dsyev_(&JOBZ, &UPLO, &n, Z, &n, eig, &work_query, &lwork, &eig_info);
+
+    if (eig_info != 0)
+    {
+        fprintf(stderr,
+                "%s: dsyev workspace query failed: info=%d, n=%d\n",
+                __func__, eig_info, n);
+        MPI_Abort(MPI_COMM_WORLD, 10);
+    }
+
+    lwork = (int)work_query;
+    double work[lwork];
+
+    // Actual eigendecomposition
+    dsyev_(&JOBZ, &UPLO, &n, Z, &n, eig, work, &lwork, &eig_info);
+
+    if (eig_info != 0)
+    {
+        fprintf(stderr,
+                "%s: dsyev failed: info=%d, n=%d\n",
+                __func__, eig_info, n);
+        MPI_Abort(MPI_COMM_WORLD, 10);
+    }
+
+    // ADDED:
+    // Z currently contains eigenvectors in columns.
+    // Turn it into Z = V * sqrt(Lambda), so that Z * Z^T = original matrix.
+    double lambda_max = fmax(0.0, eig[n - 1]);
+    double eig_tol = n * DBL_EPSILON * fmax(1.0, lambda_max);
+
+    for (int j = 0; j < n; ++j)
+    {
+        double lambda = eig[j];
+
+        // Accept tiny negative eigenvalues as numerical noise.
+        if (lambda < -eig_tol)
+        {
+            fprintf(stderr,
+                    "%s: fallback found non-PSD matrix: eig[%d]=%.17e, tol=%.17e, n=%d\n",
+                    __func__, j, lambda, eig_tol, n);
+            MPI_Abort(MPI_COMM_WORLD, 10);
+        }
+
+        if (lambda <= eig_tol)
+            lambda = 0.0;
+
+        double scale = sqrt(lambda);
+
+        for (int i = 0; i < n; ++i)
+            Z[i + j * n] *= scale;
+    }
+}
+
 double runHeuristic_unpacked(const double *P0_L, int P0_N, const double *P_L, int P_N, const int *node_xfixed, const int *node_sol_X, int *x)
 {
     // Problem *P0 ... the original problem
@@ -37,7 +137,6 @@ double runHeuristic_unpacked(const double *P0_L, int P0_N, const double *P_L, in
     int nn = n * n;
     int inc = 1;
     char UPLO = 'L';
-    int info = 0;
     double heur_val;
 
     double xh[n];  // is used for convex combination with matrix X (n x n)
@@ -52,10 +151,8 @@ double runHeuristic_unpacked(const double *P0_L, int P0_N, const double *P_L, in
     index = 0;
     for (int i = 0; i < N; ++i)
     {
-
         if (node_xfixed[i])
             temp_x[i] = node_sol_X[i];
-
         else
         {
             temp_x[i] = (xh[index] + 1) / 2.0;
@@ -66,7 +163,7 @@ double runHeuristic_unpacked(const double *P0_L, int P0_N, const double *P_L, in
     double fh = evaluateSolution(temp_x);
 
     int done = 0;
-    double constant; // scalar in convex combiantion
+    double constant; // scalar in convex combination
     double alpha;
 
     // Z = X
@@ -74,31 +171,20 @@ double runHeuristic_unpacked(const double *P0_L, int P0_N, const double *P_L, in
 
     while (done < 2)
     {
-
         ++done;
 
-        // compute Cholesky factorization
-        dpotrf_(&UPLO, &n, Z, &n, &info);
-
-        if (info != 0)
-        {
-            fprintf(stderr, "%s: Problem with Cholesky factorization \
-                (line: %d).\n",
-                    __func__, __LINE__);
-            MPI_Abort(MPI_COMM_WORLD, 10);
-        }
-
-        // set lower triangle of Z to zero
-        for (int i = 0; i < n; ++i)
-            for (int j = 0; j < i; ++j)
-                Z[j + i * n] = 0.0;
+        // CHANGED:
+        // Old code directly did dpotrf here and aborted on failure.
+        // New code:
+        //   1) tries the original Cholesky path
+        //   2) falls back to dsyev only if Cholesky fails
+        factor_for_gw_inplace(Z, n);
 
         // Goemans-Williamson heuristic
-        // RK heur_val = wrapped_heuristic(P0, P, node, x, P0->n);
-        heur_val = GW_heuristic(P0_L, P0_N, P_L, P_N, node_xfixed, node_sol_X, x, P0_N); // RK
+        heur_val = GW_heuristic(P0_L, P0_N, P_L, P_N, node_xfixed, node_sol_X, x, P0_N);
+
         if (heur_val > fh)
         {
-
             done = 0;
             fh = heur_val;
 
@@ -107,19 +193,19 @@ double runHeuristic_unpacked(const double *P0_L, int P0_N, const double *P_L, in
             index = 0;
             for (int i = 0; i < N; ++i)
             {
-
                 if (!node_xfixed[i])
                 {
                     xh[index] = 2 * x[i] - 1;
                     ++index;
                 }
             }
+
             xh[n - 1] = -1.0; // last vertex in original is fixed to 0
         }
 
         constant = 0.3 + 0.6 * ((double)rand() / (double)(RAND_MAX));
 
-        // Z = (1-constant)*X + constant* xh *xh'
+        // Z = (1-constant)*X + constant* xh * xh'
         alpha = 1.0 - constant;
         dcopy_(&nn, X, &inc, Z, &inc);
         dscal_(&nn, &alpha, Z, &inc);
@@ -147,9 +233,9 @@ double GW_heuristic(const double *P0_L, int P0_N, const double *P_L, int P_N, co
     // (global) temporary vector of size BabPbSize to store heuristic solutions
     int sol[P0_N - 1];
 
-    double sca;                // dot product of random vector v and col of Z
-    double best = -BIG_NUMBER; // best lower bound found
-    double v[N];               // defines random hyperplane v
+    double sca;              // dot product of random vector v and col of Z
+    double best = -INFINITY; // best lower bound found
+    double v[N];             // defines random hyperplane v
 
     for (int count = 0; count < num; ++count)
     {
@@ -239,7 +325,7 @@ double mc_1opt(int *x, const double *P_L, int P_N)
     }
 
     // [best, i] = max(delta);
-    double best = -BIG_NUMBER;
+    double best = -INFINITY;
     int index = 0;
 
     for (int i = 0; i < N; ++i)
@@ -298,7 +384,7 @@ double mc_1opt(int *x, const double *P_L, int P_N)
         }
 
         // find new champion: [best, i] = max(delta)
-        best = -BIG_NUMBER;
+        best = -INFINITY;
         index = 0;
 
         for (int i = 0; i < N; ++i)

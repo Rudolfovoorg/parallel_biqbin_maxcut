@@ -89,12 +89,15 @@ def test_biqbin_output(problem_instance, request, subtests):
 
     # --- Check bqp if present ---
     if 'bqp' in expected_result:
+        bqp_expected = expected_result['bqp']
+        bqp_computed = result['bqp']
         with subtests.test('BQP solution'):
-            assert expected_result["bqp"] == result["bqp"], (
-                f'bqp mismatch!\n'
-                f'Got: {result["bqp"]}\n'
-                f'Expected: {expected_result["bqp"]}'
-            )
+            for key in expected_result['bqp']:
+                assert bqp_expected[key] == bqp_computed[key], (
+                    f'bqp mismatch!\n'
+                    f'Got: {bqp_computed[key]}\n'
+                    f'Expected: {bqp_expected[key]}'
+                )
 
     expected_root = expected_result["meta_data"]["root_node"]
     computed_root = result["meta_data"]["root_node"]

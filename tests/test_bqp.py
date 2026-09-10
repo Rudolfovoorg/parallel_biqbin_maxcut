@@ -96,7 +96,8 @@ def test_bqp_solution_uses_constraints_to_choose_orientation():
         b=np.array([1], dtype=np.int64),
         rho=1.0,
         const_value=0,
-        penalty=0
+        penalty=0,
+        offset=0
     )
 
     result = {
@@ -126,7 +127,8 @@ def test_bqp_solution_rejects_when_neither_orientation_is_feasible():
         b=np.array([1], dtype=np.int64),
         rho=1.0,
         const_value=0,
-        penalty=0
+        penalty=0,
+        offset=0
     )
 
     result = {
@@ -153,7 +155,8 @@ def test_bqp_solution_reports_penalty_infeasibility():
         b=np.array([1], dtype=np.int64),
         rho=1.0,
         const_value=10,
-        penalty=0
+        penalty=0,
+        offset=0
     )
 
     result = {

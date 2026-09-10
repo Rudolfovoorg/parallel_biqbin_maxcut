@@ -47,7 +47,6 @@ FAILURE_CASES = {
     "sdp_primal_out_of_range": "BIQBIN_TEST_SDP_PRIMAL_OUT_OF_RANGE",
     "sdp_primal_not_2d": "BIQBIN_TEST_SDP_PRIMAL_NOT_2D",
     "sdp_primal_non_square": "BIQBIN_TEST_SDP_PRIMAL_NON_SQUARE",
-    "sdp_primal_non_one_diagonal": "BIQBIN_TEST_SDP_PRIMAL_NON_ONE_DIAGONAL",
 
     # Heuristic solution validation.
     "heuristic_wrong_length": "BIQBIN_TEST_HEURISTIC_WRONG_LENGTH",

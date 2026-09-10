@@ -84,7 +84,7 @@ void bundle_method(Problem *PP, double *t, int bdl_iter)
         del = f - ddot_(&k, zeta, &inc, lambda, &inc);
 
         /* lmax = max(lambda) */
-        lmax = -BIG_NUMBER;
+        lmax = -INFINITY;
         for (int i = 0; i < k; ++i)
             lmax = (lambda[i] > lmax) ? lambda[i] : lmax;
 
@@ -439,7 +439,7 @@ void solve_lambda(int k, const double *Q, const double *c, double *lambda)
     double *tmp;
     alloc_vector(tmp, k, double);
 
-    double mintmp = BIG_NUMBER;
+    double mintmp = INFINITY;
 
     for (int i = 0; i < k; ++i)
     {
@@ -492,7 +492,7 @@ void solve_lambda(int k, const double *Q, const double *c, double *lambda)
     double P_cost = ddot_(&k, lambda, &inc, c, &inc) + 0.5 * temp;
 
     // duality gap
-    double gap = P_cost - D_cost;
+    // double gap = P_cost - D_cost;
 
     // step lengths for primal and dual variables
     double alpha_p, alpha_d;
@@ -539,7 +539,16 @@ void solve_lambda(int k, const double *Q, const double *c, double *lambda)
     /*************
      * main loop *
      *************/
-    while (ABS(gap) > 1e-5)
+    const double abs_tol = 1e-5;
+    const double rel_tol = 1e-12;
+
+    double gap = fabs(P_cost - D_cost);
+
+    double obj_scale =
+        fmax(1.0, fmax(fabs(P_cost), fabs(D_cost)));
+
+    double rel_gap = gap / obj_scale;
+    while (gap > abs_tol && rel_gap > rel_tol)
     {
 
         ++cnt;
@@ -603,8 +612,8 @@ void solve_lambda(int k, const double *Q, const double *c, double *lambda)
 
         // alpha_p = max(-dlambda./lam)
         // alpha_d = max(-dz./z)
-        alpha_p = -BIG_NUMBER;
-        alpha_d = -BIG_NUMBER;
+        alpha_p = -INFINITY;
+        alpha_d = -INFINITY;
 
         for (int i = 0; i < k; ++i)
         {
@@ -663,7 +672,12 @@ void solve_lambda(int k, const double *Q, const double *c, double *lambda)
         P_cost = ddot_(&k, lambda, &inc, c, &inc) + 0.5 * temp;
 
         // duality gap
-        gap = P_cost - D_cost;
+        gap = fabs(P_cost - D_cost);
+
+        obj_scale =
+            fmax(1.0, fmax(fabs(P_cost), fabs(D_cost)));
+
+        rel_gap = gap / obj_scale;
 
         if (cnt > 30)
             break;

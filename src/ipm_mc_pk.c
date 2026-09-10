@@ -27,7 +27,6 @@
 /// @param print
 void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print)
 {
-
     /* variables for blas and lapack routines */
     int inc = 1;
     char up = 'U';      // for lapack take upper triangular part of matrix
@@ -126,7 +125,14 @@ void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print)
      *************/
     gap = fabs(*phi - psi);
 
-    for (i = 1; gap > 1e-2; ++i)
+    // Duality gap cannot be fixed to 1e-2, it needs to relative to deal with big numbers
+    const double abs_tol = 1e-2;
+    const double rel_tol = 1e-12;
+
+    double obj_scale = fmax(1.0, fmax(fabs(*phi), fabs(psi)));
+    double rel_gap = gap / obj_scale;
+
+    for (i = 1; gap > abs_tol && rel_gap > rel_tol; ++i)
     { /* while duality gap too large */
 
         /******** compute inverse of Z ********/
@@ -135,9 +141,13 @@ void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print)
         dpotrf_(&up, &n, Zi, &n, &info); /* computes Cholesky factorization */
         if (info != 0)
         {
-            fprintf(stderr, "%s: Problem with Cholesky factorization \
-                (line: %d).\n",
-                    __func__, __LINE__);
+            printf("%3d %11.2f %.5f %.5f rel_gap=%.17e mu=%.17e\n",
+                   i,
+                   log10(gap),
+                   psi,
+                   *phi,
+                   rel_gap,
+                   mu);
             MPI_Abort(MPI_COMM_WORLD, 10);
         }
 
@@ -352,7 +362,8 @@ void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print)
         psi = ddot_(&nn, L, &inc, X, &inc);
 
         gap = fabs(*phi - psi);
-
+        obj_scale = fmax(1.0, fmax(fabs(*phi), fabs(psi)));
+        rel_gap = gap / obj_scale;
         /* print output */
         if (print)
             printf("%3d %11.2f %14.5f %14.5f \n", i, log10(gap), psi, *phi);

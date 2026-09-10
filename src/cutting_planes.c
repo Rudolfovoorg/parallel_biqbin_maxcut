@@ -52,8 +52,8 @@ double getViolated_TriangleInequalities(double *X, int N, Triangle_Inequality *L
     int ListCount;                              // loop index
     int size = 0;                               // number of added cuts
     int LeastViolatedIneq = 0;                  // index of least violated inequality
-    double LeastViolatedIneqValue = BIG_NUMBER; // minimum violation
-    double maxAllIneq = -BIG_NUMBER;            // maximum violation
+    double LeastViolatedIneqValue = INFINITY; // minimum violation
+    double maxAllIneq = -INFINITY;            // maximum violation
     double test_ineqvalue;                      // violation of current cut
 
     // Loop through all inequalities
@@ -110,7 +110,7 @@ double getViolated_TriangleInequalities(double *X, int N, Triangle_Inequality *L
                             List[LeastViolatedIneq].value = test_ineqvalue;
 
                             // update LeastViolatedIneq
-                            LeastViolatedIneqValue = BIG_NUMBER;
+                            LeastViolatedIneqValue = INFINITY;
                             for (ListCount = 0; ListCount < size; ++ListCount)
                             {
                                 // if ineq is less violated
@@ -233,8 +233,8 @@ double getViolated_PentagonalInequalities(double *X, int N, Pentagonal_Inequalit
     int ListCount;                               // loop index
     int size = 0;                                // number of added cuts
     int LeastViolatedIneq = 0;                   // index of least violated inequality
-    double LeastViolatedIneqValue = -BIG_NUMBER; // maximum violation
-    double minAllIneq = BIG_NUMBER;              // minimum violation
+    double LeastViolatedIneqValue = -INFINITY; // maximum violation
+    double minAllIneq = INFINITY;              // minimum violation
     double test_ineqvalue;                       // violation of current cut
 
     // 5 tuple of indeces defining the violated pentagonal inequality
@@ -294,7 +294,7 @@ double getViolated_PentagonalInequalities(double *X, int N, Pentagonal_Inequalit
                         Pent_List[LeastViolatedIneq].permutation[i] = pent[i];
 
                     // update LeastViolatedIneq
-                    LeastViolatedIneqValue = BIG_NUMBER;
+                    LeastViolatedIneqValue = INFINITY;
                     for (ListCount = 0; ListCount < size; ++ListCount)
                     {
                         // if ineq is less violated
@@ -423,8 +423,8 @@ double getViolated_HeptagonalInequalities(double *X, int N, Heptagonal_Inequalit
     int ListCount;                               // loop index
     int size = 0;                                // number of added cuts
     int LeastViolatedIneq = 0;                   // index of least violated inequality
-    double LeastViolatedIneqValue = -BIG_NUMBER; // maximum violation
-    double minAllIneq = BIG_NUMBER;              // minimum violation
+    double LeastViolatedIneqValue = -INFINITY; // maximum violation
+    double minAllIneq = INFINITY;              // minimum violation
     double test_ineqvalue;                       // violation of current cut
 
     // 7 tuple of indeces defining the violated heptagonal inequality
@@ -489,7 +489,7 @@ double getViolated_HeptagonalInequalities(double *X, int N, Heptagonal_Inequalit
                         Hepta_List[LeastViolatedIneq].permutation[i] = hept[i];
 
                     // update LeastViolatedIneq
-                    LeastViolatedIneqValue = BIG_NUMBER;
+                    LeastViolatedIneqValue = INFINITY;
                     for (ListCount = 0; ListCount < size; ++ListCount)
                     {
                         // if ineq is less violated

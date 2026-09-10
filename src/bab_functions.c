@@ -412,7 +412,7 @@ int getBranchingVariable(const BabNode *node)
     if (params.branchingStrategy == LEAST_FRACTIONAL)
     {
         // Branch on the variable x[ic] that has the least fractional value
-        maxValue = -BIG_NUMBER;
+        maxValue = -INFINITY;
         for (int i = 0; i < BabPbSize; ++i)
         {
             if (!(node->xfixed[i]) && fabs(0.5 - node->fracsol[i]) > maxValue)
@@ -425,7 +425,7 @@ int getBranchingVariable(const BabNode *node)
     else if (params.branchingStrategy == MOST_FRACTIONAL)
     {
         // Branch on the variable x[ic] that has the most fractional value
-        minValue = BIG_NUMBER;
+        minValue = INFINITY;
         for (int i = 0; i < BabPbSize; ++i)
         {
             if (!(node->xfixed[i]) && fabs(0.5 - node->fracsol[i]) < minValue)

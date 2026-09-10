@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <math.h>
 
 #include "biqbin_cpp_api.h"
 #include "blas_laplack.h"
@@ -31,7 +32,6 @@ typedef enum Tags
 
 /************************************************************************************************************/
 
-#define BIG_NUMBER 1e+9
 
 /* Maximum number of cutting planes (triangle, pentagonal and heptagonal inequalities) allowed to add */
 #define MaxTriIneqAdded 50000

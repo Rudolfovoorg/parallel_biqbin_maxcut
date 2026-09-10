@@ -11,6 +11,7 @@ def make_bqp(**kwargs):
         'c': np.array([1, 2], dtype=float),
         'A': np.array([[1, 1]], dtype=float),
         'b': np.array([1], dtype=float),
+        'offset': 0
     }
     data.update(kwargs)
 

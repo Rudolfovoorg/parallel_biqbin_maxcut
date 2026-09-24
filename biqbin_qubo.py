@@ -3,15 +3,17 @@ from biqbin.argparsers import ArgParserQubo
 import numpy as np
 import json
 
+from biqbin.data_parsers import FromFile
+
 """
     Default Qubo solver using Biqbin MaxCut wrapper
 """
 
 if __name__ == '__main__':
-    init()
     parser = ArgParserQubo()
     args = parser.parse_args()
 
+    init() # initialize MPI
     parser_class = args.format
     file_reader = parser_class(
         args.problem_instance, optimize_input=args.optimize)
@@ -30,7 +32,8 @@ if __name__ == '__main__':
                         params=args.params,
                         time_limit=args.time,
                         initial_estimate=initial_estimate,
-                        collect_heur_data=args.collect_heur_data
+                        collect_heuristic_root_data=args.collect_root_data,
+                        collect_sdp_bound_root_data=args.collect_root_data
                         )
 
     # Run biqbin solver to solve the qubo, passing in the problem

@@ -78,16 +78,61 @@ class MaxCutFromEdgeWeights(FromFile):
             adj_matrix = np.zeros(
                 (num_vertices, num_vertices), dtype=np.float64)
 
-            edges = np.loadtxt(f, max_rows=num_edges)
+            edges = np.atleast_2d(np.loadtxt(f, max_rows=num_edges))
+            if edges.shape != (num_edges, 3):
+                raise ValueError(
+                    f'Expected {num_edges} edge rows with 3 columns, '
+                    f'got {edges.shape}'
+                )
 
-            i = edges[:, 0].astype(int) - 1
-            j = edges[:, 1].astype(int) - 1
-            w = edges[:, 2]
-
-            adj_matrix[i, j] = w
-            adj_matrix[j, i] = w
+        i, j, w = self.edge_weights_checks(edges, num_vertices)
+        adj_matrix[i, j] = w
+        adj_matrix[j, i] = w
 
         return ProblemMaxCut(adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input)
+
+    def edge_weights_checks(self, edges: np.ndarray, num_vertices: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Safety checks for the edges and weights
+
+        Args:
+            edges (np.ndarray): Row, column, weights
+            num_vertices (int): Number of vertices in the graph
+
+        Raises:
+            IndexError: If indices are not integers between 1 and num_verts
+            ValueError: If weigths are not integers
+
+        Returns:
+            tuple[np.ndarray, np.ndarray, np.ndarray]: rows, columns, weights
+        """
+        vertices = edges[:, :2]
+
+        bad_rows = np.where(
+            ~np.all(np.isfinite(vertices), axis=1)
+            | ~np.all(vertices == np.round(vertices), axis=1)
+            | np.any(vertices < 1, axis=1)
+            | np.any(vertices > num_vertices, axis=1)
+        )[0]
+
+        if bad_rows.size:
+            raise IndexError(
+                f'Invalid vertices in rows {[int(row) + 1 for row in bad_rows]}: '
+                f'vertices must be integers between 1 and {num_vertices}'
+            )
+        
+        i = vertices[:, 0].astype(int) - 1
+        j = vertices[:, 1].astype(int) - 1
+
+        w = edges[:, 2]
+        
+        bad_weights_mask = ~np.isfinite(w) | (w != np.round(w))
+        if np.any(bad_weights_mask):
+            bad_rows = np.where(bad_weights_mask)[0] + 1
+            raise ValueError(
+                f'{self.filename}: Row(s) {[int(row) for row in bad_rows]} '
+                f'have invalid weight(s), all weights must be finite integers!'
+            )
+        return i, j, w
 
 
 class QuboFromJson(FromFile):
@@ -106,7 +151,7 @@ class QuboFromJson(FromFile):
         qubo = from_sparse(qubo_data["qubo"])
         offset = qubo_data.get('offset', 0)
         minimization = qubo_data.get('is_minimization', True)
-        
+
         return ProblemQubo(Q=qubo,
                            offset=offset,
                            problem_name=self.problem_name,
@@ -131,7 +176,7 @@ class QuboFromMatrixMarket(FromFile):
         return ProblemQubo(Q=Q, offset=0.0, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
 
 
-class QuboFromEdgeWeights(FromFile):
+class QuboFromEdgeWeights(MaxCutFromEdgeWeights):
     """Qubo data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/
     """
 
@@ -147,13 +192,14 @@ class QuboFromEdgeWeights(FromFile):
             Q = np.zeros(
                 (num_vertices, num_vertices), dtype=np.float64)
 
-            edges = np.loadtxt(f, max_rows=num_edges)
-
-            i = edges[:, 0].astype(int) - 1
-            j = edges[:, 1].astype(int) - 1
-            w = edges[:, 2]
-
-            Q[i, j] = w
+            edges = np.atleast_2d(np.loadtxt(f, max_rows=num_edges))
+            if edges.shape != (num_edges, 3):
+                raise ValueError(
+                    f'Expected {num_edges} edge rows with 3 columns, '
+                    f'got {edges.shape}'
+                )
+        i, j, w = self.edge_weights_checks(edges, num_vertices)
+        Q[i, j] = w
 
         return ProblemQubo(Q=Q,
                            offset=0.0,
@@ -199,13 +245,14 @@ class QuboFromQPLIB(FromFile):
         if obj_type in [pyqplib.ProblemObjType.CONVEX, pyqplib.ProblemObjType.GENERAL]:
             Q: np.ndarray = to_coo_matrix(problem.obj.mat).toarray() # pyright: ignore[reportAttributeAccessIssue]
         else:
-            Q = np.zeros(problem.description.num_vars)
+            Q = np.zeros((problem.description.num_vars, problem.description.num_vars))
 
         # QPLIB definition is 1/2 Quadratic + Linear + Offset
         Q /= 2
-        np.fill_diagonal(Q, objective.lin) # pyright: ignore[reportAttributeAccessIssue]
+        np.fill_diagonal(Q, objective.lin)  # pyright: ignore[reportAttributeAccessIssue]
+        
+        return ProblemQubo(Q=Q, offset=objective.offset, problem_name=self.problem_name, is_minimization=sense, optimize_input=self.optimize_input)  # pyright: ignore[reportAttributeAccessIssue]
 
-        return ProblemQubo(Q=Q, offset=objective.offset, problem_name=self.problem_name, is_minimization=sense, optimize_input=self.optimize_input) # pyright: ignore[reportAttributeAccessIssue]
 
 
 class ToFile(ABC):

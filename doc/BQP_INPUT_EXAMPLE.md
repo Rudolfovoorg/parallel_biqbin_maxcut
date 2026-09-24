@@ -1,4 +1,6 @@
 For a problem where x=(n, 1), F = (n, n), c = (n, 1), A=(m, n) and b = (m, 1) the instance file uses matrix and vector representation in the COO format as folows:
+
+
 ```txt
 n m
 A
@@ -22,9 +24,8 @@ row value
 .
 .
 ```
-Note, that indices starts from 1 and not from 0.
 
-Same data can be passed in the following .json format:
+Same data can be passed in the following JSON format but 0-indexed indices:
 ```json
 {
     "number_of_variables": n, 
@@ -55,3 +56,6 @@ Same data can be passed in the following .json format:
         ]
 }
 ```
+
+> **Note**: Above `bqp` text format format uses 1-based indeces!
+> The `JSON` format uses 0-based indices

@@ -46,7 +46,7 @@ For more details, refer to the [GNU General Public License](https://www.gnu.org/
 
 It also requires:
 
-- **build-essentials** package for GCC, G++, make 
+- **build-essential** package for GCC, G++, make 
 - Python version **3.12** or later
 - Python development headers (the `python3-dev` package).
 - MPI implementation (`OpenMPI` or `MPICH`)
@@ -68,10 +68,14 @@ There are detailed descriptions on two seperate setup instruction, either [**Ana
 
 ## Usage
 
-> **NOTE:** Biqbin can only solve problem instances with **integer edge weight**!  
-> This applies both to the Maxcut and Qubo solvers.
+> **NOTE:** Biqbin requires integer-valued Max-Cut edge weights and
+> integer-valued QUBO/BQP coefficients.
 
-> **Min Processes:** Biqbin requires needs at least **3 mpi processes to run**!
+> **NOTE:** Under the current QUBO-to-Max-Cut transformation, triangular QUBO
+> matrices must have even off-diagonal coefficients so that the resulting
+> Max-Cut weights remain integer-valued.
+
+> **Min Processes:** Biqbin requires at least **3 mpi processes to run**!
 
 > **Over Concurrency:** Depending on your system you must set `OpenBlas` environment variables, to prevent over threading which can **significantly** slow down your system:
 
@@ -101,6 +105,8 @@ mpirun -n N ./biqbin problem_instance params
 
 ---
 
+## Python versions
+
 ### Python Wrapper for Biqbin Maxcut Parallel solver
 
 Example:
@@ -116,14 +122,14 @@ mpirun -n N python3 biqbin_maxcut.py problem_instance [-optional]
 ```
 
 - `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `problem_instance`: A `JSON` serializable sparse coo adjacency matrix.
+- `problem_instance`: Path to the problem instance file.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
 - `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
-- `-e`, `--edge_weight`: Optional command to use edge weight `problem_instance` that C-only solver uses.
+- `-c`, `--collect-root-data`: Collect heuristic and sdp data on root node (time taken and value returned)
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-- `-O`, `--optimize`: Divides the final input matrix values by their GCD
+- `-O`, `--optimize`:  Divides the Max-Cut adjacency matrix by its GCD.
 - `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
 - `--format FORMAT`: Max-Cut problem instance file format. Valid formats are [('json', 'mm', 'ew')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to json.
 - `-h`, `--help`: Show help message and exit.
@@ -144,13 +150,14 @@ General command:
 mpirun -n N python3 biqbin_qubo.py problem_instance [-optional]
 ```
 
-- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
-- `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
+- `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
+- `problem_instance`: Path to the problem instance file.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
 - `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
-- `-O`, `--optimize`: Divide QUBO values by their GCD.
+- `-c`, `--collect-root-data`: Collect heuristic and sdp data on root node (time taken and value returned)
+- `-O`, `--optimize`:  Divides the transformed Max-Cut adjacency matrix by its GCD.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
 - `--format FORMAT`: QUBO problem instance file format. Valid formats are [('json', 'mm', 'ew', 'qplib')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to json.
@@ -177,22 +184,20 @@ mpirun -n N python3 biqbin_heuristic.py problem_instance [-optional]
 ```
 
 - `N`: Number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `problem_instance`: `JSON` serializable dictionary containing "qubo" key and a sparse coo matrix for value (see tests/qubo/) folder for examples.
+- `problem_instance`: Path to the problem instance file.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
+- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary [0, 1] values as value.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
-- `-O`, `--optimize`: Divides the final input matrix values by their GCD
-- `-d`, `--debug`: Enables debug logs
-- `-i`, `--info`: Enable info logs
+- `-c`, `--collect-root-data`: Collect heuristic and sdp data on root node (time taken and value returned)
+- `-O`, `--optimize`: Divides the transformed Max-Cut adjacency matrix by its GCD.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
 - `--format FORMAT`: QUBO problem instance file format. Valid formats are [('json', 'mm', 'ew', 'qplib')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to 'json'.
 - `-h`, `--help`: Show help message and exit.
 
-### Python Wrapper for general BQP
 
-> **NOTE:** BQP is considered to be a placeholder implementation at this time!
+### Python Wrapper for general BQP
 
 Example:
 
@@ -206,16 +211,17 @@ General command:
 mpirun -n N python3 biqbin_bqp.py problem_instance [-optional]
 ```
 
-- `N`: number of processes to run the program using MPI, program needs at least 2 (1 master, and 1 worker process) to be used.
-- `problem_instance`: .
+- `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
+- `problem_instance`: Path to the problem instance file.
 - `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
+- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary [0, 1] values as value.
 - `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
 - `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
-- `-O`, `--optimize`: Divide QUBO values by their GCD.
+- `-c`, `--collect-root-data`: Collect heuristic and sdp data on root node (time taken and value returned)
+- `-O`, `--optimize`: Divides the transformed Max-Cut adjacency matrix by its GCD.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-- `-j`, `--json`: Read a .json input file.
 - `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
+- `--format FORMAT`: BQP problem instance file format. Valid formats are [('bqp', 'json')](doc/BQP_INPUT_EXAMPLE.md), defaults to 'bqp'.
 - `-h`, `--help`: Show help message and exit.
 
 Detailed explanation is available in [doc/BQP_INPUT_EXAMPLE.md](doc/BQP_INPUT_EXAMPLE.md).
@@ -228,7 +234,7 @@ Please check the following Python files to find how to setup biqbin solver throu
 
 - [`biqbin_maxcut.py`](biqbin_maxcut.py): Example on how to run the default version of biqbin.
 - [`biqbin_qubo.py`](biqbin_qubo.py): Example on how to run QUBO problem.
-- [`biqbin_heuristic.py`](biqbin_heuristic.py): Example on how to custom heuristc for lower bound estimation.
+- [`biqbin_heuristic.py`](biqbin_heuristic.py): Example on how to use custom heuristic for lower bound estimation.
 - [`biqbin_bqp.py`](biqbin_bqp.py): Example on how to run general BQP biqbin.
 
 ---
@@ -240,8 +246,7 @@ Please check the following Python files to find how to setup biqbin solver throu
 
 ## Problem Instance Input files
 
-> **NOTE:** Biqbin can only solve problem instances with **integer edge weight**!  
-> This applies both to the Maxcut and Qubo solvers.
+> **NOTE:** Biqbin requires **integer**-valued Max-Cut edge weights and **integer**-valued QUBO/BQP coefficients.
 
 Different Biqbin solvers support different file formats, [detailed explanation can be found here](doc/PROBLEM_INSTANCE_FORMATS.md).
 
@@ -278,7 +283,9 @@ For QUBOs we also support:
 | `time_limit`        | Maximum runtime in **seconds**. If `0`, runs until optimal solution is found   |
 | `branchingStrategy` | Branching strategy:<br>`0 = LEAST_FRACTIONAL`<br>`1 = MOST_FRACTIONAL`         |
 
----
+## Customizing the solver
+
+Please refer to [`doc/CUSTOM_SOLVER.md`](doc/CUSTOM_SOLVER.md) on how to replace SDP bounds, root SDP bounds, heuristics, and root heuristics with your own custom routines.
 
 ## Contact information
 

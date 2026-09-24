@@ -1,0 +1,5 @@
+ARG BASE_IMAGE=parallel-biqbin:latest
+FROM ${BASE_IMAGE}
+
+RUN pip install -r requirements-dev.txt
+RUN make test

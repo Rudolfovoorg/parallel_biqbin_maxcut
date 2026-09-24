@@ -11,29 +11,31 @@ extern double diff;
 
 extern BiqBinParameters params;
 extern double TIME;
+
+#ifdef PURE_C
 extern FILE *output;
+#endif
 
-int rank;
-int num_workers;
-int num_workers_used = 0;
-int time_limit_reached = 0;
-
-int heuristic_counter;
-int heuristic_sum;
+extern int rank;
+extern int num_workers;
+extern int num_workers_used;
+extern int time_limit_reached;
 
 // Root data
 extern double root_lower_bound;
+extern double root_upper_bound;
 
 int wrapped_main(int argc, char **argv)
 {
-
     /*******************************************************
     *********** BRANCH & BOUND: PARALLEL ALGORITHM ********
     ******************************************************/
     MPI_Status status;
 
     if (rank == 0)
+    {
         printf("Number of cores: %d\n", num_workers);
+    }
 
     /***** user defined MPI struct: for sending and receiving *****/
     // (1) for BabSolution
@@ -47,7 +49,8 @@ int wrapped_main(int argc, char **argv)
 
     // (2) for BabNode
     MPI_Datatype BabNodetype;
-    MPI_Datatype type2[5] = {MPI_INT, BabSolutiontype, MPI_DOUBLE, MPI_INT, MPI_INT};
+    // BZ: Last element double node->upper_bound was incorrectly set as MPI_INT, it has been set to MPI_DOUBLE
+    MPI_Datatype type2[5] = {MPI_INT, BabSolutiontype, MPI_DOUBLE, MPI_INT, MPI_DOUBLE};
     int blocklen2[5] = {NMAX, 1, NMAX, 1, 1};
     MPI_Aint disp2[5];
     disp2[0] = offsetof(BabNode, xfixed);
@@ -100,7 +103,7 @@ int wrapped_main(int argc, char **argv)
         if (params.use_diff)
             MPI_Bcast(&diff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-        // broadcast lower bound to others or -1 to exit
+        // broadcast lower and upper bound of root to others or -1 to exit
         MPI_Bcast(&over, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         if ((over == -1) || params.root)
@@ -111,6 +114,7 @@ int wrapped_main(int argc, char **argv)
         {
             g_lowerBound = Bab_LBGet();
             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            MPI_Bcast(&root_upper_bound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         }
 
         // array of busy workers: 0 = free, 1 = busy
@@ -135,7 +139,6 @@ int wrapped_main(int argc, char **argv)
 
         for (int xic = 0; xic <= 1; ++xic)
         {
-
             // Create a new child node from the parent node
             child_node = newNode(node);
 
@@ -165,7 +168,6 @@ int wrapped_main(int argc, char **argv)
         /************* MAIN LOOP for master **************/
         do
         {
-
             /*** wait for messages: extract source from status ***/
             MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MESSAGE, MPI_COMM_WORLD, &status);
             source = status.MPI_SOURCE;
@@ -194,9 +196,14 @@ int wrapped_main(int argc, char **argv)
 
         // receive lower bound
         if (over == -1 || params.root) // root node is pruned
+        {
             goto FINISH;
+        }
         else
+        {
             MPI_Bcast(&g_lowerBound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            MPI_Bcast(&root_upper_bound, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        }
 
         // update lower bound
         BabSolution solx;
@@ -205,13 +212,11 @@ int wrapped_main(int argc, char **argv)
         /************* MAIN LOOP for worker **************/
         do
         {
-
             // wait for info: stop (from master) or receive new subproblem from other worker
             MPI_Recv(&over, 1, MPI_INT, MPI_ANY_SOURCE, OVER, MPI_COMM_WORLD, &status);
 
             if (!over)
             {
-
                 alloc(node, BabNode);
 
                 // receive subproblem from master or other worker
@@ -226,16 +231,13 @@ int wrapped_main(int argc, char **argv)
 
                 while (!isPQEmpty())
                 {
-
                     // check if time limit reached
                     if (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit)
                     {
                         break;
                     }
-
-                    worker_Bab_Main(BabSolutiontype, BabNodetype, rank);
+                    worker_Bab_Main(BabSolutiontype, BabNodetype);
                 }
-
                 message = IDLE;
                 MPI_Send(&message, 1, MPI_INT, 0, MESSAGE, MPI_COMM_WORLD);
             }
@@ -246,9 +248,6 @@ int wrapped_main(int argc, char **argv)
     }
 
 FINISH:
-
-    // Reduce all heuristic_counter values into heuristic_sum on rank 0
-    MPI_Reduce(&heuristic_counter, &heuristic_sum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     /* Print results to the standard output and to the output file */
     if (rank == 0)
     {
@@ -257,13 +256,14 @@ FINISH:
         record_time(MPI_Wtime() - TIME);
         // Time limit is checked only in workers during execution, this rechecks in master process
         time_limit_reached = (params.time_limit > 0 && (MPI_Wtime() - TIME) > params.time_limit);
-#endif
-        printFinalOutput(stdout, Bab_numEvalNodes());
+#else
         printFinalOutput(output, Bab_numEvalNodes());
         fprintf(output, "Number of cores: %d\n", num_workers);
         fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
-        printf("Maximum number of workers used: %d\n", num_workers_used);
         fclose(output);
+#endif
+        printFinalOutput(stdout, Bab_numEvalNodes());
+        printf("Maximum number of workers used: %d\n", num_workers_used);
     }
 
     /* free memory */
@@ -276,8 +276,6 @@ FINISH:
     MPI_Type_free(&BabSolutiontype); // free when done
     MPI_Type_free(&BabNodetype);     // free when done
 
-    MPI_Finalize();
-
     return 0;
 }
 int main(int argc, char **argv)
@@ -287,7 +285,11 @@ int main(int argc, char **argv)
     // get number of proccesses and corresponding ranks
     MPI_Comm_size(MPI_COMM_WORLD, &num_workers);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    return wrapped_main(argc, argv);
+
+    int result = wrapped_main(argc, argv);
+
+    MPI_Finalize();
+    return result;
 }
 
 /// @brief alloc matrix and alloc vector macros use this

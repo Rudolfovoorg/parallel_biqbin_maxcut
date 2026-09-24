@@ -32,7 +32,7 @@ double qap_simulated_annealing(int *H, int k, double *X, int n, int *ineq) {
 
 
     // best found cost
-    double cost = BIG_NUMBER;
+    double cost = INFINITY;
 
     // permutation of n elements: current and best
     int *perm;

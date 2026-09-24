@@ -24,8 +24,11 @@ class ArgParserBase(ArgumentParser):
         self.add_argument('-s', '--solution',
                           help='file path to an initial solution')
 
-        self.add_argument('-c', '--collect-heur-data', action='store_true',
-                          help='collect heuristic data on root node (time taken and value)')
+        self.add_argument('-c', '--collect-root-data', action='store_true',
+                          help='collect heuristic and sdp data on root node (time taken and value returned)')
+
+        self.add_argument('--collect-heur-data',
+                          action='store_true', help=SUPPRESS)
 
         self.add_argument('-p', '--params', default='params',
                           help='custom parameters file path (default: "params")')
@@ -51,6 +54,13 @@ class ArgParserBase(ArgumentParser):
             logger.setLevel(logging.INFO)
         elif ns.verbose > 1:
             logger.setLevel(logging.DEBUG)
+
+        if ns.collect_heur_data:
+            warnings.warn(
+                "[DEPRECATED] `--collect-heur-data` is deprecated, use `--collect-root-data` instead",
+                UserWarning
+            )
+            ns.collect_root_data = ns.collect_heur_data
         return ns
 
     def parse_time_limit(self, s: str) -> int:

@@ -1,12 +1,13 @@
 #ifndef BIQBIN_CPP_API_H
 #define BIQBIN_CPP_API_H
 
+#include "logging.h"
+
 #ifdef __cplusplus
 #define EXTERN_C extern "C"
 #else
 #define EXTERN_C
 #endif
-
 /* macros for allocating vectors and matrices */
 #define alloc_vector(var, size, type)                                                       \
     var = (type *)calloc((size), sizeof(type));                                             \

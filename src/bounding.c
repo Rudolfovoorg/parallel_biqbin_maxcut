@@ -100,7 +100,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
 
     /* separate first triangle inequality */
     viol3 = updateTriangleInequalities(PP, dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
-
+    BIQBIN_LOG_DEBUG("viol3=%g", viol3);
     /***************
      * Bundle init *
      ***************/

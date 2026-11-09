@@ -66,6 +66,20 @@ scipy
 
 There are detailed descriptions on two seperate setup instruction, either [**Anaconda**](doc/INSTALLATION.md#conda-based-build) or [**Docker**](doc/INSTALLATION.md#docker) based builds.
 
+### Native logging
+
+The `BIQBIN_LOG_*` macros in [`src/logging.h`](src/logging.h) send printf-style messages through the existing Python logger `biqbin.biqbin_base`, using its normal `logger.log()` method. Configure handlers, formatting, and any `.log` files in Python. Add `__FILE__` or `__LINE__` to your message arguments when needed. Builds with `PURE_C` print these messages with `printf` instead.
+
+Set the minimum compiled log level with `LOG_LEVEL`, which passes the corresponding numeric `-DBIQBIN_LOG_MIN_LEVEL` to both C and C++ compilers. Level names are case-insensitive:
+
+```bash
+make LOG_LEVEL=debug
+```
+
+`make LOG_LEVEL=DEBUG` and `make LOG_LEVEL=10` are equivalent. The default is INFO (`20`). Available names are TRACE (`5`, a custom level), DEBUG (`10`), INFO (`20`), WARNING (`30`, also WARN), ERROR (`40`), and CRITICAL (`50`, also FATAL). Nonnegative numeric thresholds are also supported. Calls below the compiled threshold are removed, including evaluation of their arguments. Python's logger and handler levels still filter the remaining messages: use `-v` for INFO or `-vv` for DEBUG at runtime. TRACE also requires a Python logger level of `5`.
+
+Rebuild all C and C++ objects after changing `LOG_LEVEL`; make does not track compiler flag changes. The default `make` target already performs a clean rebuild. This setting applies to `BIQBIN_LOG_*` calls; existing direct `printf` calls keep their current behavior.
+
 ## Usage
 
 > **NOTE:** Biqbin requires integer-valued Max-Cut edge weights and

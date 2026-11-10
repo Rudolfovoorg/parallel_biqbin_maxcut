@@ -297,8 +297,7 @@ py::tuple ipm_mc_pk_python(py::array_t<double> &input_matrix)
     ipm_mc_pk(input_matrix.data(),
               static_cast<int>(n),
               output_matrix.mutable_data(),
-              &f,
-              0);
+              &f);
 
     return py::make_tuple(f, output_matrix);
 }

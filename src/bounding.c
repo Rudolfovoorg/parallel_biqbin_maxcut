@@ -73,7 +73,7 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     double t;
 
     /* solve basic SDP relaxation with interior-point method */
-    ipm_mc_pk(PP->L, PP->n, X, &f, 0);
+    ipm_mc_pk(PP->L, PP->n, X, &f);
 
     // store basic SDP bound to compute diff in the root node
     double basic_bound = f + fixedvalue;

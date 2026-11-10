@@ -98,3 +98,8 @@
 - LOG_LEVEL accepts case-insensitive level names or nonnegative decimal integers without leading zeros.
 - Standalone C logging now terminates each record with a newline.
 - Renamed the shared Python/native logger to biqbin and added local timestamps with milliseconds to the default console/file format.
+- Routed native progress messages through INFO logging and optional IPM/BQP diagnostics through DEBUG; solution reports and fatal-error output remain unchanged.
+- Removed the IPM print argument; iteration diagnostics now follow DEBUG logging alone. Rank 0 prints the problem name to stdout when starting a solve, regardless of logging verbosity.
+- Restricted native final solution reports to standalone C builds; Python displays its own solution summary without a duplicate C report.
+- Unified Max-Cut, QUBO, and BQP solution summaries with always-visible run statistics; underlying Max-Cut and BQP transformation details are verbose-only.
+- Unified problem-object summaries across Max-Cut, QUBO, and BQP; conversion details are verbose-only, and problem/solution section headings have no preceding blank line.

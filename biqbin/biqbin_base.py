@@ -20,6 +20,10 @@ from biqbin.biqbin_module import (BabNode, Problem,
 
 
 class PrettyPrint:
+    @staticmethod
+    def _format_fields(fields: list[tuple[str, object]]) -> str:
+        return "\n".join(f"{label:<21} = {value}" for label, value in fields)
+
     def __str__(self) -> str:
         return (f'class: {type(self).__name__}')
 
@@ -62,11 +66,31 @@ class ProblemMaxCut(PrettyPrint):
             self.gcd = divide_matrix_by_gcd(value)
         self._maxcut_adjacency_matrix = value
 
+    @staticmethod
+    def _format_array(name: str, array: np.ndarray) -> str:
+        return f"{name} = {array.shape}\n{array}"
+
+    def format_summary(self, verbose: bool = False) -> str:
+        """Format the original problem; verbose adds conversion details."""
+        header = self._format_fields([
+            ("Problem name", self.problem_name),
+            ("Optimized input", self.optimize_mc_adj_matrix),
+            ("GCD", self.gcd),
+        ])
+        return "\n".join([header, *self._problem_sections(verbose)])
+
+    def _format_maxcut_problem(self, title: str = "Max-Cut") -> str:
+        return "\n".join([
+            f"--- {title} ---",
+            self._format_fields([("Vertices", self.maxcut_adjacency_matrix.shape[0])]),
+            self._format_array("Adjacency matrix", self.maxcut_adjacency_matrix),
+        ])
+
+    def _problem_sections(self, verbose: bool) -> list[str]:
+        return [self._format_maxcut_problem()]
+
     def __str__(self) -> str:
-        return (f'{super().__str__()}\n'
-                f'Problem name = {self.problem_name}\n'
-                f'MaxCut adjacency matrix {self.maxcut_adjacency_matrix.shape} =\n'
-                f'{self.maxcut_adjacency_matrix}\n')
+        return self.format_summary()
 
 
 class ProblemQubo(ProblemMaxCut):
@@ -119,12 +143,19 @@ class ProblemQubo(ProblemMaxCut):
             [Qe_plus_c, np.zeros((1, 1))]
         ])
 
-    def __str__(self) -> str:
-        return (f'{super().__str__()}\n'
-                f'Problem name = {self.problem_name}\n'
-                f'Offset = {self.offset}\n'
-                f'Minimizing = {self.is_minimization}\n'
-                f'Qubo {self.Q.shape} =\n{self.Q}\n')
+    def _problem_sections(self, verbose: bool) -> list[str]:
+        sections = ["\n".join([
+            "--- QUBO ---",
+            self._format_fields([
+                ("Variables", self.Q.shape[0]),
+                ("Minimization", self.is_minimization),
+                ("Offset", self.offset),
+            ]),
+            self._format_array("Q", self.Q),
+        ])]
+        if verbose:
+            sections.append(self._format_maxcut_problem("Underlying Max-Cut"))
+        return sections
 
 
 class SolutionMaxCut(PrettyPrint):
@@ -144,35 +175,41 @@ class SolutionMaxCut(PrettyPrint):
     def problem(self) -> ProblemMaxCut:
         return self.__problem
 
-    def print_computed_solution(self, verbose: bool = False) -> None:
-        print(f'{super().__str__()}\n'
-              f'Problem name          = {self.meta_data['instance']}\n'
-              f'Compute time          = {self.meta_data['time']:.2f} seconds\n'
-              f'Time limit reached    = {self.meta_data['time_limit_reached']}\n'
-              f'{self._get_verbose_metadata_string(verbose)}'
-              f'--- Max-Cut ---\n'
-              f' Computed value = {self.__solution['computed_val']}\n'
-              f'Solution MaxCut = {self.__solution['solution']}\n'
-              f'              x = {self.__solution['x']}\n')
+    def format_summary(self, verbose: bool = False) -> str:
+        """Format common run statistics and the original problem's solution.
 
-    def _get_verbose_metadata_string(self, verbose: bool) -> str:
-        if verbose:
-            return (f'B&B nodes evaluated   = {self.meta_data['eval_bab_nodes']}\n'
-                    f'Heurist run count     = {self.meta_data['heuristic_call_count']}\n'
-                    f'Optimized input       = {self.meta_data['parameters']['optimized']}\n'
-                    f'gcd = {self.meta_data['parameters']['gcd']}\n'
-                    f'Worker processes used = {self.meta_data['num_workers_used']}\n')
-        else:
-            return ''
+        Verbose output adds transformation details for QUBO and BQP. Common
+        statistics are always included, independently of logging verbosity.
+        """
+        metadata = self.meta_data
+        summary = self._format_fields([
+            ("Problem name", metadata['instance']),
+            ("Compute time", f"{metadata['time']:.2f} seconds"),
+            ("Time limit reached", metadata['time_limit_reached']),
+            ("B&B nodes evaluated", metadata['eval_bab_nodes']),
+            ("Heuristic calls", metadata['heuristic_call_count']),
+            ("Worker processes used", metadata['num_workers_used']),
+            ("Optimized input", metadata['parameters']['optimized']),
+            ("GCD", metadata['parameters']['gcd']),
+        ])
+        return "\n".join([summary, *self._solution_sections(verbose)])
+
+    def _format_maxcut_section(self, title: str = "Max-Cut") -> str:
+        return f"--- {title} ---\n" + self._format_fields([
+            ("Computed value", self.__solution['computed_val']),
+            ("Solution", self.__solution['solution']),
+            ("x", self.__solution['x']),
+        ])
+
+    def _solution_sections(self, verbose: bool) -> list[str]:
+        return [self._format_maxcut_section()]
+
+    def print_computed_solution(self, verbose: bool = False) -> None:
+        """Print the shared summary, optionally including transformation details."""
+        print(self.format_summary(verbose))
 
     def __str__(self) -> str:
-        return (
-            f'{super().__str__()}\n'
-            f'   Problem name = {self.problem.problem_name}\n'
-            f' Computed value = {self.__solution['computed_val']}\n'
-            f'       Solution = {self.__solution['solution']}\n'
-            f'              x = {self.__solution['x']}'
-        )
+        return self.format_summary()
 
 
 class SolutionQubo(SolutionMaxCut):
@@ -234,30 +271,16 @@ class SolutionQubo(SolutionMaxCut):
 
         return qubo_solution.tolist(), y.astype(int).tolist()
 
-    def print_computed_solution(self, verbose: bool = False) -> None:
+    def _solution_sections(self, verbose: bool) -> list[str]:
+        sections = ["--- QUBO ---\n" + self._format_fields([
+            ("Computed value", self.__solution['computed_val']),
+            ("Minimization", self.__problem.is_minimization),
+            ("Solution", self.__solution['solution']),
+            ("x", self.__solution['x']),
+        ])]
         if verbose:
-            super().print_computed_solution()
-        else:
-            print(f'class: {type(self).__name__}\n'
-                  f'   Problem name = {self.meta_data['instance']}\n'
-                  f'   Compute time = {self.meta_data['time']:.2} seconds\n')
-        print(
-            f'--- QUBO ---\n'
-            f' Computed value = {self.__solution['computed_val']}\n'
-            f'       Solution = {self.__solution['solution']}\n'
-            f'              x = {self.__solution['x']}\n'
-            f'is_minimization = {self.__problem.is_minimization}'
-        )
-
-    def __str__(self):
-        return (
-            f'{super().__str__()}\n'
-            f'   Problem name = {self.problem.problem_name}\n'
-            f' Computed value = {self.__solution['computed_val']}\n'
-            f'       Solution = {self.__solution['solution']}\n'
-            f'              x = {self.__solution['x']}\n'
-            f'is_minimization = {self.__problem.is_minimization}'
-        )
+            sections.append(self._format_maxcut_section("Underlying Max-Cut"))
+        return sections
 
 
 class MaxCutSolver(PrettyPrint):
@@ -625,7 +648,8 @@ class MaxCutSolver(PrettyPrint):
         if self.rank == 0:
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
-            logger.info(f'Solving {self.problem}')
+            print(f"Solving: {self.problem.problem_name}", flush=True)
+            logger.info(f"\n{self.problem}")
         else:
             input_matrix = None
 

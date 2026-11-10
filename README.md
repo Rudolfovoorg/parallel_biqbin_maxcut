@@ -100,6 +100,10 @@ Rebuild all C and C++ objects after changing `LOG_LEVEL`; make does not track co
 
 ## Usage
 
+Problem objects also share a summary: `str(problem)` prints the common name/optimization/GCD header and the original problem’s dimensions, coefficients, and applicable objective settings. `problem.format_summary(verbose=True)` additionally includes the converted Max-Cut problem and BQP transformation details.
+
+Max-Cut, QUBO, and BQP print the same run statistics at every verbosity: problem name, runtime, time-limit status, B&B nodes, heuristic calls, workers used, input optimization, and GCD. Each summary then shows the original problem’s result. For QUBO and BQP, `-v` or `-vv` also shows the underlying Max-Cut result; BQP adds its rho, conversion constant, and penalty. In Python, `str(solution)` and `solution.print_computed_solution()` use the same summary; `solution.format_summary(verbose=True)` returns the detailed version as text.
+
 > **NOTE:** Biqbin requires integer-valued Max-Cut edge weights and
 > integer-valued QUBO/BQP coefficients.
 

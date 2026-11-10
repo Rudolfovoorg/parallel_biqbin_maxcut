@@ -7,7 +7,7 @@
  * Include this header in files that use BIQBIN_LOG_* calls. The Python bridge
  * is implemented in wrapper.cpp.
  *
- * Native records use logging.getLogger("biqbin.biqbin_base") directly.
+ * Native records use logging.getLogger("biqbin") directly.
  * Python configures levels, filters, handlers, formatting and log files.
  * No initialization or MPI calls are needed; no Python references are retained.
  * Use only while Python is running. PURE_C builds use printf instead and need

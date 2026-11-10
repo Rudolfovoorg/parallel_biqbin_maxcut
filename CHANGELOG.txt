@@ -97,3 +97,4 @@
 - Removed the additional Goemans-Williamson heuristic previously executed only at DEBUG verbosity.
 - LOG_LEVEL accepts case-insensitive level names or nonnegative decimal integers without leading zeros.
 - Standalone C logging now terminates each record with a newline.
+- Renamed the shared Python/native logger to biqbin and added local timestamps with milliseconds to the default console/file format.

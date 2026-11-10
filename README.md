@@ -68,7 +68,7 @@ There are detailed descriptions on two seperate setup instruction, either [**Ana
 
 ### Native logging
 
-The `BIQBIN_LOG_*` macros in [`src/logging.h`](src/logging.h) send printf-style messages through the existing Python logger `biqbin.biqbin_base`, using its normal `logger.log()` method. The shared logger and configuration helper live in `biqbin/logging.py`. CLI verbosity configures stderr output; importing BiqBin does not configure the root logger. Add `__FILE__` or `__LINE__` to your message arguments when needed. Builds with `PURE_C` print these messages with `printf` instead.
+The `BIQBIN_LOG_*` macros in [`src/logging.h`](src/logging.h) send printf-style messages through the existing Python logger `biqbin`, using its normal `logger.log()` method. The shared logger and configuration helper live in `biqbin/logging.py`. CLI verbosity configures stderr output; importing BiqBin does not configure the root logger. Add `__FILE__` or `__LINE__` to your message arguments when needed. Builds with `PURE_C` print these messages with `printf` instead.
 
 CLI logs go to the terminal by default. Add `--log-dir` to also append logs to one file per MPI rank. With no directory argument, the input filename stem supplies the directory name in the current working directory (`instance.json` becomes `instance.logs`). Use `--log-dir PATH` for a custom directory; `-v`/`-vv` controls verbosity for both destinations:
 
@@ -86,7 +86,7 @@ from biqbin import configure_logging
 configure_logging("DEBUG", filename="biqbin.log")
 ```
 
-The default format includes the process ID. For MPI runs, use a separate filename per rank, for example `filename=f"biqbin.{get_rank()}.log"` after MPI initialization. Reconfiguring replaces only handlers created by this helper; application-owned handlers remain intact. Configuration disables propagation to the root logger to avoid duplicate console output. For custom handler setups, use `biqbin.logger` directly. Pass `format="%(levelname)s:%(message)s"` to customize formatting, or level `5` for TRACE. Changing verbosity only changes diagnostics; it does not run additional heuristics.
+The default format includes a local timestamp with milliseconds, the level, logger name, and process ID. For MPI runs, use a separate filename per rank, for example `filename=f"biqbin.{get_rank()}.log"` after MPI initialization. Reconfiguring replaces only handlers created by this helper; application-owned handlers remain intact. Configuration disables propagation to the root logger to avoid duplicate console output. For custom handler setups, use `biqbin.logger` directly. Pass `format="%(levelname)s:%(message)s"` to customize formatting, or level `5` for TRACE. Changing verbosity only changes diagnostics; it does not run additional heuristics.
 
 Set the minimum compiled log level with `LOG_LEVEL`, which passes the corresponding numeric `-DBIQBIN_LOG_MIN_LEVEL` to both C and C++ compilers. Level names are case-insensitive:
 

@@ -6,10 +6,10 @@ from os import PathLike
 from pathlib import Path
 
 # Keep this name in sync with the native bridge in src/wrapper.cpp.
-logger = logging.getLogger("biqbin.biqbin_base")
+logger = logging.getLogger("biqbin")
 logger.addHandler(logging.NullHandler())
 
-DEFAULT_FORMAT = "%(levelname)s:%(name)s:pid=%(process)d:%(message)s"
+DEFAULT_FORMAT = "%(asctime)s:%(levelname)s:%(name)s:pid=%(process)d:%(message)s"
 _configured_handlers: list[logging.Handler] = []
 
 

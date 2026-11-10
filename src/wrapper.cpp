@@ -31,7 +31,7 @@ extern "C" void biqbin_log_write(int level, const char *format, ...)
         try
         {
             auto logging = py::module_::import("logging");
-            auto logger = logging.attr("getLogger")("biqbin.biqbin_base");
+            auto logger = logging.attr("getLogger")("biqbin");
             if (!logger.attr("isEnabledFor")(level).cast<bool>())
                 return;
 

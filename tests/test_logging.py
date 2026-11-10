@@ -45,7 +45,7 @@ root = logging.getLogger()
 before = (root.handlers[:], root.level)
 import biqbin
 assert (root.handlers, root.level) == before
-assert biqbin.logger is logging.getLogger('biqbin.biqbin_base')
+assert biqbin.logger is logging.getLogger('biqbin')
 """], check=True)
 
 
@@ -85,10 +85,10 @@ def test_native_bridge_uses_shared_configuration(capsys):
     bridge = ctypes.PyDLL(native.__file__).biqbin_log_write
     bridge.restype = None
     bridge.argtypes = [ctypes.c_int, ctypes.c_char_p]
-    biqbin.configure_logging("WARNING", format="%(levelname)s:%(message)s")
+    biqbin.configure_logging("WARNING", format="%(levelname)s:%(name)s:%(message)s")
     bridge(logging.WARNING, b"native record")
     bridge(logging.INFO, b"filtered record")
-    assert capsys.readouterr().err == "WARNING:native record\n"
+    assert capsys.readouterr().err == "WARNING:biqbin:native record\n"
 
 
 @pytest.mark.parametrize("level", [logging.WARNING, logging.DEBUG])
@@ -205,3 +205,17 @@ def test_make_log_level_validation(value, valid):
     assert (result.returncode == 0) == valid, result.stdout + result.stderr
     if not valid:
         assert "Invalid LOG_LEVEL" in result.stderr
+
+
+def test_default_format_includes_timestamp_in_console_and_file(tmp_path, capsys):
+    import re
+
+    path = tmp_path / "timestamp.log"
+    biqbin.configure_logging("INFO", filename=path)
+    biqbin.logger.info("timestamp check")
+    output = capsys.readouterr().err
+    assert re.fullmatch(
+        r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}:INFO:biqbin:pid=\d+:timestamp check\n",
+        output,
+    )
+    assert path.read_text() == output

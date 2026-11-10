@@ -100,11 +100,10 @@ class ProblemBQP(ProblemMaxCut):
         self.penalty: float = penalty
         self.rho: float = rho
         self.const_value: float = const_val
-        if get_rank() == 0:
-            logger.info(f'Penalty        = {penalty}')
-            logger.info(f'Rho            = {rho}')
-            logger.info(f'Constant value = {const_val}')
-            logger.debug(f'MC adj matrix = \n{maxcut_adj}')
+        logger.info(f'Penalty        = {penalty}')
+        logger.info(f'Rho            = {rho}')
+        logger.info(f'Constant value = {const_val}')
+        logger.debug(f'MC adj matrix = \n{maxcut_adj}')
 
         super().__init__(maxcut_adj, problem_name, optimize_input)
 

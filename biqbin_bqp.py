@@ -1,3 +1,4 @@
+from biqbin.logging import configure_rank_logging
 import scipy as sp
 import json
 from typing import Any
@@ -635,6 +636,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     init()  # initialize MPI
+    configure_rank_logging(args.log_dir, get_rank())
     problem_reader_cls = args.format
     problem_reader = problem_reader_cls(
         args.problem_instance, optimize_input=args.optimize)

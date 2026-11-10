@@ -1,10 +1,11 @@
+from biqbin.logging import logger, configure_logging
+
 from biqbin.biqbin_base import (ProblemMaxCut,
                                 SolutionMaxCut,
                                 MaxCutSolver,
                                 ProblemQubo,
                                 SolutionQubo,
                                 QUBOSolver,
-                                logger,
                                 get_rank)
 
 from biqbin.data_parsers import (MaxCutSolutionToJson,
@@ -26,6 +27,7 @@ __all__ = [
     'SolutionQubo',
     'QUBOSolver',
     'logger',
+    'configure_logging',
     'get_rank',
     'init',
     'MaxCutSolutionToJson',

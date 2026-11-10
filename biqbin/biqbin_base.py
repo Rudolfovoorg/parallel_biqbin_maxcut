@@ -4,7 +4,7 @@ from typing import ClassVar
 
 import numpy.typing as npt
 import numpy as np
-import logging
+from biqbin.logging import logger
 
 
 from biqbin.utils import (check_matrix_validity_setter_wrap,
@@ -17,10 +17,6 @@ from biqbin.biqbin_module import (BabNode, Problem,
                                   set_heuristic, goemans_williamson_heuristic,
                                   set_primal_solution, set_node_evaluation, sdp_bound,
                                   get_fixed_value, get_root_sdp_bound)
-
-# https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
-logging.basicConfig()
-logger = logging.getLogger(__name__)
 
 
 class PrettyPrint:
@@ -576,14 +572,7 @@ class MaxCutSolver(PrettyPrint):
         self._latest_heuristic_value = self._evaluate_solution(P0.L, x)
         update_mc_lower_bound_solution(x)
 
-        if logger.isEnabledFor(logging.DEBUG):
-            if self._primal_solution_set:
-                default_gw_value = goemans_williamson_heuristic(
-                    P0.L, P.L, node.xfixed, node.sol.x, np.zeros(P0.n - 1)
-                )
-                logger.debug(
-                    f'Custom heuristic: {self._latest_heuristic_value}; default gw heuristic: {default_gw_value}'
-                )
+        logger.debug("Heuristic value: %s", self._latest_heuristic_value)
 
         return self._latest_heuristic_value
 

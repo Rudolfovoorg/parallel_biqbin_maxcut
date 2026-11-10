@@ -1,3 +1,4 @@
+from biqbin.logging import configure_rank_logging
 from biqbin import MaxCutSolver, get_rank, MaxCutSolutionToJson, init
 from biqbin.argparsers import ArgParserMaxCut
 import numpy as np
@@ -10,6 +11,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     init() # initialize MPI
+    configure_rank_logging(args.log_dir, get_rank())
     # Select the file reader based on the file format
     parser_class = args.format
     file_reader = parser_class(

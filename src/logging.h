@@ -11,7 +11,8 @@
  * Python configures levels, filters, handlers, formatting and log files.
  * No initialization or MPI calls are needed; no Python references are retained.
  * Use only while Python is running. PURE_C builds use printf instead and need
- * no Python or pybind11 headers. Include a newline when printf needs one.
+ * no Python or pybind11 headers. PURE_C appends a newline to each record;
+ * Python handlers control record termination. Omit trailing message newlines.
  *
  * BIQBIN_LOG_MIN_LEVEL sets the minimum severity compiled in (default INFO).
  * Example: -DBIQBIN_LOG_MIN_LEVEL=10 keeps DEBUG and higher; Python still
@@ -40,8 +41,10 @@
 
 #define BIQBIN_LOG_AT(level, ...) \
     do { \
-        if ((level) >= BIQBIN_LOG_MIN_LEVEL) \
+        if ((level) >= BIQBIN_LOG_MIN_LEVEL) { \
             (void)printf(__VA_ARGS__); \
+            (void)putchar('\n'); \
+        } \
     } while (0)
 
 #else /* Python extension */

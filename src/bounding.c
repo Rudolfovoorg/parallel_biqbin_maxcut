@@ -128,7 +128,6 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     }
     else
     {
-        // TODO: If verbose print that we have done only the basic bound
         goto END;
     }
     // first evaluation at dual_gamma: f = fct_eval(PP, dual_gamma, X, g)

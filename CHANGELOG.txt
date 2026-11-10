@@ -91,3 +91,9 @@
 - updated README and problem-format documentation for BQP, parser formats, callback API,
   input restrictions and MPI process requirements
 - fixed QPLIB linear-objective parsing and multiple parser/input-validation edge cases
+- Added shared Python/native logging with compile-time severity filtering and explicit console/file configuration.
+- Added --log-dir [LOG_DIR] for per-rank append-only files; defaults to <input stem>.logs when enabled without a path.
+- Log-directory creation and rank-file opening failures now report to stderr and call MPI_Abort(10).
+- Removed the additional Goemans-Williamson heuristic previously executed only at DEBUG verbosity.
+- LOG_LEVEL accepts case-insensitive level names or nonnegative decimal integers without leading zeros.
+- Standalone C logging now terminates each record with a newline.

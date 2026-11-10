@@ -31,11 +31,11 @@ LOG_LEVEL_ERROR = 40
 LOG_LEVEL_CRITICAL = 50
 LOG_LEVEL_FATAL = 50
 
-# Accept case-insensitive names or a nonnegative numeric threshold.
+# Accept case-insensitive names or decimal thresholds; leading zeros are rejected.
 LOG_LEVEL_NAME := $(shell printf '%s' '$(subst ','"'"',$(strip $(LOG_LEVEL)))' | tr '[:lower:]' '[:upper:]')
-LOG_LEVEL_VALUE := $(or $(LOG_LEVEL_$(LOG_LEVEL_NAME)),$(shell printf '%s\n' '$(subst ','"'"',$(LOG_LEVEL_NAME))' | sed -n '/^[0-9][0-9]*$$/p'))
+LOG_LEVEL_VALUE := $(or $(LOG_LEVEL_$(LOG_LEVEL_NAME)),$(shell printf '%s\n' '$(subst ','"'"',$(LOG_LEVEL_NAME))' | sed -n -e '/^0$$/p' -e '/^[1-9][0-9]*$$/p'))
 ifeq ($(LOG_LEVEL_VALUE),)
-$(error Invalid LOG_LEVEL '$(LOG_LEVEL)'; use TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL, WARN, FATAL, or a nonnegative number)
+$(error Invalid LOG_LEVEL '$(LOG_LEVEL)'; use TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL, WARN, FATAL, or a nonnegative decimal integer without leading zeros)
 endif
 LOG_DEFINES = -DBIQBIN_LOG_MIN_LEVEL=$(LOG_LEVEL_VALUE)
 

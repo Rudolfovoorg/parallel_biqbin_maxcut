@@ -45,7 +45,8 @@ def test_shared_summary(kind, verbose, time_limit, capsys):
     text = solution.format_summary(verbose)
     assert "\n\n---" not in text
     header = text.split("\n---", 1)[0]
-    fields = dict(line.split(" = ", 1) for line in header.splitlines())
+    assert header.splitlines()[0] == type(solution).__name__
+    fields = dict(line.split(" = ", 1) for line in header.splitlines()[1:])
     fields = {key.strip(): value for key, value in fields.items()}
     assert fields == {
         "Problem name": "example.json", "Compute time": "2.99 seconds",
@@ -93,6 +94,7 @@ def test_problem_summary(kind, verbose, monkeypatch):
         )
     matrix_before = problem.maxcut_adjacency_matrix.copy()
     text = problem.format_summary(verbose)
+    assert text.splitlines()[0] == type(problem).__name__
     assert text.count("Problem name") == 1
     assert "Problem name          = example.json" in text
     assert "Optimized input       = True" in text
@@ -104,11 +106,33 @@ def test_problem_summary(kind, verbose, monkeypatch):
     if kind == "QUBO":
         assert "Minimization          = False" in text
         assert "Offset                = 3" in text
-        assert "Q (2, 2) =" in text
+        assert "Q = (2, 2)" in text
     elif kind == "BQP":
         assert "Equality constraints  = 1" in text
-        for label in ("F (2, 2)", "c (2,)", "A (1, 2)", "b (1,)"):
-            assert label + " =" in text
+        for label in ("F = (2, 2)", "c = (2,)", "A = (1, 2)", "b = (1,)"):
+            assert label in text
     assert str(problem) == problem.format_summary(False)
     assert repr(problem) == str(problem)
     np.testing.assert_array_equal(problem.maxcut_adjacency_matrix, matrix_before)
+
+
+@pytest.mark.parametrize("kind", ["Max-Cut", "QUBO", "BQP"])
+def test_log_record_starts_with_class_heading(kind):
+    import io
+    import logging
+
+    solution, _ = make_solution(kind, False)
+    objects = [solution]
+    if kind != "BQP":
+        objects.append(solution.problem)
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    test_logger = logging.Logger("summary-test", logging.INFO)
+    test_logger.addHandler(handler)
+    for obj in objects:
+        stream.seek(0)
+        stream.truncate()
+        test_logger.info("%s", obj)
+        assert stream.getvalue() == "INFO: " + obj.format_summary() + "\n"
+        assert stream.getvalue().splitlines()[0] == "INFO: " + type(obj).__name__

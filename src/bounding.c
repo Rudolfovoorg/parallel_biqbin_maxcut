@@ -87,8 +87,8 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     // check pruning condition
     if (bound < Bab_LBGet() + 1.0)
     {
-        BIQBIN_LOG_DEBUG("rank=%d node_level=%d all inequalities skipped: basic bound prunes node "
-                         "(bound=%g, lower_bound=%g)", rank, node->level, bound, Bab_LBGet());
+        BIQBIN_LOG_DEBUG("node_level=%d all inequalities skipped: basic bound prunes node "
+                         "(bound=%g, lower_bound=%g)", node->level, bound, Bab_LBGet());
         prune = 1;
         goto END;
     }
@@ -96,16 +96,16 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     // check if cutting planes need to be added
     if (params.use_diff && (rank != 0) && (bound > Bab_LBGet() + diff + 1.0))
     {
-        BIQBIN_LOG_DEBUG("rank=%d node_level=%d all inequalities skipped: difference cutoff "
+        BIQBIN_LOG_DEBUG("node_level=%d all inequalities skipped: difference cutoff "
                          "(use_diff=%d, bound=%g, lower_bound=%g, diff=%g)",
-                         rank, node->level, params.use_diff, bound, Bab_LBGet(), diff);
+                         node->level, params.use_diff, bound, Bab_LBGet(), diff);
         giveup = 1;
         goto END;
     }
 
     /* separate first triangle inequality */
-    BIQBIN_LOG_DEBUG("rank=%d node_level=%d initial triangle update: n=%d, active=%d, violated_TriIneq=%g",
-                     rank, node->level, PP->n, PP->NIneq, params.violated_TriIneq);
+    BIQBIN_LOG_DEBUG("node_level=%d initial triangle update: n=%d, active=%d, violated_TriIneq=%g",
+                     node->level, PP->n, PP->NIneq, params.violated_TriIneq);
     viol3 = updateTriangleInequalities(PP, dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
     /***************
      * Bundle init *
@@ -118,8 +118,8 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
     }
 
     // t = 0.5 * (f - fh) / (PP->NIneq * viol3^2)
-    BIQBIN_LOG_DEBUG("rank=%d node_level=%d initial triangle result: added=%d, removed=%d, active=%d, "
-                     "viol3=%g; %s", rank, node->level, Tri_NumAdded, Tri_NumSubtracted, PP->NIneq,
+    BIQBIN_LOG_DEBUG("node_level=%d initial triangle result: added=%d, removed=%d, active=%d, "
+                     "viol3=%g; %s", node->level, Tri_NumAdded, Tri_NumSubtracted, PP->NIneq,
                      viol3, (PP->NIneq > 0 && viol3 > params.violated_TriIneq)
                          ? "continue with cutting planes" : "stop at basic bound (triangle condition false)");
     if (PP->NIneq > 0 && viol3 > params.violated_TriIneq)
@@ -210,8 +210,8 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
             giveup = 1;
 
         // purge inactive cutting planes, add new inequalities
-        BIQBIN_LOG_DEBUG("rank=%d node_level=%d iter=%d triangle check: prune=%d, giveup=%d, active=%d",
-                         rank, node->level, count, prune, giveup, PP->NIneq);
+        BIQBIN_LOG_DEBUG("node_level=%d iter=%d triangle check: prune=%d, giveup=%d, active=%d",
+                         node->level, count, prune, giveup, PP->NIneq);
         if (!prune && !giveup)
         {
 
@@ -220,35 +220,35 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
                                    // and heptagonal inequalities start!
 
             viol3 = updateTriangleInequalities(PP, dual_gamma, &Tri_NumAdded, &Tri_NumSubtracted);
-            BIQBIN_LOG_DEBUG("rank=%d node_level=%d iter=%d triangle called: viol3=%g, added=%d, removed=%d, active=%d",
-                             rank, node->level, count, viol3, Tri_NumAdded, Tri_NumSubtracted, PP->NIneq);
+            BIQBIN_LOG_DEBUG("node_level=%d iter=%d triangle called: viol3=%g, added=%d, removed=%d, active=%d",
+                             node->level, count, viol3, Tri_NumAdded, Tri_NumSubtracted, PP->NIneq);
 
             /* include pentagonal and heptagonal inequalities */
             const int use_pentagonal = PP->n > 5 && params.include_Pent && (count > params.triag_iter || viol3 < 0.2);
-            BIQBIN_LOG_DEBUG("rank=%d node_level=%d iter=%d pentagonal check: n=%d (>5), include_Pent=%d, "
+            BIQBIN_LOG_DEBUG("node_level=%d iter=%d pentagonal check: n=%d (>5), include_Pent=%d, "
                              "triag_iter=%d (iter>triag_iter), viol3=%g (<0.2)",
-                             rank, node->level, count, PP->n, params.include_Pent, params.triag_iter, viol3);
+                             node->level, count, PP->n, params.include_Pent, params.triag_iter, viol3);
             if (use_pentagonal)
             {
                 viol5 = updatePentagonalInequalities(PP, dual_gamma, &Pent_NumAdded, &Pent_NumSubtracted, triag);
             }
-            BIQBIN_LOG_DEBUG("rank=%d node_level=%d iter=%d pentagonal %s: added=%d, removed=%d, active=%d, viol5=%g%s",
-                             rank, node->level, count, use_pentagonal ? "called" : "skipped (condition false)",
+            BIQBIN_LOG_DEBUG("node_level=%d iter=%d pentagonal %s: added=%d, removed=%d, active=%d, viol5=%g%s",
+                             node->level, count, use_pentagonal ? "called" : "skipped (condition false)",
                              use_pentagonal ? Pent_NumAdded : 0, use_pentagonal ? Pent_NumSubtracted : 0,
                              PP->NPentIneq, viol5, use_pentagonal ? "" : " (unchanged)");
 
             const int use_heptagonal = PP->n > 7 && params.include_Hepta &&
                 ((count > params.triag_iter + params.pent_iter) || (viol3 < 0.2 && (1 - viol5 < 0.4)));
-            BIQBIN_LOG_DEBUG("rank=%d node_level=%d iter=%d heptagonal check: n=%d (>7), include_Hepta=%d, "
+            BIQBIN_LOG_DEBUG("node_level=%d iter=%d heptagonal check: n=%d (>7), include_Hepta=%d, "
                              "triag_iter=%d, pent_iter=%d (iter>triag_iter+pent_iter), viol3=%g (<0.2), "
-                             "viol5=%g (1-viol5<0.4)", rank, node->level, count, PP->n,
+                             "viol5=%g (1-viol5<0.4)", node->level, count, PP->n,
                              params.include_Hepta, params.triag_iter, params.pent_iter, viol3, viol5);
             if (use_heptagonal)
             {
                 viol7 = updateHeptagonalInequalities(PP, dual_gamma, &Hepta_NumAdded, &Hepta_NumSubtracted, triag + penta);
             }
-            BIQBIN_LOG_DEBUG("rank=%d node_level=%d iter=%d heptagonal %s: added=%d, removed=%d, active=%d, viol7=%g%s",
-                             rank, node->level, count, use_heptagonal ? "called" : "skipped (condition false)",
+            BIQBIN_LOG_DEBUG("node_level=%d iter=%d heptagonal %s: added=%d, removed=%d, active=%d, viol7=%g%s",
+                             node->level, count, use_heptagonal ? "called" : "skipped (condition false)",
                              use_heptagonal ? Hepta_NumAdded : 0, use_heptagonal ? Hepta_NumSubtracted : 0,
                              PP->NHeptaIneq, viol7, use_heptagonal ? "" : " (unchanged)");
         }
@@ -260,8 +260,8 @@ double SDPbound(BabNode *node, const Problem *SP, Problem *PP)
             Pent_NumSubtracted = 0;
             Hepta_NumAdded = 0;
             Hepta_NumSubtracted = 0;
-            BIQBIN_LOG_DEBUG("rank=%d node_level=%d iter=%d all inequalities skipped: prune=%d, giveup=%d",
-                             rank, node->level, count, prune, giveup);
+            BIQBIN_LOG_DEBUG("node_level=%d iter=%d all inequalities skipped: prune=%d, giveup=%d",
+                             node->level, count, prune, giveup);
         }
 
         // Test stopping conditions

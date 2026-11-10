@@ -49,9 +49,11 @@ _initialized = False
 def init():
     """Initialize the MPI environment. Must be called before creating any solver."""
     from biqbin.biqbin_module import init_mpi
+    from biqbin.logging import _set_mpi_rank
     global _initialized
     if not _initialized:
-        init_mpi()
+        _, rank = init_mpi()
+        _set_mpi_rank(rank)
         _initialized = True
 
 

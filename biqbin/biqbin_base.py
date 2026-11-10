@@ -20,12 +20,37 @@ from biqbin.biqbin_module import (BabNode, Problem,
 
 
 class PrettyPrint:
+    """Render a class heading, aligned fields, and type-specific sections."""
+
     @staticmethod
     def _format_fields(fields: list[tuple[str, object]]) -> str:
         return "\n".join(f"{label:<21} = {value}" for label, value in fields)
 
+    @staticmethod
+    def _format_array(name: str, array: np.ndarray) -> str:
+        return f"{name} = {array.shape}\n{array}"
+
+    def _summary_fields(self) -> list[tuple[str, object]]:
+        return []
+
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        return []
+
+    def format_summary(self, verbose: bool = False) -> str:
+        """Return a class heading and summary; verbose adds conversion details.
+
+        The heading shares the first line with a logging handler's prefix when
+        an object is logged with ``logger.info("%s", object)``.
+        """
+        parts = [type(self).__name__]
+        fields = self._summary_fields()
+        if fields:
+            parts.append(self._format_fields(fields))
+        parts.extend(self._summary_sections(verbose))
+        return "\n".join(parts)
+
     def __str__(self) -> str:
-        return (f'class: {type(self).__name__}')
+        return self.format_summary()
 
     def __repr__(self) -> str:
         return str(self)
@@ -66,18 +91,12 @@ class ProblemMaxCut(PrettyPrint):
             self.gcd = divide_matrix_by_gcd(value)
         self._maxcut_adjacency_matrix = value
 
-    @staticmethod
-    def _format_array(name: str, array: np.ndarray) -> str:
-        return f"{name} = {array.shape}\n{array}"
-
-    def format_summary(self, verbose: bool = False) -> str:
-        """Format the original problem; verbose adds conversion details."""
-        header = self._format_fields([
+    def _summary_fields(self) -> list[tuple[str, object]]:
+        return [
             ("Problem name", self.problem_name),
             ("Optimized input", self.optimize_mc_adj_matrix),
             ("GCD", self.gcd),
-        ])
-        return "\n".join([header, *self._problem_sections(verbose)])
+        ]
 
     def _format_maxcut_problem(self, title: str = "Max-Cut") -> str:
         return "\n".join([
@@ -86,11 +105,8 @@ class ProblemMaxCut(PrettyPrint):
             self._format_array("Adjacency matrix", self.maxcut_adjacency_matrix),
         ])
 
-    def _problem_sections(self, verbose: bool) -> list[str]:
+    def _summary_sections(self, verbose: bool) -> list[str]:
         return [self._format_maxcut_problem()]
-
-    def __str__(self) -> str:
-        return self.format_summary()
 
 
 class ProblemQubo(ProblemMaxCut):
@@ -143,7 +159,7 @@ class ProblemQubo(ProblemMaxCut):
             [Qe_plus_c, np.zeros((1, 1))]
         ])
 
-    def _problem_sections(self, verbose: bool) -> list[str]:
+    def _summary_sections(self, verbose: bool) -> list[str]:
         sections = ["\n".join([
             "--- QUBO ---",
             self._format_fields([
@@ -175,14 +191,10 @@ class SolutionMaxCut(PrettyPrint):
     def problem(self) -> ProblemMaxCut:
         return self.__problem
 
-    def format_summary(self, verbose: bool = False) -> str:
-        """Format common run statistics and the original problem's solution.
-
-        Verbose output adds transformation details for QUBO and BQP. Common
-        statistics are always included, independently of logging verbosity.
-        """
+    def _summary_fields(self) -> list[tuple[str, object]]:
+        """Common run statistics are visible at every verbosity."""
         metadata = self.meta_data
-        summary = self._format_fields([
+        return [
             ("Problem name", metadata['instance']),
             ("Compute time", f"{metadata['time']:.2f} seconds"),
             ("Time limit reached", metadata['time_limit_reached']),
@@ -191,8 +203,7 @@ class SolutionMaxCut(PrettyPrint):
             ("Worker processes used", metadata['num_workers_used']),
             ("Optimized input", metadata['parameters']['optimized']),
             ("GCD", metadata['parameters']['gcd']),
-        ])
-        return "\n".join([summary, *self._solution_sections(verbose)])
+        ]
 
     def _format_maxcut_section(self, title: str = "Max-Cut") -> str:
         return f"--- {title} ---\n" + self._format_fields([
@@ -201,15 +212,12 @@ class SolutionMaxCut(PrettyPrint):
             ("x", self.__solution['x']),
         ])
 
-    def _solution_sections(self, verbose: bool) -> list[str]:
+    def _summary_sections(self, verbose: bool) -> list[str]:
         return [self._format_maxcut_section()]
 
     def print_computed_solution(self, verbose: bool = False) -> None:
         """Print the shared summary, optionally including transformation details."""
         print(self.format_summary(verbose))
-
-    def __str__(self) -> str:
-        return self.format_summary()
 
 
 class SolutionQubo(SolutionMaxCut):
@@ -271,7 +279,7 @@ class SolutionQubo(SolutionMaxCut):
 
         return qubo_solution.tolist(), y.astype(int).tolist()
 
-    def _solution_sections(self, verbose: bool) -> list[str]:
+    def _summary_sections(self, verbose: bool) -> list[str]:
         sections = ["--- QUBO ---\n" + self._format_fields([
             ("Computed value", self.__solution['computed_val']),
             ("Minimization", self.__problem.is_minimization),
@@ -649,7 +657,7 @@ class MaxCutSolver(PrettyPrint):
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
             print(f"Solving: {self.problem.problem_name}", flush=True)
-            logger.info(f"\n{self.problem}")
+            logger.info("%s", self.problem)
         else:
             input_matrix = None
 

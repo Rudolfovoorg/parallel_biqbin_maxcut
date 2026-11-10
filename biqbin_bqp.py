@@ -108,7 +108,7 @@ class ProblemBQP(ProblemMaxCut):
 
         super().__init__(maxcut_adj, problem_name, optimize_input)
 
-    def _problem_sections(self, verbose: bool) -> list[str]:
+    def _summary_sections(self, verbose: bool) -> list[str]:
         sections = ["\n".join([
             "--- BQP ---",
             self._format_fields([
@@ -285,7 +285,7 @@ class SolutionBQP(SolutionMaxCut):
             'solution with the expected objective value.'
         )
 
-    def _solution_sections(self, verbose: bool) -> list[str]:
+    def _summary_sections(self, verbose: bool) -> list[str]:
         sections = ["--- BQP ---\n" + self._format_fields([
             ("Computed value", self.__solution['computed_val']),
             ("Feasible solution", self.__solution['feasible_solution']),

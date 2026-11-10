@@ -27,6 +27,7 @@ def restore_logger():
     handlers = logger.handlers[:]
     owned = log_module._configured_handlers[:]
     level, propagate = logger.level, logger.propagate
+    rank = log_module._mpi_rank
     yield
     for handler in logger.handlers[:]:
         if handler not in handlers:
@@ -36,6 +37,7 @@ def restore_logger():
     log_module._configured_handlers[:] = owned
     logger.setLevel(level)
     logger.propagate = propagate
+    log_module._mpi_rank = rank
 
 
 def test_import_does_not_configure_root():
@@ -215,7 +217,16 @@ def test_default_format_includes_timestamp_in_console_and_file(tmp_path, capsys)
     biqbin.logger.info("timestamp check")
     output = capsys.readouterr().err
     assert re.fullmatch(
-        r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}:INFO:biqbin:pid=\d+:timestamp check\n",
+        r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}:INFO:biqbin:rank=(?:-|\d+):timestamp check\n",
         output,
     )
     assert path.read_text() == output
+
+
+def test_rank_format_before_and_after_initialization(capsys):
+    log_module._mpi_rank = "-"
+    biqbin.configure_logging("INFO", format="rank=%(rank)s:%(message)s")
+    biqbin.logger.info("before init")
+    log_module.configure_rank_logging(None, 2)
+    biqbin.logger.info("after init")
+    assert capsys.readouterr().err == "rank=-:before init\nrank=2:after init\n"

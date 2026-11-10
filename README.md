@@ -86,7 +86,7 @@ from biqbin import configure_logging
 configure_logging("DEBUG", filename="biqbin.log")
 ```
 
-The default format includes a local timestamp with milliseconds, the level, logger name, and process ID. For MPI runs, use a separate filename per rank, for example `filename=f"biqbin.{get_rank()}.log"` after MPI initialization. Reconfiguring replaces only handlers created by this helper; application-owned handlers remain intact. Configuration disables propagation to the root logger to avoid duplicate console output. For custom handler setups, use `biqbin.logger` directly. Pass `format="%(levelname)s:%(message)s"` to customize formatting, or level `5` for TRACE. Changing verbosity only changes diagnostics; it does not run additional heuristics.
+The default format includes a local timestamp with milliseconds, the level, logger name, and MPI rank (`rank=-` before MPI initialization). For MPI runs, use a separate filename per rank, for example `filename=f"biqbin.{get_rank()}.log"` after MPI initialization. Reconfiguring replaces only handlers created by this helper; application-owned handlers remain intact. Configuration disables propagation to the root logger to avoid duplicate console output. For custom handler setups, use `biqbin.logger` directly. Pass `format="%(levelname)s:%(message)s"` to customize formatting, or level `5` for TRACE. Changing verbosity only changes diagnostics; it does not run additional heuristics.
 
 Set the minimum compiled log level with `LOG_LEVEL`, which passes the corresponding numeric `-DBIQBIN_LOG_MIN_LEVEL` to both C and C++ compilers. Level names are case-insensitive:
 
@@ -99,6 +99,8 @@ make LOG_LEVEL=debug
 Rebuild all C and C++ objects after changing `LOG_LEVEL`; make does not track compiler flag changes. The default `make` target already performs a clean rebuild. This setting applies to `BIQBIN_LOG_*` calls; existing direct `printf` calls keep their current behavior.
 
 ## Usage
+
+Problem and solution summaries start with their class name on the first line. Their shared `PrettyPrint` formatter keeps that heading beside the log prefix when using `logger.info("%s", problem)` or `logger.info("%s", solution)`, with all fields on subsequent lines.
 
 Problem objects also share a summary: `str(problem)` prints the common name/optimization/GCD header and the original problem’s dimensions, coefficients, and applicable objective settings. `problem.format_summary(verbose=True)` additionally includes the converted Max-Cut problem and BQP transformation details.
 
@@ -332,3 +334,18 @@ Please refer to [`doc/CUSTOM_SOLVER.md`](doc/CUSTOM_SOLVER.md) on how to replace
 For any inquiries about the software provided use the following contacts:
 
 - Beno Zupanc: [Github account](https://github.com/Zvmcevap) or [email](beno.zupanc@rudolfovo.eu)
+
+### Running tests
+
+After building the native extension and installing the development dependencies:
+
+```bash
+make test-logging    # Logging, rank-file failures, and build-level validation
+make test-summaries  # Problem/solution formatting and verbose sections
+make test           # All test suites, including both targets above
+```
+
+`make tests` is an alias for `make test`. The full suite also includes standalone C,
+Python solver, QPLIB, heuristic, initial-solution, parser, custom-callback, and MPI
+failure tests. Run from an environment with MPI and the development dependencies
+available (for example, `biqbin-py312`).

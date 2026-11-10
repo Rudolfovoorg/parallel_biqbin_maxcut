@@ -82,7 +82,10 @@ CPPFLAGS = $(CPPOPTI) -Wall -W -pedantic
 
 #### Rules ####
 
-.PHONY : all clean test tests
+.PHONY : all clean clean-output test tests test-logging test-summaries \
+         test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib \
+         test-qubo-python-heuristic test-bqp-python test-input-solution \
+         test-parsers test-modular-combos test-expected-failure
 
 # Default rule is to create all binaries #
 all: clean $(BINS) $(PYMOD_OUT)
@@ -127,6 +130,12 @@ $(PYMOD_OUT): $(OBJS)
 	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
 
 # Tests
+test-logging:
+	$(RUN_ENVS) python -m pytest tests/test_logging.py -v --no-header
+
+test-summaries:
+	$(RUN_ENVS) python -m pytest tests/test_solution_summary.py -v --no-header
+
 test-maxcut: clean-output
 	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_60.0 tests/rudy/g05_60.0-expected_output params
 	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_80.0 tests/rudy/g05_80.0-expected_output params
@@ -183,7 +192,7 @@ test-bqp-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_dense.json --format dense -c > /dev/null 2>&1
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_sparse.json --format sparse -c > /dev/null 2>&1
 
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
 	python -m pytest tests/test_bqp.py -v -s --no-header
 
 test-modular-combos: clean-output
@@ -225,7 +234,9 @@ test-parsers:
 test-expected-failure:
 	python3 -m pytest tests/test_mpi_failure_cases.py -v -s
 
-test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers test-modular-combos test-expected-failure
+test: test-logging test-summaries test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers test-modular-combos test-expected-failure
+
+tests: test
 
 docker: 
 	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 

@@ -5,12 +5,26 @@ import sys
 from os import PathLike
 from pathlib import Path
 
+
 # Keep this name in sync with the native bridge in src/wrapper.cpp.
 logger = logging.getLogger("biqbin")
 logger.addHandler(logging.NullHandler())
 
-DEFAULT_FORMAT = "%(asctime)s:%(levelname)s:%(name)s:pid=%(process)d:%(message)s"
+DEFAULT_FORMAT = "%(asctime)s:%(levelname)s:%(name)s:rank=%(rank)s:%(message)s"
 _configured_handlers: list[logging.Handler] = []
+_mpi_rank: int | str = "-"
+
+
+def _set_mpi_rank(rank: int) -> None:
+    """Cache rank after MPI initialization; formatting never calls MPI."""
+    global _mpi_rank
+    _mpi_rank = rank
+
+
+class _RankFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.rank = _mpi_rank
+        return True
 
 
 def configure_logging(
@@ -24,7 +38,8 @@ def configure_logging(
     Args:
         level: Python logging severity number or standard level name.
         filename: File to append to, or None for stderr only.
-        format: Percent-style logging format shared by both handlers.
+        format: Percent-style logging format shared by both handlers. The
+            rank field is "-" before MPI initialization, then the cached rank.
 
     Returns:
         The shared Python/native BiqBin logger.
@@ -48,6 +63,7 @@ def configure_logging(
         handlers.append(logging.FileHandler(filename, encoding="utf-8"))
     for handler in handlers:
         handler.setFormatter(formatter)
+        handler.addFilter(_RankFilter())
 
     for handler in _configured_handlers:
         logger.removeHandler(handler)
@@ -72,10 +88,11 @@ def configure_rank_logging(directory: str | PathLike[str] | None, rank: int) -> 
     stderr and abort the MPI job with code 10, so peers cannot hang in solver
     communication. This function does not initialize MPI.
     """
-    if directory is None:
-        return
     if rank < 0:
         raise ValueError("MPI rank must be nonnegative")
+    _set_mpi_rank(rank)
+    if directory is None:
+        return
     path = Path(directory)
     try:
         path.mkdir(parents=True, exist_ok=True)

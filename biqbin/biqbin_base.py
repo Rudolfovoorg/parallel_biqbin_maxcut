@@ -101,8 +101,10 @@ class ProblemMaxCut(PrettyPrint):
     def _format_maxcut_problem(self, title: str = "Max-Cut") -> str:
         return "\n".join([
             f"--- {title} ---",
-            self._format_fields([("Vertices", self.maxcut_adjacency_matrix.shape[0])]),
-            self._format_array("Adjacency matrix", self.maxcut_adjacency_matrix),
+            self._format_fields(
+                [("Vertices", self.maxcut_adjacency_matrix.shape[0])]),
+            self._format_array("Adjacency matrix",
+                               self.maxcut_adjacency_matrix),
         ])
 
     def _summary_sections(self, verbose: bool) -> list[str]:
@@ -656,7 +658,10 @@ class MaxCutSolver(PrettyPrint):
         if self.rank == 0:
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
-            logger.info("%s", self.problem.format_summary(logger.isEnabledFor(DEBUG)))
+            if logger.isEnabledFor(DEBUG):
+                logger.debug("%s", self.problem.format_summary(verbose=True))
+            else:
+                logger.info("%s", self.problem)
         else:
             input_matrix = None
 

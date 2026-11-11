@@ -100,7 +100,7 @@ class ProblemBQP(ProblemMaxCut):
         self.penalty: float = penalty
         self.rho: float = rho
         self.const_value: float = const_val
-        
+
         super().__init__(maxcut_adj, problem_name, optimize_input)
 
     def _summary_sections(self, verbose: bool) -> list[str]:

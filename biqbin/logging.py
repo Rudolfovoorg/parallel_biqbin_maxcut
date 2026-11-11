@@ -57,7 +57,6 @@ def configure_logging(
     # Validate configuration before replacing working handlers.
     formatter = logging.Formatter(format)
     console = logging.StreamHandler()
-    console.setLevel(level)
     handlers: list[logging.Handler] = [console]
     if filename is not None:
         handlers.append(logging.FileHandler(filename, encoding="utf-8"))

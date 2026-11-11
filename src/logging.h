@@ -17,7 +17,7 @@
  * BIQBIN_LOG_MIN_LEVEL sets the minimum severity compiled in (default INFO).
  * Example: -DBIQBIN_LOG_MIN_LEVEL=10 keeps DEBUG and higher; Python still
  * filters these records at runtime. Disabled calls do not evaluate arguments.
- * DEBUG through CRITICAL use the standard Python levels. FATAL is an alias for 
+ * DEBUG through CRITICAL use the standard Python levels. FATAL is an alias for
  * CRITICAL and does not abort.
  *
  * Example: BIQBIN_LOG_INFO("node %d: bound %.2f", node->level, bound);
@@ -38,34 +38,38 @@
 
 #include <stdio.h>
 
-#define BIQBIN_LOG_AT(level, ...) \
-    do { \
-        if ((level) >= BIQBIN_LOG_MIN_LEVEL) { \
-            (void)printf(__VA_ARGS__); \
-            (void)putchar('\n'); \
-        } \
+#define BIQBIN_LOG_AT(level, ...)            \
+    do                                       \
+    {                                        \
+        if ((level) >= BIQBIN_LOG_MIN_LEVEL) \
+        {                                    \
+            (void)printf(__VA_ARGS__);       \
+            (void)putchar('\n');             \
+        }                                    \
     } while (0)
 
 #else /* Python extension */
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-void biqbin_log_write(int level, const char *format, ...)
+    void biqbin_log_write(int level, const char *format, ...)
 #if defined(__GNUC__) || defined(__clang__)
-    __attribute__((format(printf, 2, 3)))
+        __attribute__((format(printf, 2, 3)))
 #endif
-    ;
+        ;
 
 #ifdef __cplusplus
 }
 #endif
 
-#define BIQBIN_LOG_AT(level, ...) \
-    do { \
-        const int biqbin_logging_macro_level_ = (level); \
-        if (biqbin_logging_macro_level_ >= BIQBIN_LOG_MIN_LEVEL) \
+#define BIQBIN_LOG_AT(level, ...)                                       \
+    do                                                                  \
+    {                                                                   \
+        const int biqbin_logging_macro_level_ = (level);                \
+        if (biqbin_logging_macro_level_ >= BIQBIN_LOG_MIN_LEVEL)        \
             biqbin_log_write(biqbin_logging_macro_level_, __VA_ARGS__); \
     } while (0)
 

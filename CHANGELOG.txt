@@ -91,18 +91,8 @@
 - updated README and problem-format documentation for BQP, parser formats, callback API,
   input restrictions and MPI process requirements
 - fixed QPLIB linear-objective parsing and multiple parser/input-validation edge cases
-- Added shared Python/native logging with compile-time severity filtering and explicit console/file configuration.
-- Added --log-dir [LOG_DIR] for per-rank append-only files; defaults to <input stem>.logs when enabled without a path.
-- Log-directory creation and rank-file opening failures now report to stderr and call MPI_Abort(10).
-- Removed the additional Goemans-Williamson heuristic previously executed only at DEBUG verbosity.
-- LOG_LEVEL accepts case-insensitive level names or nonnegative decimal integers without leading zeros.
-- Standalone C logging now terminates each record with a newline.
-- Renamed the shared Python/native logger to biqbin and added local timestamps with milliseconds to the default console/file format.
-- Routed native progress messages through INFO logging and optional IPM/BQP diagnostics through DEBUG; solution reports and fatal-error output remain unchanged.
-- Removed the IPM print argument; iteration diagnostics now follow DEBUG logging alone. Rank 0 prints the problem name to stdout when starting a solve, regardless of logging verbosity.
-- Restricted native final solution reports to standalone C builds; Python displays its own solution summary without a duplicate C report.
-- Unified Max-Cut, QUBO, and BQP solution summaries with always-visible run statistics; underlying Max-Cut and BQP transformation details are verbose-only.
-- Unified problem-object summaries across Max-Cut, QUBO, and BQP; conversion details are verbose-only, and problem/solution section headings have no preceding blank line.
-- Centralized class headings, field/array formatting, and summary assembly in PrettyPrint; object logs now start with the class name beside the log prefix.
-- Replaced process IDs in the default log format with cached MPI ranks, using rank=- before MPI initialization.
-- Added make test-logging and test-summaries, included them and the existing QPLIB integration target in make test, and made make tests an alias.
+- Added shared Python/native logging with compile-time native severity filtering and explicit console/file configuration.
+- Added optional `--log-dir` support for per-rank MPI log files, with MPI abort on logging setup failure.
+- Routed native solver and IPM diagnostics through INFO/DEBUG logging and removed verbosity-dependent extra heuristic evaluation.
+- Unified Max-Cut, QUBO, and BQP problem/solution summaries, with transformation details available in verbose output.
+- Added logging and summary tests and integrated them, along with the QPLIB integration target, into `make test`.

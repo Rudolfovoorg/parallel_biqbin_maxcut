@@ -34,10 +34,6 @@ extern "C" void biqbin_log_write(int level, const char *format, ...)
             auto logger = logging.attr("getLogger")("biqbin");
             if (!logger.attr("isEnabledFor")(level).cast<bool>())
                 return;
-
-            if (level == BIQBIN_LOG_LEVEL_TRACE)
-                logging.attr("addLevelName")(level, "TRACE");
-
             va_list args;
             va_start(args, format);
             const int size = std::vsnprintf(nullptr, 0, format, args);

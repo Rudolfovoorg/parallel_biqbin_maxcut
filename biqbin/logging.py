@@ -62,9 +62,9 @@ def configure_logging(
     if filename is not None:
         handlers.append(logging.FileHandler(filename, encoding="utf-8"))
     for handler in handlers:
+        handler.setLevel(level)
         handler.setFormatter(formatter)
         handler.addFilter(_RankFilter())
-
     for handler in _configured_handlers:
         logger.removeHandler(handler)
         handler.close()

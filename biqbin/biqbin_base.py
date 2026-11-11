@@ -1,5 +1,6 @@
 __version__ = '2.0.5'
 
+from logging import DEBUG
 from typing import ClassVar
 
 import numpy.typing as npt
@@ -8,7 +9,6 @@ from biqbin.logging import logger
 
 
 from biqbin.utils import (check_matrix_validity_setter_wrap,
-                          check_matrix_validity_wrap,
                           divide_matrix_by_gcd,
                           data_collector)
 from biqbin.biqbin_module import (BabNode, Problem,
@@ -656,8 +656,7 @@ class MaxCutSolver(PrettyPrint):
         if self.rank == 0:
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
-            print(f"Solving: {self.problem.problem_name}", flush=True)
-            logger.info("%s", self.problem)
+            logger.info("%s", self.problem.format_summary(logger.isEnabledFor(DEBUG)))
         else:
             input_matrix = None
 

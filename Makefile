@@ -22,7 +22,6 @@ CPPOPTI  = -O3 -ffast-math -fexceptions -fPIC -fno-common
 
 # Minimum native log severity (Python logging levels); rebuild after changing it.
 LOG_LEVEL ?= 20
-LOG_LEVEL_TRACE = 5
 LOG_LEVEL_DEBUG = 10
 LOG_LEVEL_INFO = 20
 LOG_LEVEL_WARNING = 30
@@ -35,7 +34,7 @@ LOG_LEVEL_FATAL = 50
 LOG_LEVEL_NAME := $(shell printf '%s' '$(subst ','"'"',$(strip $(LOG_LEVEL)))' | tr '[:lower:]' '[:upper:]')
 LOG_LEVEL_VALUE := $(or $(LOG_LEVEL_$(LOG_LEVEL_NAME)),$(shell printf '%s\n' '$(subst ','"'"',$(LOG_LEVEL_NAME))' | sed -n -e '/^0$$/p' -e '/^[1-9][0-9]*$$/p'))
 ifeq ($(LOG_LEVEL_VALUE),)
-$(error Invalid LOG_LEVEL '$(LOG_LEVEL)'; use TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL, WARN, FATAL, or a nonnegative decimal integer without leading zeros)
+$(error Invalid LOG_LEVEL '$(LOG_LEVEL)'; use DEBUG, INFO, WARNING, ERROR, CRITICAL, WARN, FATAL, or a nonnegative decimal integer without leading zeros)
 endif
 LOG_DEFINES = -DBIQBIN_LOG_MIN_LEVEL=$(LOG_LEVEL_VALUE)
 

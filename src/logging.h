@@ -17,14 +17,13 @@
  * BIQBIN_LOG_MIN_LEVEL sets the minimum severity compiled in (default INFO).
  * Example: -DBIQBIN_LOG_MIN_LEVEL=10 keeps DEBUG and higher; Python still
  * filters these records at runtime. Disabled calls do not evaluate arguments.
- * TRACE is a custom Python logging level (5); DEBUG through CRITICAL use the
- * standard Python levels. FATAL is an alias for CRITICAL and does not abort.
+ * DEBUG through CRITICAL use the standard Python levels. FATAL is an alias for 
+ * CRITICAL and does not abort.
  *
  * Example: BIQBIN_LOG_INFO("node %d: bound %.2f", node->level, bound);
  */
 
 /* Macros allow the preprocessor to remove calls below the build threshold. */
-#define BIQBIN_LOG_LEVEL_TRACE 5
 #define BIQBIN_LOG_LEVEL_DEBUG 10
 #define BIQBIN_LOG_LEVEL_INFO 20
 #define BIQBIN_LOG_LEVEL_WARNING 30
@@ -71,12 +70,6 @@ void biqbin_log_write(int level, const char *format, ...)
     } while (0)
 
 #endif /* PURE_C */
-
-#if BIQBIN_LOG_MIN_LEVEL <= BIQBIN_LOG_LEVEL_TRACE
-#define BIQBIN_LOG_TRACE(...) BIQBIN_LOG_AT(BIQBIN_LOG_LEVEL_TRACE, __VA_ARGS__)
-#else
-#define BIQBIN_LOG_TRACE(...) ((void)0)
-#endif
 
 #if BIQBIN_LOG_MIN_LEVEL <= BIQBIN_LOG_LEVEL_DEBUG
 #define BIQBIN_LOG_DEBUG(...) BIQBIN_LOG_AT(BIQBIN_LOG_LEVEL_DEBUG, __VA_ARGS__)

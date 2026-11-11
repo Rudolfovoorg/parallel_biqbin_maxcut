@@ -7,7 +7,6 @@
  *                                                                       *
  * input:  L    ... objective matrix                                     *
  *         n    ... size of the problem                                  *
- *         print... print level                                          *
  * output: phi  ... optimal value of SDP (value of the dual problem)     *
  *         X    ... optimal primal matrix                                *
  *************************************************************************/
@@ -24,8 +23,7 @@
 /// @param n Size of L matrix (n*n)
 /// @param X Stores the primal solution matrix
 /// @param phi Optimal value of SDP (value of the dual problem)
-/// @param print
-void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print)
+void ipm_mc_pk(const double *L, int n, double *X, double *phi)
 {
     /* variables for blas and lapack routines */
     int inc = 1;
@@ -99,13 +97,6 @@ void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print)
 
     /* mu = Z(:)'*X(:) / (2*n); */ /* initial complementarity */
     mu = ddot_(&nn, Z, &inc, X, &inc) / (2.0 * n);
-
-    /* print output */
-    if (print)
-    {
-        puts("iter     log10(gap)     primal        dual");
-        puts("*******************************************");
-    }
 
     /*  allocate space */
     alloc_matrix(dX, n, double);
@@ -364,14 +355,10 @@ void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print)
         gap = fabs(*phi - psi);
         obj_scale = fmax(1.0, fmax(fabs(*phi), fabs(psi)));
         rel_gap = gap / obj_scale;
-        /* print output */
-        if (print)
-            printf("%3d %11.2f %14.5f %14.5f \n", i, log10(gap), psi, *phi);
+        BIQBIN_LOG_DEBUG("IPM iter=%d log10(gap)=%.2f primal=%.5f dual=%.5f",
+                         i, log10(gap), psi, *phi);
 
     } // end of main loop
-
-    if (print)
-        puts("*******************************************");
 
     /************* free memory *************/
     free(y);

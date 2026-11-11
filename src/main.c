@@ -34,7 +34,7 @@ int wrapped_main(int argc, char **argv)
 
     if (rank == 0)
     {
-        printf("Number of cores: %d\n", num_workers);
+        BIQBIN_LOG_INFO("Number of cores: %d", num_workers);
     }
 
     /***** user defined MPI struct: for sending and receiving *****/
@@ -95,7 +95,7 @@ int wrapped_main(int argc, char **argv)
         over = Init_PQ();
 
         root_lower_bound = Bab_LBGet();
-        printf("Initial lower bound: %.0lf\n", root_lower_bound);
+        BIQBIN_LOG_INFO("Initial lower bound: %.0lf", root_lower_bound);
 #ifndef PURE_C
         copy_root_solution();
 #endif
@@ -248,7 +248,7 @@ int wrapped_main(int argc, char **argv)
     }
 
 FINISH:
-    /* Print results to the standard output and to the output file */
+    /* Python formats returned results; standalone C writes its own reports. */
     if (rank == 0)
     {
 #ifndef PURE_C
@@ -261,9 +261,9 @@ FINISH:
         fprintf(output, "Number of cores: %d\n", num_workers);
         fprintf(output, "Maximum number of workers used: %d\n", num_workers_used);
         fclose(output);
-#endif
         printFinalOutput(stdout, Bab_numEvalNodes());
         printf("Maximum number of workers used: %d\n", num_workers_used);
+#endif
     }
 
     /* free memory */

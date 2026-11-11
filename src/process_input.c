@@ -223,6 +223,7 @@ double *readData(const char *instance, int *adj_N)
         return NULL;
     }
     printf("Input file: %s\n", instance);
+    fflush(stdout);
     fprintf(output, "Input file: %s\n", instance);
     int num_vertices;
     int num_edges;
@@ -232,7 +233,7 @@ double *readData(const char *instance, int *adj_N)
     READING_ERROR(f, num_vertices <= 0, "Number of vertices has to be positive");
 
     // OUTPUT information on instance
-    fprintf(stdout, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
+    BIQBIN_LOG_INFO("Graph has %d vertices and %d edges.", num_vertices, num_edges);
     fprintf(output, "\nGraph has %d vertices and %d edges.\n", num_vertices, num_edges);
     // read edges and store them in matrix Adj
     // NOTE: last node is fixed to 0

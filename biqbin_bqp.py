@@ -1,3 +1,4 @@
+from biqbin.logging import configure_rank_logging
 import scipy as sp
 import json
 from typing import Any
@@ -99,11 +100,30 @@ class ProblemBQP(ProblemMaxCut):
         self.penalty: float = penalty
         self.rho: float = rho
         self.const_value: float = const_val
-        logger.info(f'Penalty        = {penalty}')
-        logger.info(f'Rho            = {rho}')
-        logger.info(f'Constant value = {const_val}')
 
         super().__init__(maxcut_adj, problem_name, optimize_input)
+
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        sections = ["\n".join([
+            "--- BQP ---",
+            self._format_fields([
+                ("Variables", self.F.shape[0]),
+                ("Equality constraints", self.A.shape[0]),
+                ("Offset", self.offset),
+            ]),
+            self._format_array("F", self.F),
+            self._format_array("c", self.c),
+            self._format_array("A", self.A),
+            self._format_array("b", self.b),
+        ])]
+        if verbose:
+            sections.append(self._format_maxcut_problem("Underlying Max-Cut"))
+            sections.append("--- BQP transformation ---\n" + self._format_fields([
+                ("Rho", self.rho),
+                ("Const value", self.const_value),
+                ("Penalty", self.penalty),
+            ]))
+        return sections
 
     def process_bqp_input(self) -> tuple[np.ndarray, int, int, float]:
         """
@@ -260,16 +280,20 @@ class SolutionBQP(SolutionMaxCut):
             'solution with the expected objective value.'
         )
 
-    def __str__(self) -> str:
-        return (f'{super().__str__()}\n'
-                f'--- BQP ---\n'
-                f' Computed value = {self.__solution["computed_val"]}\n'
-                f'       Feasible = {self.__solution["feasible_solution"]}\n'
-                f'              x = {self.__solution["x"]}\n'
-                f'            Rho = {self.__solution["rho"]}\n'
-                f'    Const value = {self.__solution["const_value"]}\n'
-                f'        Penalty = {self.__solution["penalty"]}\n'
-                )
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        sections = ["--- BQP ---\n" + self._format_fields([
+            ("Computed value", self.__solution['computed_val']),
+            ("Feasible solution", self.__solution['feasible_solution']),
+            ("x", self.__solution['x']),
+        ])]
+        if verbose:
+            sections.append("--- BQP transformation ---\n" + self._format_fields([
+                ("Rho", self.__solution['rho']),
+                ("Const value", self.__solution['const_value']),
+                ("Penalty", self.__solution['penalty']),
+            ]))
+            sections.append(self._format_maxcut_section("Underlying Max-Cut"))
+        return sections
 
 
 class BQPSolver(MaxCutSolver):
@@ -357,8 +381,6 @@ class BQPFromQBODense(FromFile):
     def read(self) -> ProblemBQP:
         with open(self.filename) as f:
             data = json.load(f)
-        for k in data:
-            print(k)
 
         F = np.array(data['QBO']['Q'])
         if not np.allclose(F, F.T):
@@ -635,6 +657,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     init()  # initialize MPI
+    configure_rank_logging(args.log_dir, get_rank())
     problem_reader_cls = args.format
     problem_reader = problem_reader_cls(
         args.problem_instance, optimize_input=args.optimize)
@@ -643,7 +666,7 @@ if __name__ == '__main__':
     if get_rank() == 0 and args.solution:
         with open(args.solution, 'r') as f:
             initial_estimate = np.array(json.load(f)['initial_estimate'])
-        print(initial_estimate)
+        logger.info("Initial solution: %s", initial_estimate)
     else:
         initial_estimate = None
 
@@ -656,7 +679,7 @@ if __name__ == '__main__':
     if get_rank() == 0:
         if solution is None:
             raise ValueError(f'Solution to problem {problem} not found!')
-        print(solution)
+        solution.print_computed_solution(args.verbose)
         solution_writer = BQPToJson(solution)
         if isinstance(args.output, str):
             output_path = args.output

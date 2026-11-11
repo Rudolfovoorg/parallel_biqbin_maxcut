@@ -1,5 +1,8 @@
 
+#include <cstdarg>
+#include <cstdio>
 #include <iostream>
+#include <vector>
 
 #include <mpi.h>
 #include <pybind11/pybind11.h>
@@ -13,7 +16,47 @@
 #include "wrapper_utils.h"
 #include "wrapper_hooks.h"
 
+#include "logging.h"
+
 namespace py = pybind11;
+
+extern "C" void biqbin_log_write(int level, const char *format, ...)
+{
+    if (level < BIQBIN_LOG_MIN_LEVEL || !Py_IsInitialized())
+        return;
+
+    try
+    {
+        py::gil_scoped_acquire gil;
+        try
+        {
+            auto logging = py::module_::import("logging");
+            auto logger = logging.attr("getLogger")("biqbin");
+            if (!logger.attr("isEnabledFor")(level).cast<bool>())
+                return;
+            va_list args;
+            va_start(args, format);
+            const int size = std::vsnprintf(nullptr, 0, format, args);
+            va_end(args);
+            if (size < 0)
+                return;
+            std::vector<char> message(static_cast<std::size_t>(size) + 1);
+            va_start(args, format);
+            std::vsnprintf(message.data(), message.size(), format, args);
+            va_end(args);
+
+            logger.attr("log")(level, message.data());
+        }
+        catch (py::error_already_set &error)
+        {
+            error.discard_as_unraisable("biqbin_log_write");
+        }
+    }
+    catch (...)
+    {
+        /* A logging failure must not unwind through the C solver. */
+    }
+}
 
 /* biqbin's global variables from global_var.h */
 extern Problem *SP;
@@ -250,8 +293,7 @@ py::tuple ipm_mc_pk_python(py::array_t<double> &input_matrix)
     ipm_mc_pk(input_matrix.data(),
               static_cast<int>(n),
               output_matrix.mutable_data(),
-              &f,
-              0);
+              &f);
 
     return py::make_tuple(f, output_matrix);
 }

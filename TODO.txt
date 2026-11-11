@@ -1,7 +1,7 @@
 - Create an installable python package
 - Change the way file parameters are read and set (config file)
 
-- Logging - node rank, dimension type, time value HIGH PRIORITY
+- Extend logging context with stable node identifiers and subproblem dimensions; timestamps, shared logging, and per-rank CLI files are implemented.
 - Config files for NMAX and other useful parameters
 - figure out the sdp value difference tolerance for tests
 - check what in utils is actually useful or needed

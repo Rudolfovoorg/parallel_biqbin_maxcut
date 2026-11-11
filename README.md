@@ -66,7 +66,45 @@ scipy
 
 There are detailed descriptions on two seperate setup instruction, either [**Anaconda**](doc/INSTALLATION.md#conda-based-build) or [**Docker**](doc/INSTALLATION.md#docker) based builds.
 
+### Native logging
+
+The `BIQBIN_LOG_*` macros in [`src/logging.h`](src/logging.h) send printf-style messages through the existing Python logger `biqbin`, using its normal `logger.log()` method. The shared logger and configuration helper live in `biqbin/logging.py`. CLI verbosity configures stderr output; importing BiqBin does not configure the root logger. Add `__FILE__` or `__LINE__` to your message arguments when needed. Builds with `PURE_C` print these messages with `printf` instead.
+
+CLI logs go to the terminal by default. Add `--log-dir` to also append logs to one file per MPI rank. With no directory argument, the input filename stem supplies the directory name in the current working directory (`instance.json` becomes `instance.logs`). Use `--log-dir PATH` for a custom directory; `-v`/`-vv` controls verbosity for both destinations:
+
+```bash
+mpirun -n 3 python biqbin_maxcut.py instance.json -v --log-dir
+```
+
+This creates `instance.logs/rank-00000.log`, `rank-00001.log`, and `rank-00002.log`. Files open after MPI initialization and before reading the problem. If a rank cannot create the directory or open its file, it reports the error to stderr and aborts the MPI job with code 10. Existing files are appended to; use different directories for concurrent jobs. Custom CLI entry points should call `configure_rank_logging(args.log_dir, get_rank())` from `biqbin.logging` after parsing arguments and initializing MPI.
+
+Applications can explicitly configure console output and an optional UTF-8 log file:
+
+```python
+from biqbin import configure_logging
+
+configure_logging("DEBUG", filename="biqbin.log")
+```
+
+The default format includes a local timestamp with milliseconds, the level, logger name, and MPI rank (`rank=-` before MPI initialization). For MPI runs, use a separate filename per rank, for example `filename=f"biqbin.{get_rank()}.log"` after MPI initialization. Reconfiguring replaces only handlers created by this helper; application-owned handlers remain intact. Configuration disables propagation to the root logger to avoid duplicate console output. For custom handler setups, use `biqbin.logger` directly. Pass `format="%(levelname)s:%(message)s"`. Changing verbosity only changes diagnostics; it does not run additional heuristics.
+
+Set the minimum compiled log level with `LOG_LEVEL`, which passes the corresponding numeric `-DBIQBIN_LOG_MIN_LEVEL` to both C and C++ compilers. Level names are case-insensitive:
+
+```bash
+make LOG_LEVEL=debug
+```
+
+`make LOG_LEVEL=DEBUG` and `make LOG_LEVEL=10` are equivalent. The default is INFO (`20`). Available names are DEBUG (`10`), INFO (`20`), WARNING (`30`, also WARN), ERROR (`40`), and CRITICAL (`50`, also FATAL). Nonnegative decimal integer thresholds are also supported (`0` is valid). Leading-zero values such as `010` or `08`, hexadecimal values, negative values, and fractions are rejected. Calls below the compiled threshold are removed, including evaluation of their arguments. Python's logger and handler levels still filter the remaining messages: use `-v` for INFO or `-vv` for DEBUG at runtime.
+
+Rebuild all C and C++ objects after changing `LOG_LEVEL`; make does not track compiler flag changes. The default `make` target already performs a clean rebuild. This setting applies to `BIQBIN_LOG_*` calls; existing direct `printf` calls keep their current behavior.
+
 ## Usage
+
+Problem and solution summaries start with their class name on the first line. Their shared `PrettyPrint` formatter keeps that heading beside the log prefix when using `logger.info("%s", problem)` or `logger.info("%s", solution)`, with all fields on subsequent lines.
+
+Problem objects also share a summary: `str(problem)` prints the common name/optimization/GCD header and the original problem’s dimensions, coefficients, and applicable objective settings. `problem.format_summary(verbose=True)` additionally includes the converted Max-Cut problem and BQP transformation details.
+
+Max-Cut, QUBO, and BQP print the same run statistics at every verbosity: problem name, runtime, time-limit status, B&B nodes, heuristic calls, workers used, input optimization, and GCD. Each summary then shows the original problem’s result. For QUBO and BQP, `-v` or `-vv` also shows the underlying Max-Cut result; BQP adds its rho, conversion constant, and penalty. In Python, `str(solution)` and `solution.print_computed_solution()` use the same summary; `solution.format_summary(verbose=True)` returns the detailed version as text.
 
 > **NOTE:** Biqbin requires integer-valued Max-Cut edge weights and
 > integer-valued QUBO/BQP coefficients.
@@ -131,6 +169,7 @@ mpirun -n N python3 biqbin_maxcut.py problem_instance [-optional]
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-O`, `--optimize`:  Divides the Max-Cut adjacency matrix by its GCD.
 - `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
+- `--log-dir [LOG_DIR]`: Also append logs to `rank-NNNNN.log` files in the supplied directory, or `<input stem>.logs` in the current directory when no path is supplied. Omit for terminal-only logging.
 - `--format FORMAT`: Max-Cut problem instance file format. Valid formats are [('json', 'mm', 'ew')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to json.
 - `-h`, `--help`: Show help message and exit.
 
@@ -160,6 +199,7 @@ mpirun -n N python3 biqbin_qubo.py problem_instance [-optional]
 - `-O`, `--optimize`:  Divides the transformed Max-Cut adjacency matrix by its GCD.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
+- `--log-dir [LOG_DIR]`: Also append logs to `rank-NNNNN.log` files in the supplied directory, or `<input stem>.logs` in the current directory when no path is supplied. Omit for terminal-only logging.
 - `--format FORMAT`: QUBO problem instance file format. Valid formats are [('json', 'mm', 'ew', 'qplib')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to json.
 - `-h`, `--help`: Show help message and exit.
 
@@ -193,6 +233,7 @@ mpirun -n N python3 biqbin_heuristic.py problem_instance [-optional]
 - `-O`, `--optimize`: Divides the transformed Max-Cut adjacency matrix by its GCD.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
+- `--log-dir [LOG_DIR]`: Also append logs to `rank-NNNNN.log` files in the supplied directory, or `<input stem>.logs` in the current directory when no path is supplied. Omit for terminal-only logging.
 - `--format FORMAT`: QUBO problem instance file format. Valid formats are [('json', 'mm', 'ew', 'qplib')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to 'json'.
 - `-h`, `--help`: Show help message and exit.
 
@@ -221,6 +262,7 @@ mpirun -n N python3 biqbin_bqp.py problem_instance [-optional]
 - `-O`, `--optimize`: Divides the transformed Max-Cut adjacency matrix by its GCD.
 - `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 - `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
+- `--log-dir [LOG_DIR]`: Also append logs to `rank-NNNNN.log` files in the supplied directory, or `<input stem>.logs` in the current directory when no path is supplied. Omit for terminal-only logging.
 - `--format FORMAT`: BQP problem instance file format. Valid formats are [('bqp', 'json')](doc/BQP_INPUT_EXAMPLE.md), defaults to 'bqp'.
 - `-h`, `--help`: Show help message and exit.
 
@@ -292,3 +334,18 @@ Please refer to [`doc/CUSTOM_SOLVER.md`](doc/CUSTOM_SOLVER.md) on how to replace
 For any inquiries about the software provided use the following contacts:
 
 - Beno Zupanc: [Github account](https://github.com/Zvmcevap) or [email](beno.zupanc@rudolfovo.eu)
+
+### Running tests
+
+After building the native extension and installing the development dependencies:
+
+```bash
+make test-logging    # Logging, rank-file failures, and build-level validation
+make test-summaries  # Problem/solution formatting and verbose sections
+make test           # All test suites, including both targets above
+```
+
+`make tests` is an alias for `make test`. The full suite also includes standalone C,
+Python solver, QPLIB, heuristic, initial-solution, parser, custom-callback, and MPI
+failure tests. Run from an environment with MPI and the development dependencies
+available (for example, `biqbin-py312`).

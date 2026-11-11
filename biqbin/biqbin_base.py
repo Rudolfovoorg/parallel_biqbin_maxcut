@@ -1,6 +1,6 @@
 __version__ = '2.0.5'
 
-from logging import DEBUG
+from logging import INFO
 from typing import ClassVar
 
 import numpy.typing as npt
@@ -569,7 +569,8 @@ class MaxCutSolver(PrettyPrint):
         if not np.isfinite(sdp_bound_value):
             logger.fatal("sdp_bound must return a finite float")
             abort_mpi(10)
-
+        logger.debug(
+            f'SDP bound value = {sdp_bound_value}; B&B node level = {node.level}; B&B parent SDP bound value {node.upper_bound}')
         return sdp_bound_value
 
     @data_collector(enabled_flag='collect_heuristic_root_data', data_box='heuristic_root_data')
@@ -658,10 +659,8 @@ class MaxCutSolver(PrettyPrint):
         if self.rank == 0:
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
-            if logger.isEnabledFor(DEBUG):
-                logger.debug("%s", self.problem.format_summary(verbose=True))
-            else:
-                logger.info("%s", self.problem)
+            if logger.isEnabledFor(INFO):  # lazy evaluating
+                logger.info("%s", self.problem.format_summary(verbose=True))
         else:
             input_matrix = None
 

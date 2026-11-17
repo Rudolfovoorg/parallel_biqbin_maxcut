@@ -1,139 +1,404 @@
-# BiqBin: A Solver for Max-Cut and Unconstrained Binary Quadratic Problem
+# BiqBin: A Parallel Solver for Max-Cut and Binary Quadratic Problems
 
-## **Quantum solver for hard BInary Quadratic problems (QBIQ)**
+## Quantum solver for hard BInary Quadratic problems (QBIQ)
 
-### **Aris Project (L1-60136), 1.1.2025 - 31.12.2027**
+**ARIS Project (L1-60136), 1 January 2025 – 31 December 2027**
 
-[Aris project link](https://cris.cobiss.net/ecris/si/en/project/22627)
+[ARIS project information](https://cris.cobiss.net/ecris/si/en/project/22627)
 
----
+**Copyright © 2021 — The BiqBin Project**
 
-**Copyright © 2021 — The BiqBin Project**  
-Funded by **FWF (I 3199-N31)** and **ARRS (P2-0162)**
+Funded by **FWF (I 3199-N31)** and **ARRS (P2-0162)**.
 
-This program implements the algorithm presented in the publication:
+This software implements the algorithm described in:
 
-> _Nicolò Gusmeroli, Timotej Hrga, Borut Lužar, Janez Povh, Melanie Siebenhofer, and Angelika Wiegele._  
-> **"BiqBin: A Parallel Branch-and-Bound Solver for Binary Quadratic Problems with Linear Constraints"**  
-> _ACM Trans. Math. Softw. 48, 2, Article 15 (June 2022), 31 pages._  
-> [https://doi.org/10.1145/3514039](https://doi.org/10.1145/3514039)  
-> [Also available on arXiv](https://arxiv.org/abs/2009.06240)
+> Nicolò Gusmeroli, Timotej Hrga, Borut Lužar, Janez Povh, Melanie Siebenhofer, and Angelika Wiegele.
+>
+> **BiqBin: A Parallel Branch-and-Bound Solver for Binary Quadratic Problems with Linear Constraints**
+>
+> *ACM Transactions on Mathematical Software*, 48(2), Article 15, June 2022, 31 pages.
+>
+> [DOI: 10.1145/3514039](https://doi.org/10.1145/3514039) · [arXiv](https://arxiv.org/abs/2009.06240)
 
----
+## Overview
+
+BiqBin is a parallel branch-and-bound solver for Max-Cut and binary quadratic optimization problems.
+
+The repository provides:
+
+- A native C solver using MPI.
+- Python bindings implemented with pybind11.
+- Max-Cut, QUBO and general BQP problem support.
+- Configurable SDP bounds and heuristic callbacks.
+- Structured Python and native logging, including per-rank log files.
+- Automated testing across Python and MPI implementations.
+- Generated documentation and Python API references.
+
+BiqBin requires **at least three MPI processes** for solver execution: one master and two workers.
 
 ## License
 
-This program is **Free Software**, released under the terms of the **GNU General Public License (GPL) v3**  
-or (at your option) **any later version**.
+BiqBin is free software distributed under the **GNU General Public License, version 3 or later**.
 
-You are free to:
+You may use, modify and redistribute this software under the terms of the license.
 
-- Use
-- Modify
-- Distribute
+The software is provided without warranty, including implied warranties of merchantability or fitness for a particular purpose.
 
-**without any warranty**; without even the implied warranty of **MERCHANTABILITY** or **FITNESS FOR A PARTICULAR PURPOSE**.
-
-For more details, refer to the [GNU General Public License](https://www.gnu.org/licenses/).
+See the [GNU GPL](https://www.gnu.org/licenses/) for details.
 
 ---
 
-## Setup
+## Installation
 
-> **Note:** This readme is for PC example, for HPC please refer to [HPC_EXAMPLE.md](doc/HPC_EXAMPLE.md)
+BiqBin targets Linux environments.
 
-#### Biqbin requires **Linux operating system**.
+For detailed installation instructions, see:
 
-It also requires:
+- [Installation guide](doc/INSTALLATION.md) — native/Conda and Docker environments.
+- [HPC example](doc/HPC_EXAMPLE.md) — cluster-oriented installation and SLURM execution.
 
-- **build-essential** package for GCC, G++, make 
-- Python version **3.12** or later
-- Python development headers (the `python3-dev` package).
-- MPI implementation (`OpenMPI` or `MPICH`)
-- `OpenBLAS` mathematics library
+### Requirements
 
-The rest can be installed with `pip install -r requirements.txt` for [minimal requirements](requirements.txt) or `pip install -r requirements-dev.txt` for the [full requirements (including tests)](requirements-dev.txt):
+Native builds require:
 
-```
-# python>=3.12
+- Python **3.12 or later**.
+- GCC/G++ and GNU Make.
+- Python development headers.
+- An MPI implementation: **MPICH** or **OpenMPI**.
+- OpenBLAS.
+- The Python packages listed in `requirements.txt`.
 
-numpy
-pybind11
-scipy
-```
-
-## Build and test
-
-CI also runs a separate `Ruff (lint and format)` check using Ruff 0.17.5 and
-our existing `pyproject.toml` configuration. After installing
-`requirements-dev.txt`, run the same checks locally:
+Install the Python runtime dependencies:
 
 ```bash
-ruff check .
-ruff format --check .
+python -m pip install -r requirements.txt
 ```
 
-These checks report failures without modifying files. If branch protection is
-enabled, require this check alongside the build-and-test check.
+For development and testing:
 
-`make` performs a clean build of the native executable and Python extension.
-Install `requirements-dev.txt`, then run `make test` for the complete regression
-suite (including a clean rebuild). Plain `pytest` is not equivalent: some tests
-validate files generated by preceding MPI runs and require instance arguments.
+```bash
+python -m pip install -r requirements-dev.txt
+```
 
-Tests run sequentially because they share output files.
-Do not run separate test commands concurrently in the same checkout. Standalone
-`make test-*` targets require an existing build. MPI solver commands have a
-180-second timeout and a 10-second forced-shutdown grace period; use
-`make test MPI_TIMEOUT=600` on slower machines. The expected-failure MPI cases
-have a separate 60-second limit: a timeout is a failure, not an expected abort.
-The test commands require GNU `timeout` (provided by Linux coreutils).
+### Build
 
-GitHub Actions builds the Python 3.12 / MPICH Docker image and runs the complete
-suite on pushes and pull requests. Build/test logs and MPI failure diagnostics
-are uploaded as `ci-diagnostics`, including on failure. The workflow does not
-publish images or deploy to HPC. Repository branch protection can require the
-`Build and test (Python 3.12, MPICH)` check.
+From the repository root:
 
-To reproduce the container checks locally:
+```bash
+make
+```
+
+This builds the native executable and Python extension.
+
+The default build is incremental: unchanged targets are reused, while missing or outdated targets are rebuilt.
+
+To force a complete rebuild:
+
+```bash
+make rebuild
+```
+
+Or explicitly:
+
+```bash
+make clean
+make
+```
+
+**Important:** GNU Make does not automatically detect changes to compilation variables such as `LOG_LEVEL`, the compiler or MPI implementation. Perform a clean rebuild when changing these settings.
+
+---
+
+## Docker
+
+BiqBin uses a **multi-stage Dockerfile** with two user-facing targets.
+
+| Target | Purpose |
+|---|---|
+| `runtime` | Standard environment containing the compiled solver and Python bindings |
+| `ci` | Development and testing environment, including pytest, Ruff and coverage tooling |
+
+Both targets share the same base environment and native build configuration.
+
+The default environment uses Python 3.12, Debian Bookworm and MPICH.
+
+### Standard runtime image
+
+Build the default image:
+
+```bash
+docker build -t biqbin .
+```
+
+Or use the Makefile:
+
+```bash
+make docker
+```
+
+The `runtime` target is the default Docker build target.
+
+Open an interactive shell:
+
+```bash
+docker run --rm -it biqbin bash
+```
+
+Alternatively:
+
+```bash
+make docker-shell
+```
+
+The Makefile shell target mounts the configured local `DATA_DIR` at `/data` inside the container.
+
+### Development and CI image
+
+Build the testing environment:
+
+```bash
+docker build --target ci -t biqbin-ci .
+```
+
+Or:
+
+```bash
+make docker-dev
+```
+
+Run the complete regression suite inside Docker:
 
 ```bash
 make docker-test
 ```
 
-This builds the local solver image first, then runs the tests inside it; no
-pre-existing image or registry login is needed. `make docker-dev` builds both
-the solver image and a development image with test dependencies, running the
-tests during the development-image build.
+This builds the development image if needed and runs the tests inside it.
+
+### Custom Python and MPI versions
+
+The Dockerfile supports configurable Python and MPI implementations:
+
+```bash
+docker build \
+  --target runtime \
+  --build-arg PYTHON_VERSION=3.13 \
+  --build-arg MPI_IMPL=mpich \
+  -t biqbin-py313 .
+```
+
+For an OpenMPI development environment:
+
+```bash
+docker build \
+  --target ci \
+  --build-arg MPI_IMPL=openmpi \
+  -t biqbin-openmpi-ci .
+```
+
+Supported `MPI_IMPL` values are `mpich` and `openmpi`.
+
+The CI image permits OpenMPI execution as root and allows MPI oversubscription for tests running on resource-limited containers. The standard runtime image does not enable these settings.
+
+When running actual performance benchmarks, allocate sufficient CPU resources rather than relying on oversubscription.
+
+### Working with local problem instances
+
+You can mount a local directory into the container:
+
+```bash
+docker run --rm -it \
+  -v "$PWD/instances:/data" \
+  biqbin bash
+```
+
+Problem files can then be accessed at `/data` from within the container.
+
+---
+
+## Development and testing
+
+The Makefile provides build, lint, testing, coverage and documentation targets.
+
+### Running tests
+
+Run the complete regression suite:
+
+```bash
+make test
+```
+
+The `tests` target is an alias:
+
+```bash
+make tests
+```
+
+The full suite includes native solver correctness, Python bindings, logging, summaries, input parsing, Max-Cut, QUBO, QPLIB, BQP, custom heuristics, initial solutions and MPI failure handling.
+
+Tests are executed sequentially because some test groups generate and inspect shared output files. Avoid running separate test targets concurrently in the same checkout.
+
+Plain `pytest` is **not equivalent** to `make test`: some tests require problem-instance arguments and outputs generated by preceding MPI runs.
+
+Run a smaller subset:
+
+```bash
+make test-unit
+```
+
+Or specific groups:
+
+```bash
+make test-logging
+make test-summaries
+make test-parsers
+make test-expected-failure
+```
+
+The default MPI solver timeout is 180 seconds, followed by a 10-second forced-termination grace period.
+
+For slower environments:
+
+```bash
+make test MPI_TIMEOUT=600
+```
+
+MPI expected-failure tests have their own timeout handling to detect hangs.
+
+### Linting and formatting
+
+Python linting and formatting use [Ruff](https://docs.astral.sh/ruff/), configured in `pyproject.toml`.
+
+Check lint rules:
+
+```bash
+make lint
+```
+
+Check formatting without modifying files:
+
+```bash
+make format-check
+```
+
+Format the Python source:
+
+```bash
+make format
+```
+
+Vendored third-party Python code is excluded from the project's Ruff checks.
+
+### Python coverage
+
+Collect coverage across the complete Makefile regression suite:
+
+```bash
+make coverage
+```
+
+This generates:
+
+| Output | Description |
+|---|---|
+| `.coverage` | Raw coverage database |
+| `coverage.xml` | XML report for automated tooling |
+| `htmlcov/index.html` | Annotated HTML coverage report |
+| `test-results/` | JUnit XML reports for pytest groups |
+
+Open the HTML report locally:
+
+```bash
+xdg-open htmlcov/index.html
+```
+
+Coverage includes Python statements and branches, excluding vendored code.
+
+Native C/C++ execution is not measured by pytest-cov. Python code running in separate MPI processes is also not automatically included.
+
+Coverage is currently informational; the CI pipeline does not enforce a minimum percentage.
+
+### Continuous integration
+
+GitHub Actions runs automated checks for pushes and pull requests.
+
+The workflow includes:
+
+| Job | Environment | Checks |
+|---|---|---|
+| Ruff | Python 3.12 | Linting and formatting |
+| Documentation | Python 3.12 | Strict MkDocs build |
+| Full regression suite | Python 3.12 + MPICH | Complete tests, Python coverage and JUnit |
+| Python compatibility | Python 3.13 + MPICH | Focused unit tests |
+| MPI compatibility | Python 3.12 + OpenMPI | Logging, Max-Cut and failure-handling smoke tests |
+
+The test environments are built from the Dockerfile's `ci` stage.
+
+CI uses the normal INFO-level native logging build configuration.
+
+Build and test output is captured in diagnostic artifacts, with one artifact per Python/MPI combination. Available coverage and JUnit reports are included.
+
+The workflow validates documentation but **does not deploy a documentation website**, publish Docker images or create software releases.
+
+For local checks before submitting a pull request:
+
+```bash
+make lint
+make format-check
+make docs
+make test
+```
+
+For a container-based full regression run:
+
+```bash
+make docker-test
+```
+
+---
 
 ## Documentation
 
-Install `requirements-docs.txt`, then run `make docs` for a strict HTML build
-or `make docs-serve` for a local preview. Generated files go into `site/`.
-The guides in `doc/` are combined with a curated reference for the main
-problem, solution, and solver classes and their entry points. API pages use
-public `biqbin` exports where available, plus the BQP classes in `biqbin_bqp`;
-implementation helpers are excluded.
-Documentation builds do not import the solver or require MPI/native builds.
-See [the documentation home](doc/index.md) for details.
+Documentation is maintained in `doc/` using Markdown.
 
-## [Installation readme](doc/INSTALLATION.md)
+[MkDocs](https://www.mkdocs.org/) with the Material theme generates the HTML website. Python API documentation uses `mkdocstrings`.
 
-There are detailed descriptions on two seperate setup instruction, either [**Anaconda**](doc/INSTALLATION.md#conda-based-build) or [**Docker**](doc/INSTALLATION.md#docker) based builds.
-
-### Native logging
-
-The `BIQBIN_LOG_*` macros in [`src/logging.h`](src/logging.h) send printf-style messages through the existing Python logger `biqbin`, using its normal `logger.log()` method. The shared logger and configuration helper live in `biqbin/logging.py`. CLI verbosity configures stderr output; importing BiqBin does not configure the root logger. Add `__FILE__` or `__LINE__` to your message arguments when needed. Builds with `PURE_C` print these messages with `printf` instead.
-
-CLI logs go to the terminal by default. Add `--log-dir` to also append logs to one file per MPI rank. With no directory argument, the input filename stem supplies the directory name in the current working directory (`instance.json` becomes `instance.logs`). Use `--log-dir PATH` for a custom directory; `-v`/`-vv` controls verbosity for both destinations:
+Install the documentation requirements:
 
 ```bash
-mpirun -n 3 python biqbin_maxcut.py instance.json -v --log-dir
+python -m pip install -r requirements-docs.txt
 ```
 
-This creates `instance.logs/rank-00000.log`, `rank-00001.log`, and `rank-00002.log`. Files open after MPI initialization and before reading the problem. If a rank cannot create the directory or open its file, it reports the error to stderr and aborts the MPI job with code 10. Existing files are appended to; use different directories for concurrent jobs. Custom CLI entry points should call `configure_rank_logging(args.log_dir, get_rank())` from `biqbin.logging` after parsing arguments and initializing MPI.
+Build the site:
 
-Applications can explicitly configure console output and an optional UTF-8 log file:
+```bash
+make docs
+```
+
+Preview locally:
+
+```bash
+make docs-serve
+```
+
+Generated HTML is written to `site/`.
+
+Documentation builds use strict validation: warnings cause the build to fail. Python API extraction does not require importing the native MPI extension.
+
+See the [documentation home](doc/index.md) for the guides and API reference.
+
+---
+
+## Native logging
+
+The `BIQBIN_LOG_*` macros in [`src/logging.h`](src/logging.h) provide printf-style logging from native C/C++ code.
+
+For Python-integrated builds, native messages are forwarded to the shared `biqbin` Python logger. Pure-C builds write messages using the native logging fallback.
+
+Importing BiqBin does not configure the root Python logger.
+
+### Python logging configuration
+
+Applications can configure stderr and optional UTF-8 file logging:
 
 ```python
 from biqbin import configure_logging
@@ -141,266 +406,252 @@ from biqbin import configure_logging
 configure_logging("DEBUG", filename="biqbin.log")
 ```
 
-The default format includes a local timestamp with milliseconds, the level, logger name, and MPI rank (`rank=-` before MPI initialization). For MPI runs, use a separate filename per rank, for example `filename=f"biqbin.{get_rank()}.log"` after MPI initialization. Reconfiguring replaces only handlers created by this helper; application-owned handlers remain intact. Configuration disables propagation to the root logger to avoid duplicate console output. For custom handler setups, use `biqbin.logger` directly. Pass `format="%(levelname)s:%(message)s"`. Changing verbosity only changes diagnostics; it does not run additional heuristics.
+The default format includes a timestamp, severity, logger name and MPI rank. Before MPI initialization, the rank is displayed as `-`.
 
-Set the minimum compiled log level with `LOG_LEVEL`, which passes the corresponding numeric `-DBIQBIN_LOG_MIN_LEVEL` to both C and C++ compilers. Level names are case-insensitive:
+The configuration helper manages only handlers that it owns, leaving application-installed handlers intact.
 
-```bash
-make LOG_LEVEL=debug
-```
+### CLI logging and per-rank files
 
-`make LOG_LEVEL=DEBUG` and `make LOG_LEVEL=10` are equivalent. The default is INFO (`20`). Available names are DEBUG (`10`), INFO (`20`), WARNING (`30`, also WARN), ERROR (`40`), and CRITICAL (`50`, also FATAL). Nonnegative decimal integer thresholds are also supported (`0` is valid). Leading-zero values such as `010` or `08`, hexadecimal values, negative values, and fractions are rejected. Calls below the compiled threshold are removed, including evaluation of their arguments. Python's logger and handler levels still filter the remaining messages: use `-v` for INFO or `-vv` for DEBUG at runtime.
+The command-line interface uses:
 
-Rebuild all C and C++ objects after changing `LOG_LEVEL`; make does not track compiler flag changes. The default `make` target already performs a clean rebuild, with cleanup completed before compilation starts. This setting applies to `BIQBIN_LOG_*` calls; existing direct `printf` calls keep their current behavior.
-
-## Usage
-
-Problem and solution summaries start with their class name on the first line. Their shared `PrettyPrint` formatter keeps that heading beside the log prefix when using `logger.info("%s", problem)` or `logger.info("%s", solution)`, with all fields on subsequent lines.
-
-Problem objects also share a summary: `str(problem)` prints the common name/optimization/GCD header and the original problem’s dimensions, coefficients, and applicable objective settings. `problem.format_summary(verbose=True)` additionally includes the converted Max-Cut problem and BQP transformation details.
-
-Max-Cut, QUBO, and BQP print the same run statistics at every verbosity: problem name, runtime, time-limit status, B&B nodes, heuristic calls, workers used, input optimization, and GCD. Each summary then shows the original problem’s result. For QUBO and BQP, `-v` or `-vv` also shows the underlying Max-Cut result; BQP adds its rho, conversion constant, and penalty. In Python, `str(solution)` and `solution.print_computed_solution()` use the same summary; `solution.format_summary(verbose=True)` returns the detailed version as text.
-
-> **NOTE:** Biqbin requires integer-valued Max-Cut edge weights and
-> integer-valued QUBO/BQP coefficients.
-
-> **NOTE:** Under the current QUBO-to-Max-Cut transformation, triangular QUBO
-> matrices must have even off-diagonal coefficients so that the resulting
-> Max-Cut weights remain integer-valued.
-
-> **Min Processes:** Biqbin requires at least **3 mpi processes to run**!
-
-> **Over Concurrency:** Depending on your system you must set `OpenBlas` environment variables, to prevent over threading which can **significantly** slow down your system:
-
-```bash
- export OPENBLAS_NUM_THREADS=1
- export GOTO_NUM_THREADS=1
- export OMP_NUM_THREADS=1
-```
-
-### Original Biqbin Maxcut Parallel solver - C only
+- Default verbosity: WARNING.
+- `-v`: INFO messages.
+- `-vv`: DEBUG messages.
+- `--log-dir`: Write an additional file for each MPI rank.
 
 Example:
 
 ```bash
-mpirun -n 3 ./biqbin tests/rudy/g05_60.0 params
+mpiexec -n 3 python3 biqbin_maxcut.py \
+  tests/rudy/g05_60.0.json \
+  -v --log-dir
 ```
 
-General command:
+Without an explicit directory argument, the input filename stem determines the output directory, with a `.logs` suffix.
+
+For example, `instance.json` produces:
+
+```text
+instance.logs/
+├── rank-00000.log
+├── rank-00001.log
+└── rank-00002.log
+```
+
+Use an explicit directory to control the location:
 
 ```bash
-mpirun -n N ./biqbin problem_instance params
+mpiexec -n 3 python3 biqbin_maxcut.py \
+  tests/rudy/g05_60.0.json \
+  -v --log-dir ./logs
 ```
 
-- `num_processes`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `problem_instance`: A file containing the graph (in edge list format).
-- `params`: The parameter file used to configure the solver.
+Log files are opened after MPI initialization and before problem loading. Existing files are appended to.
 
----
+Failure to create the logging directory or open a rank's log file causes an error report and aborts the MPI job with code 10.
 
-## Python versions
+Use separate directories for concurrent jobs.
 
-### Python Wrapper for Biqbin Maxcut Parallel solver
+Custom command-line entry points can configure rank logging with `configure_rank_logging()` from `biqbin.logging` after argument parsing and MPI initialization.
+
+### Compile-time logging level
+
+Native logging supports compile-time severity filtering through `LOG_LEVEL`.
+
+The default is INFO (`20`).
+
+| Level | Value |
+|---|---:|
+| DEBUG | 10 |
+| INFO | 20 |
+| WARNING / WARN | 30 |
+| ERROR | 40 |
+| CRITICAL / FATAL | 50 |
 
 Example:
 
 ```bash
-mpirun -n 3 python3 biqbin_maxcut.py tests/rudy/g05_60.0.json
+make clean
+make LOG_LEVEL=DEBUG
 ```
 
-General command:
+Level names are case-insensitive. Nonnegative decimal integer thresholds are also supported.
 
-```bash
-mpirun -n N python3 biqbin_maxcut.py problem_instance [-optional]
-```
+Messages below the compiled threshold are removed, including evaluation of their arguments.
 
-- `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `problem_instance`: Path to the problem instance file.
-- `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
-- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
-- `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
-- `-c`, `--collect-root-data`: Collect heuristic and sdp data on root node (time taken and value returned)
-- `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-- `-O`, `--optimize`:  Divides the Max-Cut adjacency matrix by its GCD.
-- `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
-- `--log-dir [LOG_DIR]`: Also append logs to `rank-NNNNN.log` files in the supplied directory, or `<input stem>.logs` in the current directory when no path is supplied. Omit for terminal-only logging.
-- `--format FORMAT`: Max-Cut problem instance file format. Valid formats are [('json', 'mm', 'ew')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to json.
-- `-h`, `--help`: Show help message and exit.
+Changing the compiled logging level requires rebuilding the native objects because Make does not automatically track changes to compilation variables.
+
+Runtime Python logging configuration can filter messages that remain compiled into the binary. It cannot restore messages removed by compile-time filtering.
 
 ---
 
-### Python Wrapper for QUBO-s
+## Running BiqBin
 
-Example:
+BiqBin requires at least three MPI processes.
 
-```bash
-mpirun -n 3 python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json
-```
-
-General command:
+For numerical libraries, prevent thread oversubscription:
 
 ```bash
-mpirun -n N python3 biqbin_qubo.py problem_instance [-optional]
+export OPENBLAS_NUM_THREADS=1
+export GOTO_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 ```
 
-- `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `problem_instance`: Path to the problem instance file.
-- `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary values as value.
-- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
-- `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
-- `-c`, `--collect-root-data`: Collect heuristic and sdp data on root node (time taken and value returned)
-- `-O`, `--optimize`:  Divides the transformed Max-Cut adjacency matrix by its GCD.
-- `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-- `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
-- `--log-dir [LOG_DIR]`: Also append logs to `rank-NNNNN.log` files in the supplied directory, or `<input stem>.logs` in the current directory when no path is supplied. Omit for terminal-only logging.
-- `--format FORMAT`: QUBO problem instance file format. Valid formats are [('json', 'mm', 'ew', 'qplib')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to json.
-- `-h`, `--help`: Show help message and exit.
+### Native Max-Cut solver
+
+Run the native executable:
+
+```bash
+mpiexec -n 3 ./biqbin_executable \
+  tests/rudy/g05_60.0 params
+```
+
+General invocation:
+
+```bash
+mpiexec -n N ./biqbin_executable \
+  problem_instance params
+```
+
+The native solver expects an edge-list problem instance and a solver parameter file.
+
+### Python Max-Cut solver
+
+```bash
+mpiexec -n 3 python3 biqbin_maxcut.py \
+  tests/rudy/g05_60.0.json
+```
+
+### Python QUBO solver
+
+```bash
+mpiexec -n 3 python3 biqbin_qubo.py \
+  tests/qubos/40/kcluster40_025_10_1.json
+```
+
+### Custom QUBO heuristic
+
+```bash
+mpiexec -n 3 python3 biqbin_heuristic.py \
+  tests/qubos/40/kcluster40_025_10_1.json
+```
+
+The `biqbin_heuristic.py` example demonstrates replacing the default heuristic with a custom sampler.
+
+For custom SDP bounds and heuristics, see [Custom solver guide](doc/CUSTOM_SOLVER.md) and [Custom SDP/heuristic callbacks](doc/CUSTOM_SDP_HEURISTIC.md).
+
+### General BQP solver
+
+```bash
+mpiexec -n 3 python3 biqbin_bqp.py \
+  tests/bqp/test_bqp.data
+```
+
+See [BQP input example](doc/BQP_INPUT_EXAMPLE.md) for supported representations.
+
+### Common Python CLI options
+
+| Option | Purpose |
+|---|---|
+| `-p PARAMS` | Custom solver parameter file |
+| `-s FILEPATH` | Initial binary solution in JSON format |
+| `-w`, `--overwrite` | Overwrite an existing output |
+| `-o OUTPUT`, `--output OUTPUT` | Specify output filename |
+| `-c`, `--collect-root-data` | Collect root-node SDP and heuristic data |
+| `-O`, `--optimize` | Divide the applicable Max-Cut matrix by its GCD |
+| `-t TIME`, `--time TIME` | Set the running time limit |
+| `-v`, `--verbose` | Increase logging verbosity |
+| `--log-dir [DIR]` | Enable additional per-rank log files |
+| `--format FORMAT` | Select an input format |
+| `-h`, `--help` | Display CLI help |
+
+Run the relevant Python entry point with `--help` for its exact supported options.
+
+### Problem and solution summaries
+
+Problem objects provide a common textual summary containing the problem name, optimization settings, GCD information and original problem data.
+
+`problem.format_summary(verbose=True)` includes additional transformed-problem details.
+
+Solution summaries include runtime, termination status, branch-and-bound nodes, heuristic calls, worker counts and objective information.
+
+For QUBO and BQP, verbose output includes the underlying Max-Cut result. BQP summaries additionally describe transformation-related constants and penalties.
 
 ---
 
-### QUBO DWaveSampler
+## Supported problem formats
 
-In `biqbin_heuristic.py` there is an example of a `QuboDwaveSampler` class which inhearits from `QUBOSolver` which overrides
-Biqbins default heuristic. It takes an extra `sampler` argument plus any arguments Dwaves sampler takes.
-In our example we use DWaves `neal.SimulatedAnnealingSampler`.
+Max-Cut and QUBO support:
 
-Example:
+- `json` — default JSON representation.
+- `mm` — Matrix Market.
+- `ew` — edge-weight list.
 
-```bash
-mpirun -n 3 python3 biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json
-```
+QUBO additionally supports:
 
-General command:
+- `qplib` — QPLIB QBN instances.
 
-```bash
-mpirun -n N python3 biqbin_heuristic.py problem_instance [-optional]
-```
+General BQP supports its own text and JSON representations.
 
-- `N`: Number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `problem_instance`: Path to the problem instance file.
-- `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary [0, 1] values as value.
-- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
-- `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
-- `-c`, `--collect-root-data`: Collect heuristic and sdp data on root node (time taken and value returned)
-- `-O`, `--optimize`: Divides the transformed Max-Cut adjacency matrix by its GCD.
-- `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-- `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
-- `--log-dir [LOG_DIR]`: Also append logs to `rank-NNNNN.log` files in the supplied directory, or `<input stem>.logs` in the current directory when no path is supplied. Omit for terminal-only logging.
-- `--format FORMAT`: QUBO problem instance file format. Valid formats are [('json', 'mm', 'ew', 'qplib')](doc/PROBLEM_INSTANCE_FORMATS.md), defaults to 'json'.
-- `-h`, `--help`: Show help message and exit.
+All supported optimization inputs require integer-valued coefficients or weights.
 
+For triangular QUBO matrices, off-diagonal coefficients must be even under the current QUBO-to-Max-Cut transformation.
 
-### Python Wrapper for general BQP
+See [Problem instance formats](doc/PROBLEM_INSTANCE_FORMATS.md) for complete examples.
 
-Example:
-
-```bash
-mpirun -n 3 python3 biqbin_bqp.py tests/bqp/test_bqp.data
-```
-
-General command:
-
-```bash
-mpirun -n N python3 biqbin_bqp.py problem_instance [-optional]
-```
-
-- `N`: number of processes to run the program using MPI, program needs at least 3 (1 master, and 2 worker process) to be used.
-- `problem_instance`: Path to the problem instance file.
-- `-p PARAMS`: Optional custom parameter file used to configure the solver, defaults to 'params'.
-- `-s FILEPATH`: Optional filepath to an initial estimate solution. `JSON` file with `initial_estimate` key and a list of binary [0, 1] values as value.
-- `-w`, `--overwrite`: Optional command to overwrite the output file if one already exists instead of appending '\_NUMBER'.
-- `-o OUTPUT`, `--output OUTPUT`: Optional custom OUTPUT file name.
-- `-c`, `--collect-root-data`: Collect heuristic and sdp data on root node (time taken and value returned)
-- `-O`, `--optimize`: Divides the transformed Max-Cut adjacency matrix by its GCD.
-- `-t TIME`, `--time TIME`: Set running time limit; acceptable time formats include "minutes", "minutes:seconds" "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-- `-v`, `--verbose`: Increases logging level from WARNING to -v for INFO or -vv for DEBUG
-- `--log-dir [LOG_DIR]`: Also append logs to `rank-NNNNN.log` files in the supplied directory, or `<input stem>.logs` in the current directory when no path is supplied. Omit for terminal-only logging.
-- `--format FORMAT`: BQP problem instance file format. Valid formats are [('bqp', 'json')](doc/BQP_INPUT_EXAMPLE.md), defaults to 'bqp'.
-- `-h`, `--help`: Show help message and exit.
-
-Detailed explanation is available in [doc/BQP_INPUT_EXAMPLE.md](doc/BQP_INPUT_EXAMPLE.md).
+The default maximum problem size is **1024 nodes**, controlled by `NMAX` in the native API header. Increasing it requires modifying the constant and rebuilding.
 
 ---
 
-### Examples
+## Solver parameters
 
-Please check the following Python files to find how to setup biqbin solver through Python
+BiqBin's parameter file controls the bundle method, cutting-plane separation, branching and time limits.
 
-- [`biqbin_maxcut.py`](biqbin_maxcut.py): Example on how to run the default version of biqbin.
-- [`biqbin_qubo.py`](biqbin_qubo.py): Example on how to run QUBO problem.
-- [`biqbin_heuristic.py`](biqbin_heuristic.py): Example on how to use custom heuristic for lower bound estimation.
-- [`biqbin_bqp.py`](biqbin_bqp.py): Example on how to run general BQP biqbin.
+| Parameter | Description |
+|---|---|
+| `init_bundle_iter` | Initial bundle-method iterations |
+| `max_bundle_iter` | Maximum bundle-method iterations |
+| `triag_iter` | Triangle inequality separation iterations |
+| `pent_iter` | Pentagonal inequality separation iterations |
+| `hept_iter` | Heptagonal inequality separation iterations |
+| `max_outer_iter` | Maximum cutting-plane outer iterations |
+| `extra_iter` | Additional refinement iterations |
+| `violated_TriIneq` | Triangle inequality violation threshold |
+| `TriIneq` | Maximum triangle inequalities to add |
+| `adjust_TriIneq` | Dynamically adjust triangle inequalities |
+| `PentIneq` | Number of pentagonal inequalities |
+| `HeptaIneq` | Number of heptagonal inequalities |
+| `Pent_Trials` | Pentagonal separation trials |
+| `Hepta_Trials` | Heptagonal separation trials |
+| `include_Pent` | Include pentagonal inequalities |
+| `include_Hepta` | Include heptagonal inequalities |
+| `root` | Compute only the root SDP bound |
+| `use_diff` | Add cutting planes only when needed |
+| `time_limit` | Maximum runtime in seconds; `0` means no limit |
+| `branchingStrategy` | `0`: least fractional; `1`: most fractional |
 
 ---
 
-> **NOTE:** The default **maximum problem size** is **1024 nodes**.  
-> If you require more, **edit** the value of `NMAX` in `biqbin_cpp_api.h`.
+## Examples and further reading
 
----
+Python entry points:
 
-## Problem Instance Input files
+- [`biqbin_maxcut.py`](biqbin_maxcut.py) — Max-Cut.
+- [`biqbin_qubo.py`](biqbin_qubo.py) — QUBO.
+- [`biqbin_heuristic.py`](biqbin_heuristic.py) — custom heuristic.
+- [`biqbin_bqp.py`](biqbin_bqp.py) — general BQP.
 
-> **NOTE:** Biqbin requires **integer**-valued Max-Cut edge weights and **integer**-valued QUBO/BQP coefficients.
+Documentation:
 
-Different Biqbin solvers support different file formats, [detailed explanation can be found here](doc/PROBLEM_INSTANCE_FORMATS.md).
+- [Installation](doc/INSTALLATION.md)
+- [HPC execution](doc/HPC_EXAMPLE.md)
+- [Problem formats](doc/PROBLEM_INSTANCE_FORMATS.md)
+- [Custom solvers](doc/CUSTOM_SOLVER.md)
+- [Custom SDP bounds and heuristics](doc/CUSTOM_SDP_HEURISTIC.md)
+- [Python API](doc/api/index.md)
 
-Python versions can use the `--format` optional parameter to choose one of the following file formats
-- `json` for the [biqbin json format](doc/PROBLEM_INSTANCE_FORMATS.md#json-input-example). Biqbin defaults to this.
-- `mm` for the [MatrixMarket format](doc/PROBLEM_INSTANCE_FORMATS.md#matrix-market-format).
-- `ew` for the [Edge-Weight list format](doc/PROBLEM_INSTANCE_FORMATS.md#edge-weight-list-input-example).
+## Contact
 
-For QUBOs we also support:
-- `qplib` for the [QPLIB file format](doc/PROBLEM_INSTANCE_FORMATS.md#qplib-format-for-qubos).
+For project inquiries:
 
-## Explanation of Parameters
-
-| Parameter           | Description                                                                    |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `init_bundle_iter`  | Initial number of iterations for the **bundle method**                         |
-| `max_bundle_iter`   | Maximum number of iterations for the bundle method                             |
-| `triag_iter`        | Number of iterations for **triangle inequality separation**                    |
-| `pent_iter`         | Number of iterations for **pentagonal inequality separation**                  |
-| `hept_iter`         | Number of iterations for **heptagonal inequality separation**                  |
-| `max_outer_iter`    | Maximum number of **cutting plane algorithm** iterations                       |
-| `extra_iter`        | Additional iterations for refinement or fallback in cutting plane algorithm    |
-| `violated_TriIneq`  | Threshold for **triangle inequality violation**: `B(X) - 1 > violated_TriIneq` |
-| `TriIneq`           | Maximum number of **triangle inequalities** added during separation            |
-| `adjust_TriIneq`    | Whether to **adjust triangle inequalities dynamically** (0 or 1)               |
-| `PentIneq`          | Number of **pentagonal inequalities** to add (usually `3 * Pent_Trials`)       |
-| `HeptaIneq`         | Number of **heptagonal inequalities** to add (usually `4 * Hepta_Trials`)      |
-| `Pent_Trials`       | Number of **simulated annealing trials** for pentagonal inequalities           |
-| `Hepta_Trials`      | Number of **simulated annealing trials** for heptagonal inequalities           |
-| `include_Pent`      | Include **pentagonal inequalities** in SDP bound (0 or 1)                      |
-| `include_Hepta`     | Include **heptagonal inequalities** in SDP bound (0 or 1)                      |
-| `root`              | If `1`, compute only **SDP bound at the root node**                            |
-| `use_diff`          | If `1`, **only add cutting planes** when necessary to speed up B&B             |
-| `time_limit`        | Maximum runtime in **seconds**. If `0`, runs until optimal solution is found   |
-| `branchingStrategy` | Branching strategy:<br>`0 = LEAST_FRACTIONAL`<br>`1 = MOST_FRACTIONAL`         |
-
-## Customizing the solver
-
-Please refer to [`doc/CUSTOM_SOLVER.md`](doc/CUSTOM_SOLVER.md) on how to replace SDP bounds, root SDP bounds, heuristics, and root heuristics with your own custom routines.
-
-## Contact information
-
-For any inquiries about the software provided use the following contacts:
-
-- Beno Zupanc: [Github account](https://github.com/Zvmcevap) or [email](beno.zupanc@rudolfovo.eu)
-
-### Running tests
-
-After building the native extension and installing the development dependencies:
-
-```bash
-make test-logging    # Logging, rank-file failures, and build-level validation
-make test-summaries  # Problem/solution formatting and verbose sections
-make test           # All test suites, including both targets above
-```
-
-`make tests` is an alias for `make test`. The full suite also includes standalone C,
-Python solver, QPLIB, heuristic, initial-solution, parser, custom-callback, and MPI
-failure tests. Run from an environment with MPI and the development dependencies
-available (for example, `biqbin-py312`).
+Beno Zupanc — [GitHub](https://github.com/Zvmcevap) · [Email](mailto:beno.zupanc@rudolfovo.eu)

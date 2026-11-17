@@ -101,9 +101,11 @@ CPPFLAGS = $(CPPOPTI) -Wall -W -pedantic
          docker docker-dev docker-no-cache docker-clean docker-test docker-shell
 
 # Default rule is to create all binaries #
-all:
+all: $(BINS) $(PYMOD_OUT)
+
+rebuild:
 	$(MAKE) clean
-	$(MAKE) _build
+	$(MAKE) all
 
 # Keep cleanup strictly before compilation, including under make -j.
 _build: $(BINS) $(PYMOD_OUT)
@@ -310,7 +312,6 @@ format-check:
 	$(RUFF) format --check .
 
 test-unit: test-logging test-summaries test-parsers
-
 
 coverage:
 	$(PYTHON) -m coverage erase

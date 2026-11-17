@@ -22,3 +22,5 @@ site/
 # Virtual environments
 .venv/
 venv/
+# Per-invocation JUnit reports
+test-results/

@@ -64,6 +64,15 @@ class PrettyPrint:
 
 
 class ProblemMaxCut(PrettyPrint):
+    """Weighted Max-Cut problem with an integer-valued symmetric adjacency matrix.
+
+    Args:
+        maxcut_adjacency_matrix: Square matrix of edge weights with zero diagonal.
+        problem_name: Name used in logging and result metadata.
+        optimize_mc_adj_matrix: Divide weights by their greatest common divisor.
+            This may modify the supplied matrix; pass a copy to preserve it.
+    """
+
     def __init__(
         self,
         maxcut_adjacency_matrix: npt.NDArray[np.floating | np.integer],
@@ -134,7 +143,8 @@ class ProblemQubo(ProblemMaxCut):
         """Initialize the ProblemQubo
 
         Args:
-            Q (np.ndarray): Qubo in a dense matrix.
+            Q (np.ndarray): Dense matrix defining the objective ``x.T @ Q @ x + offset``.
+            offset (float): Constant added to the objective value.
             problem_name (str): Name (filename) of the problem instance.
             is_minimization (bool): If the objective is to minimize (True) or maximize (False)
             optimize_input (bool, optional): Divides the biqbin input (maxcut adjacency matrix) by the greatest common divisor of the values.
@@ -195,6 +205,15 @@ class ProblemQubo(ProblemMaxCut):
 
 
 class SolutionMaxCut(PrettyPrint):
+    """Max-Cut result returned by the solver on MPI rank 0.
+
+    ``solution`` contains ``computed_val``, the binary partition vector ``x``,
+    and ``solution`` (the 1-based indices where ``x`` equals one).
+    ``meta_data`` contains timings, search statistics, and root-node diagnostics.
+    A time-limited run can return an incumbent; check ``time_limit_reached``
+    in ``meta_data`` before treating the result as proven optimal.
+    """
+
     def __init__(self, biqbin_result: dict, problem: ProblemMaxCut) -> None:
         if problem.optimize_mc_adj_matrix and problem.gcd != 1:
             biqbin_result["maxcut"]["computed_val"] *= problem.gcd
@@ -243,6 +262,13 @@ class SolutionMaxCut(PrettyPrint):
 
 
 class SolutionQubo(SolutionMaxCut):
+    """QUBO result in the original problem's objective and variable space.
+
+    ``solution`` contains ``computed_val`` (including the offset), binary ``x``,
+    1-based selected indices in ``solution``, ``cardinality``, ``offset``, and
+    ``minimization``. ``solution_maxcut`` retains the transformed Max-Cut result.
+    """
+
     def __init__(self, biqbin_result: dict, problem: ProblemQubo) -> None:
         super().__init__(biqbin_result, problem)
         self.solution_maxcut = super().solution
@@ -783,6 +809,13 @@ class MaxCutSolver(PrettyPrint):
 
 
 class QUBOSolver(MaxCutSolver):
+    """Solve a QUBO through its Max-Cut reformulation.
+
+    Call ``biqbin.init()`` first and call ``compute()`` on every MPI rank.
+    Constructor options follow ``MaxCutSolver``; ``initial_estimate`` is a
+    binary vector with one entry per original QUBO variable.
+    """
+
     solver_name = f"PyBiqBin-QUBO {__version__}"
 
     def __init__(

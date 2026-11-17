@@ -261,11 +261,11 @@ class QuboFromQPLIB(FromFile):
 
         return ProblemQubo(
             Q=Q,
-            offset=objective.offset, # pyright: ignore[reportAttributeAccessIssue]
+            offset=objective.offset,  # pyright: ignore[reportAttributeAccessIssue]
             problem_name=self.problem_name,
             is_minimization=sense,
             optimize_input=self.optimize_input,
-        )  
+        )
 
 
 class ToFile(ABC):

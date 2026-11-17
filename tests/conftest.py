@@ -12,11 +12,6 @@ def pytest_addoption(parser):
         default=[],
         help="List of problem instances",
     )
-    parser.addoption(
-        "--without-sol-vector",
-        action="store_true",
-        help="Skip checking the solution vector for SA heurist, it is too random",
-    )
 
 
 def pytest_generate_tests(metafunc):

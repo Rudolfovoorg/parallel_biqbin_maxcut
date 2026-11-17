@@ -10,3 +10,14 @@ biqbin_executable
 **/*.logs
 .venv
 ci-artifacts
+
+# Local reports, caches, and virtual environments
+site
+htmlcov
+**/.ruff_cache
+.coverage
+.coverage.*
+coverage.xml
+junit.xml
+test-results
+venv

@@ -17,7 +17,7 @@ If `initial_sdp_bound` is not overridden, `sdp_bound` is used on the root node t
 
 ## The `set_sdp_primal_solution` Requirement
 
-Biqbin requires a primal SDP solution matrix (a PSD matrix `X` with entries in the range [-1, 1]) to be set before it runs. The default `sdp_bound` sets this internally. 
+Biqbin requires a primal SDP solution matrix (a PSD matrix `X` with entries in the range [-1, 1]) to be set before it runs. The default `sdp_bound` sets this internally.
 
 **If you override `sdp_bound`, you must call `self.set_sdp_primal_solution` before returning.**
 
@@ -108,5 +108,5 @@ Without `--log-dir`, logs go only to stderr. Bare `--log-dir` selects
 directory. Each rank appends to its own `rank-NNNNN.log`. Use separate directories
 for concurrent jobs. A directory-creation or file-opening failure reports to
 stderr and calls `MPI_Abort(10)` so other ranks cannot hang in MPI communication.
-See [Native logging](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/README.md#native-logging) 
+See [Native logging](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/README.md#native-logging)
 for application configuration and compile-time severity levels.

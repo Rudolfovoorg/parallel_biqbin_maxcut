@@ -149,13 +149,13 @@ $(PYMOD_OUT): $(OBJS)
 
 # Tests
 test-harness:
-	python -m pytest tests/test_native_harness.py -v --no-header
+	$(PYTHON) -m pytest tests/test_native_harness.py tests/test_solution_checks.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_native_harness.xml) -v --no-header
 
 test-logging:
-	$(RUN_ENVS) python -m pytest tests/test_logging.py -v --no-header
+	$(RUN_ENVS) $(PYTHON) -m pytest tests/test_logging.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_logging.xml) -v --no-header
 
 test-summaries:
-	$(RUN_ENVS) python -m pytest tests/test_solution_summary.py -v --no-header
+	$(RUN_ENVS) $(PYTHON) -m pytest tests/test_solution_summary.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_solution_summary.xml) -v --no-header
 
 test-maxcut: clean-output
 	$(RUN_ENVS) tests/test.sh "$(MPI_RUN) ./$(BINS)" tests/rudy/g05_60.0 tests/rudy/g05_60.0-expected_output params
@@ -167,24 +167,24 @@ test-maxcut-python: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_maxcut.py tests/rudy/g05_80.0.json -c
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_maxcut.py tests/rudy/g05_100.4.json -c
 
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances \
+	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances \
 		tests/rudy/g05_60.0.json \
 		tests/rudy/g05_80.0.json \
 		tests/rudy/g05_100.4.json
-	python -m pytest tests/test_maxcut.py -v -s --no-header
+	$(PYTHON) -m pytest tests/test_maxcut.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_maxcut.xml) -v -s --no-header
 
 test-qubo-python: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json tests/qplib/5881.qplib
-	python -m pytest tests/test_qubo.py -v -s --no-header
+	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json tests/qplib/5881.qplib
+	$(PYTHON) -m pytest tests/test_qubo.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_qubo.xml) -v -s --no-header
 
 test-qubo-qplib: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --format=qplib -c
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qplib/kcluster80_025_20_1.qplib --format=qplib -c
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/qplib/kcluster40_025_10_1.qplib tests/qplib/kcluster80_025_20_1.qplib tests/qplib/5881.qplib
+	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/qplib/kcluster40_025_10_1.qplib tests/qplib/kcluster80_025_20_1.qplib tests/qplib/5881.qplib
 
 test-qubo-python-heuristic: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
@@ -192,7 +192,7 @@ test-qubo-python-heuristic: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
 				--output tests/heuristic/kcluster80_025_20_1.json.output.json -c
 
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --without-sol-vector --instances tests/heuristic/kcluster40_025_10_1.json tests/heuristic/kcluster80_025_20_1.json
+	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/heuristic/kcluster40_025_10_1.json tests/heuristic/kcluster80_025_20_1.json
 
 test-input-solution: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_maxcut.py \
@@ -205,7 +205,7 @@ test-input-solution: clean-output
 				--output tests/w_solution/kcluster40_025_10_1.json.output.json \
 				-s tests/w_solution/kcluster40_025_10_1.json_initial_solution.json \
 				-c
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/w_solution/g05_60.0.json tests/w_solution/kcluster40_025_10_1.json
+	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/w_solution/g05_60.0.json tests/w_solution/kcluster40_025_10_1.json
 
 test-bqp-python: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_bqp.py tests/bqp/test_bqp.data -c
@@ -213,8 +213,8 @@ test-bqp-python: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_dense.json --format dense -c
 	$(RUN_ENVS) $(MPI_RUN) python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_sparse.json --format sparse -c
 
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
-	python -m pytest tests/test_bqp.py -v -s --no-header
+	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
+	$(PYTHON) -m pytest tests/test_bqp.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_bqp.xml) -v -s --no-header
 
 test-modular-combos: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_0.json.output --test-case 0 -c
@@ -233,7 +233,7 @@ test-modular-combos: clean-output
 	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_13.json.output --test-case 13 -c
 	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_14.json.output --test-case 14 -c
 
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances  tests/custom_solvers_results/small_example_qubo_test_case_0.json \
+	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances  tests/custom_solvers_results/small_example_qubo_test_case_0.json \
 																				tests/custom_solvers_results/small_example_qubo_test_case_1.json \
 																				tests/custom_solvers_results/small_example_qubo_test_case_2.json \
 																				tests/custom_solvers_results/small_example_qubo_test_case_3.json \
@@ -250,10 +250,10 @@ test-modular-combos: clean-output
 																				tests/custom_solvers_results/small_example_qubo_test_case_14.json \
 
 test-parsers:
-	python -m pytest tests/data_parsers -v --no-header
+	$(PYTHON) -m pytest tests/data_parsers $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-data_parsers.xml) -v --no-header
 
 test-expected-failure:
-	python3 -m pytest tests/test_mpi_failure_cases.py -v -s
+	$(PYTHON) -m pytest tests/test_mpi_failure_cases.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_mpi_failure_cases.xml) -v -s
 
 test: all test-harness test-logging test-summaries test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers test-modular-combos test-expected-failure
 
@@ -298,8 +298,8 @@ test-unit: test-logging test-summaries test-parsers
 
 coverage:
 	$(PYTHON) -m coverage erase
-	PYTEST_ADDOPTS="--cov=biqbin --cov-branch --cov-append --junitxml=junit.xml" \
-		$(MAKE) test
+	PYTEST_ADDOPTS="$(PYTEST_ADDOPTS) --cov=biqbin --cov-branch --cov-append --cov-report=" \
+		$(MAKE) test JUNIT_DIR=test-results
 	$(PYTHON) -m coverage report -m
 	$(PYTHON) -m coverage xml
 	$(PYTHON) -m coverage html

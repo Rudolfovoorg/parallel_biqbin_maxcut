@@ -52,6 +52,7 @@ class ProblemBQP(ProblemMaxCut):
             A (np.ndarray): Equality-constraint matrix.
             b (np.ndarray): Equality-constraint vector.
             problem_name (str): Human-readable name of the problem.
+            offset (int): Constant added to the original objective.
             optimize_input (bool): Optimizes the input for the solver.
         """
         fatal_error = False
@@ -220,6 +221,14 @@ class ProblemBQP(ProblemMaxCut):
 
 
 class SolutionBQP(SolutionMaxCut):
+    """BQP result reconstructed from the penalized Max-Cut solution.
+
+    ``solution["feasible_solution"]`` indicates whether a feasible assignment
+    was recovered. When true, ``x`` is binary, satisfies ``A @ x == b``, and
+    ``computed_val`` includes the problem offset. Otherwise both are ``None``.
+    ``maxcut_solution`` retains the underlying Max-Cut result.
+    """
+
     def __init__(self, biqbin_result: dict, problem: ProblemBQP) -> None:
         super().__init__(biqbin_result, problem)
         self.maxcut_solution = super().solution
@@ -325,6 +334,13 @@ class SolutionBQP(SolutionMaxCut):
 
 
 class BQPSolver(MaxCutSolver):
+    """Solve an equality-constrained binary quadratic minimization problem.
+
+    Call ``biqbin.init()`` before constructing the solver. Constructor options
+    follow ``MaxCutSolver``; an ``initial_estimate`` must satisfy ``A @ x == b``.
+    Every MPI rank must participate in ``compute()``.
+    """
+
     solver_name = "PyBiqBin-BQP"
 
     def __init__(
@@ -356,6 +372,12 @@ class BQPSolver(MaxCutSolver):
         return self.__problem
 
     def compute(self) -> SolutionBQP | None:
+        """Run the solver collectively and recover the original BQP result.
+
+        Returns:
+            SolutionBQP | None: Result on MPI rank 0; ``None`` on workers.
+                Check ``solution["feasible_solution"]`` before using ``x``.
+        """
         result = self._run_solver()
         if result is not None:
             return SolutionBQP(result, self.problem)

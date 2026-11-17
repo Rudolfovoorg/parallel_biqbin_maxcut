@@ -26,6 +26,7 @@ for pattern in '^Maximum value = -?[0-9]+$' '^Solution = \(.*\)$'; do
     fi
 done
 
-# Preserve the existing strict regression comparison, ignoring timing and nodes.
-diff -u <(grep -E '^(Maximum value =|Solution =)' "$3") \
-        <(printf '%s\n' "$output" | grep -E '^(Maximum value =|Solution =)')
+# Compare the objective, then independently validate the returned partition.
+diff -u <(grep '^Maximum value =' "$3") \
+        <(printf '%s\n' "$output" | grep '^Maximum value =')
+printf '%s\n' "$output" | python3 "$(dirname "$0")/check_native_output.py" "$2"

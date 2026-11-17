@@ -13,6 +13,10 @@ RESULT = "Maximum value = 3\nSolution = ( 1 )\n"
     "output,status,expected,success",
     [
         (RESULT, 0, RESULT, True),
+        (RESULT.replace("( 1 )", "( 2 )"), 0, RESULT, True),
+        (RESULT.replace("( 1 )", "( 1 2 )"), 0, RESULT, False),
+        (RESULT.replace("( 1 )", "( 3 )"), 0, RESULT, False),
+        (RESULT.replace("( 1 )", "( 1 1 )"), 0, RESULT, False),
         (RESULT, 7, RESULT, False),
         ("", 0, "", False),
         ("Maximum value = 3\n", 0, RESULT, False),
@@ -25,12 +29,14 @@ def test_shell_harness(tmp_path, output, status, expected, success):
     solver.write_text(f"#!/bin/bash\nprintf '%s' '{output}'\nexit {status}\n")
     reference = tmp_path / "expected output"
     reference.write_text(expected)
+    graph = tmp_path / "graph"
+    graph.write_text("2 1\n1 2 3\n")
     result = subprocess.run(
         [
             "bash",
             str(HARNESS),
             f"bash {solver}",
-            "unused instance",
+            str(graph),
             str(reference),
             "unused params",
         ],

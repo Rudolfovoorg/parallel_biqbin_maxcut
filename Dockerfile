@@ -79,10 +79,14 @@ FROM build AS ci
 RUN python -m pip install --no-cache-dir \
     -r requirements-dev.txt
 
-# OpenMPI requires explicit permission to run as root.
-# These variables apply to the CI image only.
+# Allow OpenMPI test execution inside Docker.
+#
+# Root execution is permitted only in the CI image.
+# Oversubscription allows MPI tests to launch more ranks
+# than Docker reports as available CPU slots.
 ENV OMPI_ALLOW_RUN_AS_ROOT=1 \
-    OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+    OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
+    OMPI_MCA_rmaps_base_oversubscribe=1
 
 CMD ["/bin/bash"]
 

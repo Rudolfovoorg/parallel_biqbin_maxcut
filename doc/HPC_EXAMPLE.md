@@ -13,12 +13,15 @@ Enter into the directory:
 ```bash
 cd parallel_biqbin_maxcut/
 ```
-Load modules required by Biqbin:
+Load site-provided MPI, OpenBLAS, and Python modules. Python must be 3.12 or
+newer to match the supported dependencies; ask your site for the available
+module name. The MPI and OpenBLAS names below are examples, not a CI-tested
+cluster configuration:
 
 ```bash
-module load OpenMPI/4.1.6-GCC-13.2.0
-module load OpenBLAS/0.3.24-GCC-13.2.0
-module load Python/3.11.5-GCCcore-13.2.0
+module load OpenMPI
+module load OpenBLAS
+module load Python
 ```
 
 Install the requirements:
@@ -41,9 +44,9 @@ Remember to load in the three modules on every new session:
 
 
 ```bash
-module load OpenMPI/4.1.6-GCC-13.2.0
-module load OpenBLAS/0.3.24-GCC-13.2.0
-module load Python/3.11.5-GCCcore-13.2.0
+module load OpenMPI
+module load OpenBLAS
+module load Python
 ```
 
 Create a bash script for your job called `run.sh`:

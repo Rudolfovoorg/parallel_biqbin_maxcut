@@ -5,3 +5,5 @@ biqbin_executable
 .vscode
 build
 tests/bqp/QBO_rescaled
+.pytest_cache/
+ci-artifacts/

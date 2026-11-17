@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -66,7 +67,7 @@ FAILURE_CASES = {
 }
 
 
-def run_case(case: str, tmp_path: Path) -> tuple[subprocess.CompletedProcess[str], Path]:
+def run_case(case: str, tmp_path: Path, timeout: float = 60) -> tuple[subprocess.CompletedProcess[str], Path]:
     log_dir = tmp_path / case
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -93,16 +94,35 @@ def run_case(case: str, tmp_path: Path) -> tuple[subprocess.CompletedProcess[str
         str(log_dir),
     ]
 
-    cp = subprocess.run(
+    process = subprocess.Popen(
         cmd,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env,
-        check=False,
+        start_new_session=True,
     )
 
-    return cp, log_dir
+    stdout = stderr = ""
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # Kill the launcher and its local ranks; timeout is never an expected abort.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        stdout, stderr = process.communicate()
+        pytest.fail(
+            f"MPI case {case} hung for {timeout} seconds\n"
+            f"stdout:\n{stdout}\nstderr:\n{stderr}"
+        )
+    finally:
+        # Preserve diagnostics even for expected failures.
+        (log_dir / "stdout.log").write_text(stdout)
+        (log_dir / "stderr.log").write_text(stderr)
+
+    return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr), log_dir
 
 
 def marker_files(log_dir: Path, marker: str) -> list[Path]:
@@ -126,3 +146,34 @@ def test_mpi_failure_case(case: str, marker: str, tmp_path: Path) -> None:
 
     assert cp.returncode != 0,  diagnostics
     assert markers, diagnostics
+
+
+def test_timeout_is_failure_and_stops_process_group(tmp_path, monkeypatch):
+    """A hanging launcher and child must be killed, not accepted as an MPI abort."""
+    launcher = tmp_path / "hanging-mpi"
+    launcher.write_text(
+        f"#!{sys.executable}\n"
+        "import os, subprocess, sys, time\n"
+        "from pathlib import Path\n"
+        "directory = Path(sys.argv[sys.argv.index('--log-dir') + 1])\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        "(directory / 'pids').write_text(f'{os.getpid()} {child.pid}')\n"
+        "print('launcher started', flush=True)\n"
+        "print('diagnostic stderr', file=sys.stderr, flush=True)\n"
+        "time.sleep(60)\n"
+    )
+    launcher.chmod(0o755)
+    monkeypatch.setattr(sys.modules[__name__], "MPIEXEC", str(launcher))
+    with pytest.raises(pytest.fail.Exception, match="hung for"):
+        run_case("hang", tmp_path, timeout=2)
+
+    directory = tmp_path / "hang"
+    assert "launcher started" in (directory / "stdout.log").read_text()
+    assert "diagnostic stderr" in (directory / "stderr.log").read_text()
+    for pid in (directory / "pids").read_text().split():
+        status = Path(f"/proc/{pid}/stat")
+        try:
+            state = status.read_text().rsplit(") ", 1)[1][0]
+        except FileNotFoundError:
+            continue
+        assert state == "Z", f"Process {pid} still running after timeout: {state}"

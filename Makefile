@@ -38,11 +38,15 @@ $(error Invalid LOG_LEVEL '$(LOG_LEVEL)'; use DEBUG, INFO, WARNING, ERROR, CRITI
 endif
 LOG_DEFINES = -DBIQBIN_LOG_MIN_LEVEL=$(LOG_LEVEL_VALUE)
 
+# Docker and cleanup targets do not need Python development tools on the host.
+ifneq ($(filter-out docker% clean clean-output,$(or $(MAKECMDGOALS),all)),)
 PYTHON_VERSION := $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PYTHON_INCLUDE := $(shell python3-config --includes)
 PYBIND11_INCLUDES := $(shell python3 -m pybind11 --includes)
 PYTHON_LDFLAGS := $(shell python3-config --ldflags)
 PYTHON_LIBS := $(shell python3-config --libs)
+
+endif
 
 # Add explicit python lib
 PYTHON_LIB := -lpython$(PYTHON_VERSION) $(PYTHON_LDFLAGS) $(PYTHON_LIBS)
@@ -56,6 +60,15 @@ PYMOD_OUT = $(WRAPPER_BUILD_DIR)/$(PYMODULE)
 # C only binary
 BIQBIN_BINARY = biqbin_executable
 BINS =  $(C_BUILD_DIR)/$(BIQBIN_BINARY)
+
+# Bound MPI runs, including a forced shutdown if graceful termination hangs.
+MPI_TIMEOUT ?= 180
+MPI_RUN = timeout --kill-after=10s $(MPI_TIMEOUT)s mpiexec -n 3
+
+# Test targets share output files. Serialize even when invoked with make -j.
+ifneq ($(filter test%,$(MAKECMDGOALS)),)
+.NOTPARALLEL:
+endif
 
 RUN_ENVS = OPENBLAS_NUM_THREADS=1 GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1
 
@@ -81,16 +94,22 @@ CPPFLAGS = $(CPPOPTI) -Wall -W -pedantic
 
 #### Rules ####
 
-.PHONY : all clean clean-output test tests test-logging test-summaries \
+.PHONY : all _build clean clean-output test tests test-harness test-logging test-summaries \
          test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib \
          test-qubo-python-heuristic test-bqp-python test-input-solution \
-         test-parsers test-modular-combos test-expected-failure
+         test-parsers test-modular-combos test-expected-failure \
+         docker docker-dev docker-no-cache docker-clean docker-test docker-shell
 
 # Default rule is to create all binaries #
-all: clean $(BINS) $(PYMOD_OUT)
+all:
+	$(MAKE) clean
+	$(MAKE) _build
+
+# Keep cleanup strictly before compilation, including under make -j.
+_build: $(BINS) $(PYMOD_OUT)
 	cp $(PYMOD_OUT) biqbin/
 	cp $(BINS) .
-	
+
 clean-output:
 	rm -f rudy/*.output*
 	rm -f tests/rudy/*.output*
@@ -129,6 +148,9 @@ $(PYMOD_OUT): $(OBJS)
 	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
 
 # Tests
+test-harness:
+	python -m pytest tests/test_native_harness.py -v --no-header
+
 test-logging:
 	$(RUN_ENVS) python -m pytest tests/test_logging.py -v --no-header
 
@@ -136,14 +158,14 @@ test-summaries:
 	$(RUN_ENVS) python -m pytest tests/test_solution_summary.py -v --no-header
 
 test-maxcut: clean-output
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_60.0 tests/rudy/g05_60.0-expected_output params
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_80.0 tests/rudy/g05_80.0-expected_output params
-	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output params
+	$(RUN_ENVS) tests/test.sh "$(MPI_RUN) ./$(BINS)" tests/rudy/g05_60.0 tests/rudy/g05_60.0-expected_output params
+	$(RUN_ENVS) tests/test.sh "$(MPI_RUN) ./$(BINS)" tests/rudy/g05_80.0 tests/rudy/g05_80.0-expected_output params
+	$(RUN_ENVS) tests/test.sh "$(MPI_RUN) ./$(BINS)" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output params
 
 test-maxcut-python: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_60.0.json -c > /dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_80.0.json -c > /dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py tests/rudy/g05_100.4.json -c > /dev/null
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_maxcut.py tests/rudy/g05_60.0.json -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_maxcut.py tests/rudy/g05_80.0.json -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_maxcut.py tests/rudy/g05_100.4.json -c
 
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances \
 		tests/rudy/g05_60.0.json \
@@ -152,64 +174,64 @@ test-maxcut-python: clean-output
 	python -m pytest tests/test_maxcut.py -v -s --no-header
 
 test-qubo-python: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c > /dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c > /dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c > /dev/null
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json tests/qplib/5881.qplib
 	python -m pytest tests/test_qubo.py -v -s --no-header
 
 test-qubo-qplib: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --format=qplib -c > /dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/kcluster80_025_20_1.qplib --format=qplib -c > /dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c > /dev/null
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --format=qplib -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qplib/kcluster80_025_20_1.qplib --format=qplib -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/qplib/kcluster40_025_10_1.qplib tests/qplib/kcluster80_025_20_1.qplib tests/qplib/5881.qplib
 
 test-qubo-python-heuristic: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
-				--output tests/heuristic/kcluster40_025_10_1.json.output.json -c > /dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
-				--output tests/heuristic/kcluster80_025_20_1.json.output.json -c > /dev/null
-	
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
+				--output tests/heuristic/kcluster40_025_10_1.json.output.json -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
+				--output tests/heuristic/kcluster80_025_20_1.json.output.json -c
+
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --without-sol-vector --instances tests/heuristic/kcluster40_025_10_1.json tests/heuristic/kcluster80_025_20_1.json
 
 test-input-solution: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_maxcut.py \
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_maxcut.py \
 				tests/rudy/g05_60.0.json \
 				--output tests/w_solution/g05_60.0.json.output.json \
 				-s tests/w_solution/g05_60.0.json_initial_solution.json \
-				-c > /dev/null
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_qubo.py \
+				-c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_qubo.py \
 				tests/qubos/40/kcluster40_025_10_1.json \
 				--output tests/w_solution/kcluster40_025_10_1.json.output.json \
 				-s tests/w_solution/kcluster40_025_10_1.json_initial_solution.json \
-				-c > /dev/null
+				-c
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/w_solution/g05_60.0.json tests/w_solution/kcluster40_025_10_1.json
 
 test-bqp-python: clean-output
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.data -c > /dev/null 2>&1
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/test_bqp.json -j -c > /dev/null 2>&1
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_dense.json --format dense -c > /dev/null 2>&1
-	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_sparse.json --format sparse -c > /dev/null 2>&1
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_bqp.py tests/bqp/test_bqp.data -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_bqp.py tests/bqp/test_bqp.json -j -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_dense.json --format dense -c
+	$(RUN_ENVS) $(MPI_RUN) python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_sparse.json --format sparse -c
 
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
 	python -m pytest tests/test_bqp.py -v -s --no-header
 
 test-modular-combos: clean-output
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_0.json.output --test-case 0 -c > /dev/null 2>&1 
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_1.json.output --test-case 1 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_2.json.output --test-case 2 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_3.json.output --test-case 3 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_4.json.output --test-case 4 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_5.json.output --test-case 5 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_6.json.output --test-case 6 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_7.json.output --test-case 7 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_8.json.output --test-case 8 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_9.json.output --test-case 9 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_10.json.output --test-case 10 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_11.json.output --test-case 11 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_12.json.output --test-case 12 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_13.json.output --test-case 13 -c > /dev/null 2>&1
-	$(RUN_ENVS) mpirun -n 3 python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_14.json.output --test-case 14 -c > /dev/null 2>&1
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_0.json.output --test-case 0 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_1.json.output --test-case 1 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_2.json.output --test-case 2 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_3.json.output --test-case 3 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_4.json.output --test-case 4 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_5.json.output --test-case 5 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_6.json.output --test-case 6 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_7.json.output --test-case 7 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_8.json.output --test-case 8 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_9.json.output --test-case 9 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_10.json.output --test-case 10 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_11.json.output --test-case 11 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_12.json.output --test-case 12 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_13.json.output --test-case 13 -c
+	$(RUN_ENVS) $(MPI_RUN) python3 -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_14.json.output --test-case 14 -c
 
 	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances  tests/custom_solvers_results/small_example_qubo_test_case_0.json \
 																				tests/custom_solvers_results/small_example_qubo_test_case_1.json \
@@ -233,7 +255,7 @@ test-parsers:
 test-expected-failure:
 	python3 -m pytest tests/test_mpi_failure_cases.py -v -s
 
-test: test-logging test-summaries test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers test-modular-combos test-expected-failure
+test: all test-harness test-logging test-summaries test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers test-modular-combos test-expected-failure
 
 tests: test
 
@@ -251,7 +273,7 @@ docker-clean:
 	docker rmi -f $(IMAGE):$(TAG)
 	docker rmi -f $(IMAGE_DEV):$(TAG)
 
-docker-test:
+docker-test: docker
 	docker run --rm $(IMAGE):$(TAG) sh -c 'pip install -r requirements-dev.txt && make test'
 
 docker-shell:

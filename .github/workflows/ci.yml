@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test (Python 3.12, MPICH)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build the solver image
+        shell: bash
+        run: |
+          mkdir -p ci-artifacts
+          docker build --progress=plain -t biqbin-ci . 2>&1 | tee ci-artifacts/build.log
+      - name: Run the regression suite
+        shell: bash
+        run: |
+          docker run --init --name biqbin-ci-tests \
+            -v "$PWD/ci-artifacts:/artifacts" \
+            -e PYTEST_ADDOPTS="--basetemp=/artifacts/pytest" \
+            biqbin-ci bash -e -o pipefail -c '
+              python -m pip install -r requirements-dev.txt
+              python --version
+              mpicc -show
+              mpiexec --version
+              python -m pip freeze
+              make test
+            ' 2>&1 | tee ci-artifacts/tests.log
+      - name: Clean up and prepare diagnostics
+        if: always()
+        run: |
+          docker rm -f biqbin-ci-tests || true
+          # pytest creates private directories as the container's root user.
+          sudo chmod -R a+rX ci-artifacts
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-diagnostics
+          path: ci-artifacts/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -1,3 +1,4 @@
 -r requirements.txt
 pytest==9.0.2
-dwave-system==1.30.0
+# Only the local simulated annealer is used by biqbin_heuristic.py.
+dwave-samplers==1.8.0

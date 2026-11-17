@@ -1,26 +1,19 @@
-FROM python:3.12 
+FROM python:3.12-bookworm
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
-    liblapack-dev \
-    liblapack3 \
     libopenblas-dev \
     mpich \
+    libmpich-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip
-RUN pip install numpy
-
-
 WORKDIR /solver
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+ENV OPENBLAS_NUM_THREADS=1 \
+    GOTO_NUM_THREADS=1 \
+    OMP_NUM_THREADS=1
+
 COPY . .
-
-RUN pip install -r requirements.txt 
-
-ENV OPENBLAS_NUM_THREADS=1 
-ENV GOTO_NUM_THREADS=1 
-ENV OMP_NUM_THREADS=1
-
 RUN make

@@ -1,5 +1,6 @@
 .git
 .github
+.gitignore
 build
 biqbin_executable
 **/*.so
@@ -21,3 +22,6 @@ coverage.xml
 junit.xml
 test-results
 venv
+
+*.egg-info/
+dist/

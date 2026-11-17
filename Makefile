@@ -259,27 +259,42 @@ test: all test-harness test-logging test-summaries test-maxcut test-maxcut-pytho
 
 tests: test
 
-docker: 
-	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
+
+# ============================================================
+# Docker
+# ============================================================
+
+docker:
+	docker build $(DOCKER_BUILD_PARAMS) \
+		--target runtime \
+		--progress=plain \
+		-t $(IMAGE):$(TAG) .
 
 docker-dev:
-	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
-	docker build $(DOCKER_BUILD_PARAMS) -f Dockerfile.dev --build-arg BASE_IMAGE=$(IMAGE):$(TAG) --progress=plain -t $(IMAGE_DEV):$(TAG)  . 
+	docker build $(DOCKER_BUILD_PARAMS) \
+		--target ci \
+		--progress=plain \
+		-t $(IMAGE_DEV):$(TAG) .
 
-docker-no-cache: 
-	docker build --no-cache $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 
+docker-no-cache:
+	docker build --no-cache $(DOCKER_BUILD_PARAMS) \
+		--target runtime \
+		--progress=plain \
+		-t $(IMAGE):$(TAG) .
 
-docker-clean: 
-	docker rmi -f $(IMAGE):$(TAG)
-	docker rmi -f $(IMAGE_DEV):$(TAG)
+docker-clean:
+	docker rmi -f $(IMAGE):$(TAG) || true
+	docker rmi -f $(IMAGE_DEV):$(TAG) || true
 
-docker-test: docker
-	docker run --rm $(IMAGE):$(TAG) sh -c 'pip install -r requirements-dev.txt && make test'
+docker-test: docker-dev
+	docker run --rm --init \
+		$(IMAGE_DEV):$(TAG) \
+		make test
 
-docker-shell:
-	docker run --interactive --tty --rm --mount type=bind,src=$(shell pwd)/$(DATA_DIR),dst=/data $(IMAGE):$(TAG) /bin/bash
-
-
+docker-shell: docker
+	docker run --interactive --tty --rm \
+		--mount type=bind,src=$(shell pwd)/$(DATA_DIR),dst=/data \
+		$(IMAGE):$(TAG) /bin/bash
 
 .PHONY: lint format format-check test-unit coverage docs docs-serve
 
@@ -296,13 +311,20 @@ format-check:
 
 test-unit: test-logging test-summaries test-parsers
 
+
 coverage:
 	$(PYTHON) -m coverage erase
+	mkdir -p test-results
+	@set +e; \
 	PYTEST_ADDOPTS="$(PYTEST_ADDOPTS) --cov=biqbin --cov-branch --cov-append --cov-report=" \
-		$(MAKE) test JUNIT_DIR=test-results
-	$(PYTHON) -m coverage report -m
-	$(PYTHON) -m coverage xml
-	$(PYTHON) -m coverage html
+		$(MAKE) test JUNIT_DIR=test-results; \
+	status=$$?; \
+	if [ -f .coverage ]; then \
+		$(PYTHON) -m coverage report -m || true; \
+		$(PYTHON) -m coverage xml || true; \
+		$(PYTHON) -m coverage html || true; \
+	fi; \
+	exit $$status
 
 docs:
 	$(PYTHON) -m mkdocs build --strict

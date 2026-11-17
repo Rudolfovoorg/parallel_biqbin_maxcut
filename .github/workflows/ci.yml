@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -12,79 +13,183 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  OPENBLAS_NUM_THREADS: "1"
+  GOTO_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+  PYTHONUNBUFFERED: "1"
+
 jobs:
+  # ==========================================================
+  # Python linting and formatting
+  # ==========================================================
   lint:
     name: Ruff (lint and format)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+
       - name: Install Ruff
         run: python -m pip install ruff==0.17.5
-      - name: Lint
-        run: ruff check .
-      - name: Check formatting
-        run: ruff format --check .
 
+      - name: Lint
+        run: make lint
+
+      - name: Check formatting
+        run: make format-check
+
+  # ==========================================================
+  # Documentation validation (no deployment)
+  # ==========================================================
   docs:
     name: Documentation
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Install documentation tools
+
+      - name: Install documentation dependencies
         run: python -m pip install -r requirements-docs.txt
+
       - name: Build documentation
         run: make docs
 
+  # ==========================================================
+  # Native builds, MPI tests and coverage
+  # ==========================================================
   test:
-    name: Build and test (Python 3.12, MPICH)
+    name: Test (Python ${{ matrix.python }}, ${{ matrix.mpi }})
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.12"
+            mpi: mpich
+            suite: coverage
+
+          - python: "3.13"
+            mpi: mpich
+            suite: unit
+
+          - python: "3.12"
+            mpi: openmpi
+            suite: smoke
+
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Build the solver image
+
+      - name: Prepare diagnostics
+        run: mkdir -p ci-artifacts
+
+      - name: Build CI image
         shell: bash
         run: |
-          mkdir -p ci-artifacts
-          docker build --progress=plain -t biqbin-ci . 2>&1 | tee ci-artifacts/build.log
-      - name: Run the regression suite
+          set -euo pipefail
+
+          docker build --progress=plain \
+            --target ci \
+            --build-arg PYTHON_VERSION=${{ matrix.python }} \
+            --build-arg MPI_IMPL=${{ matrix.mpi }} \
+            --build-arg LOG_LEVEL=DEBUG \
+            -t biqbin-ci . \
+            2>&1 | tee ci-artifacts/build.log
+
+      - name: Run regression suite
         shell: bash
         run: |
-          docker run --init --name biqbin-ci-tests \
+          set -euo pipefail
+
+          docker run --init \
+            --name biqbin-ci-tests \
             -v "$PWD/ci-artifacts:/artifacts" \
             -e PYTEST_ADDOPTS="--basetemp=/artifacts/pytest" \
+            -e TEST_SUITE="${{ matrix.suite }}" \
             biqbin-ci bash -e -o pipefail -c '
-              python -m pip install -r requirements-dev.txt
+              echo "=== Environment ==="
               python --version
               mpicc -show
               mpiexec --version
               python -m pip freeze
-              make test
+
+              echo "=== Tests ==="
+
+              case "$TEST_SUITE" in
+                coverage)
+                  make coverage LOG_LEVEL=DEBUG
+                  ;;
+
+                unit)
+                  make test-unit LOG_LEVEL=DEBUG
+                  ;;
+
+                smoke)
+                  make test-logging \
+                    test-maxcut \
+                    test-expected-failure \
+                    LOG_LEVEL=DEBUG
+                  ;;
+
+                *)
+                  echo "Unknown test suite: $TEST_SUITE" >&2
+                  exit 1
+                  ;;
+              esac
             ' 2>&1 | tee ci-artifacts/tests.log
-      - name: Clean up and prepare diagnostics
+
+      - name: Collect reports
         if: always()
+        shell: bash
+        run: |
+          mkdir -p ci-artifacts
+
+          if docker container inspect biqbin-ci-tests \
+            >/dev/null 2>&1; then
+
+            for file in \
+              coverage.xml \
+              .coverage \
+              htmlcov \
+              test-results
+            do
+              docker cp \
+                "biqbin-ci-tests:/solver/$file" \
+                "ci-artifacts/$file" 2>/dev/null || true
+            done
+          fi
+
+      - name: Clean up
+        if: always()
+        shell: bash
         run: |
           docker rm -f biqbin-ci-tests || true
-          # pytest creates private directories as the container's root user.
           sudo chmod -R a+rX ci-artifacts
+
       - name: Upload diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@v4
         with:
-          name: ci-diagnostics
+          name: ci-${{ matrix.python }}-${{ matrix.mpi }}
           path: ci-artifacts/
-          retention-days: 7
-          if-no-files-found: ignore
+          retention-days: 14
+          if-no-files-found: warn
+          include-hidden-files: true

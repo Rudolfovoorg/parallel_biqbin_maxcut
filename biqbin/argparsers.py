@@ -1,71 +1,105 @@
-import warnings
-from pathlib import Path
-from argparse import ArgumentParser, ArgumentTypeError, SUPPRESS
 import logging
+import warnings
+from argparse import SUPPRESS, ArgumentParser, ArgumentTypeError
+from pathlib import Path
+
+from biqbin.data_parsers import (
+    FromFile,
+    MaxCutFromEdgeWeights,
+    MaxCutFromJson,
+    MaxCutFromMatrixMarket,
+    QuboFromEdgeWeights,
+    QuboFromJson,
+    QuboFromMatrixMarket,
+    QuboFromQPLIB,
+)
 from biqbin.logging import configure_logging
-from biqbin.data_parsers import (FromFile,
-                                 MaxCutFromJson,
-                                 MaxCutFromMatrixMarket,
-                                 MaxCutFromEdgeWeights,
-                                 QuboFromJson,
-                                 QuboFromMatrixMarket,
-                                 QuboFromEdgeWeights,
-                                 QuboFromQPLIB)
 
 
 class ArgParserBase(ArgumentParser):
     def __init__(self, prog: str, description: str):
-        super().__init__(prog=prog, description=description,
-                         usage=f'mpirun [-n N] python3 {prog} problem_instance [-p PARAMS] [-w] [-o OUTPUT] [--log-dir [LOG_DIR]]',
-                         epilog='For more information please visit https://github.com/Rudolfovoorg/parallel_biqbin_maxcut',
-                         )
-        self.add_argument('problem_instance',
-                          help='Path to the problem instance file')
+        super().__init__(
+            prog=prog,
+            description=description,
+            usage=f"mpirun [-n N] python3 {prog} problem_instance [-p PARAMS] [-w] [-o OUTPUT] [--log-dir [LOG_DIR]]",
+            epilog="For more information please visit https://github.com/Rudolfovoorg/parallel_biqbin_maxcut",
+        )
+        self.add_argument("problem_instance", help="Path to the problem instance file")
 
         # Optional arguments
-        self.add_argument('-s', '--solution',
-                          help='file path to an initial solution')
+        self.add_argument("-s", "--solution", help="file path to an initial solution")
 
-        self.add_argument('-c', '--collect-root-data', action='store_true',
-                          help='collect heuristic and sdp data on root node (time taken and value returned)')
+        self.add_argument(
+            "-c",
+            "--collect-root-data",
+            action="store_true",
+            help="collect heuristic and sdp data on root node (time taken and value returned)",
+        )
 
-        self.add_argument('--collect-heur-data',
-                          action='store_true', help=SUPPRESS)
+        self.add_argument("--collect-heur-data", action="store_true", help=SUPPRESS)
 
-        self.add_argument('-p', '--params', default='params',
-                          help='custom parameters file path (default: "params")')
+        self.add_argument(
+            "-p",
+            "--params",
+            default="params",
+            help='custom parameters file path (default: "params")',
+        )
 
-        self.add_argument('-w', '--overwrite',
-                          action='store_true',
-                          help='overwrite output.json instead of labeling with _NUMBER'
-                          )
-        self.add_argument('-O', '--optimize', action='store_true',
-                          help='Divides the final input matrix values by their GCD')
-        self.add_argument('-o', '--output', help='set custom output file path')
-        self.add_argument('--log-dir', nargs='?', const='', metavar='LOG_DIR',
-                          help='also log to one file per MPI rank; optional directory defaults to <input stem>.logs in the current directory')
+        self.add_argument(
+            "-w",
+            "--overwrite",
+            action="store_true",
+            help="overwrite output.json instead of labeling with _NUMBER",
+        )
+        self.add_argument(
+            "-O",
+            "--optimize",
+            action="store_true",
+            help="Divides the final input matrix values by their GCD",
+        )
+        self.add_argument("-o", "--output", help="set custom output file path")
+        self.add_argument(
+            "--log-dir",
+            nargs="?",
+            const="",
+            metavar="LOG_DIR",
+            help="also log to one file per MPI rank; optional directory defaults to <input stem>.logs in the current directory",
+        )
         # time limit format taken from SLURM docs https://slurm.schedmd.com/sbatch.html
-        self.add_argument('-t', '--time', default='0', type=self.parse_time_limit,
-                          help='set running time limit; acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"')
+        self.add_argument(
+            "-t",
+            "--time",
+            default="0",
+            type=self.parse_time_limit,
+            help='set running time limit; acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"',
+        )
 
-        self.add_argument('-v', '--verbose', action='count', default=0,
-                          help='Increases logging level from WARNING to -v for INFO or -vv for DEBUG')
+        self.add_argument(
+            "-v",
+            "--verbose",
+            action="count",
+            default=0,
+            help="Increases logging level from WARNING to -v for INFO or -vv for DEBUG",
+        )
 
     def parse_args(self, *args, **kwargs):
         ns = super().parse_args(*args, **kwargs)
 
-        if ns.log_dir == '':
-            ns.log_dir = Path(ns.problem_instance).stem + '.logs'
+        if ns.log_dir == "":
+            ns.log_dir = Path(ns.problem_instance).stem + ".logs"
 
         configure_logging(
-            logging.DEBUG if ns.verbose > 1 else
-            logging.INFO if ns.verbose == 1 else logging.WARNING,
+            logging.DEBUG
+            if ns.verbose > 1
+            else logging.INFO
+            if ns.verbose == 1
+            else logging.WARNING,
         )
 
         if ns.collect_heur_data:
             warnings.warn(
                 "[DEPRECATED] `--collect-heur-data` is deprecated, use `--collect-root-data` instead",
-                UserWarning
+                UserWarning,
             )
             ns.collect_root_data = ns.collect_heur_data
         return ns
@@ -103,93 +137,90 @@ class ArgParserBase(ArgumentParser):
 
 
 class ArgParserMaxCut(ArgParserBase):
-
     FORMAT_CHOICES = {
-        'json': MaxCutFromJson,
-        'mm': MaxCutFromMatrixMarket,
-        'ew': MaxCutFromEdgeWeights
+        "json": MaxCutFromJson,
+        "mm": MaxCutFromMatrixMarket,
+        "ew": MaxCutFromEdgeWeights,
     }
 
     def __init__(self):
-        super().__init__(prog='biqbin_maxcut.py', description='Biqbin Maxcut solver')
+        super().__init__(prog="biqbin_maxcut.py", description="Biqbin Maxcut solver")
         self.add_argument(
-            '--format',
+            "--format",
             default=self.FORMAT_CHOICES["json"],
             type=self.parse_format,
-            help='Max-Cut problem instance file format. mm is MatrixMarket, ew is edge-weight Stanford GSet style')
+            help="Max-Cut problem instance file format. mm is MatrixMarket, ew is edge-weight Stanford GSet style",
+        )
 
     def parse_format(self, fmt: str) -> FromFile:
         fmt = fmt.lower()
         if fmt not in self.FORMAT_CHOICES:
             raise ArgumentTypeError(
-                f'invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}')
+                f"invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}"
+            )
 
         return self.FORMAT_CHOICES[fmt]
 
 
 class ArgParserQubo(ArgParserBase):
-
     FORMAT_CHOICES = {
-        'json': QuboFromJson,
-        'mm': QuboFromMatrixMarket,
-        'ew': QuboFromEdgeWeights,
-        'qplib': QuboFromQPLIB
+        "json": QuboFromJson,
+        "mm": QuboFromMatrixMarket,
+        "ew": QuboFromEdgeWeights,
+        "qplib": QuboFromQPLIB,
     }
 
-    def __init__(self, prog='biqbin_qubo.py', description='Biqbin QUBO solver'):
+    def __init__(self, prog="biqbin_qubo.py", description="Biqbin QUBO solver"):
         super().__init__(prog=prog, description=description)
         self.add_argument(
-            '--format',
+            "--format",
             default=self.FORMAT_CHOICES["json"],
             type=self.parse_format,
-            help=f'QUBO problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}')
+            help=f"QUBO problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}",
+        )
 
     def parse_format(self, fmt: str) -> FromFile:
         fmt = fmt.lower()
         if fmt not in self.FORMAT_CHOICES:
             raise ArgumentTypeError(
-                f'invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}')
+                f"invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}"
+            )
 
         return self.FORMAT_CHOICES[fmt]
 
 
 class ArgParserDWaveHeuristic(ArgParserQubo):
     def __init__(self):
-        super().__init__(prog='biqbin_heuristic.py',
-                         description='Biqbin QUBO solver with DWave heuristic')
+        super().__init__(
+            prog="biqbin_heuristic.py", description="Biqbin QUBO solver with DWave heuristic"
+        )
 
         # Deprecated flags
         self.add_argument(
-            "-d", "--debug",
+            "-d",
+            "--debug",
             action="store_true",
-            help=SUPPRESS  # hide from help
+            help=SUPPRESS,  # hide from help
         )
 
-        self.add_argument(
-            "-i", "--info",
-            action="store_true",
-            help=SUPPRESS
-        )
+        self.add_argument("-i", "--info", action="store_true", help=SUPPRESS)
 
     def parse_args(self, *args, **kwargs):
         ns = super().parse_args(*args, **kwargs)
 
         if ns.debug:
-            warnings.warn(
-                "[DEPRECATED] `-d/--debug` is deprecated, use `-vv` instead",
-                UserWarning
-            )
+            warnings.warn("[DEPRECATED] `-d/--debug` is deprecated, use `-vv` instead", UserWarning)
             ns.verbose = max(ns.verbose, 2)
 
         if ns.info:
-            warnings.warn(
-                "[DEPRECATED] `-i/--info` is deprecated, use `-v` instead",
-                UserWarning
-            )
+            warnings.warn("[DEPRECATED] `-i/--info` is deprecated, use `-v` instead", UserWarning)
             ns.verbose = max(ns.verbose, 1)
 
         configure_logging(
-            logging.DEBUG if ns.verbose > 1 else
-            logging.INFO if ns.verbose == 1 else logging.WARNING,
+            logging.DEBUG
+            if ns.verbose > 1
+            else logging.INFO
+            if ns.verbose == 1
+            else logging.WARNING,
         )
         return ns

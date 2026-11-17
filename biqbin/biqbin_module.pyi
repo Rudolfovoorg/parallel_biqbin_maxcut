@@ -1,37 +1,39 @@
 # biqbin.pyi
-import numpy as np
-import numpy.typing as npt
 from typing import Callable, Tuple
 
+import numpy as np
+import numpy.typing as npt
 
 """
 Python bindings for BiqBin exposed in biqbin_module.so
 """
 
-
-def run(solver_name: str, problem_instance_path: str, maxcut_adj_matrix: npt.NDArray[np.float64] | None, params_path: str, time_limit: int) -> dict:
+def run(
+    solver_name: str,
+    problem_instance_path: str,
+    maxcut_adj_matrix: npt.NDArray[np.float64] | None,
+    params_path: str,
+    time_limit: int,
+) -> dict:
     """Runs the solver, returns a solution dictionary on mpi rank 0"""
     ...
-
 
 def set_heuristic(heuristic_function: Callable[[BabNode, Problem, Problem], float]) -> None:
     """Sets the heuristic function in native biqbin."""
     ...
 
-
 def set_primal_solution(primal_solution: npt.NDArray[np.float64]) -> None:
     """Sets the SDP primal solution matrix ``X`` in C.
 
     Vital step before running the default GW heuristic or branching,
-    default SDPBound routine does this automatically, but if we overwrite ``sdp_bound`` with a 
+    default SDPBound routine does this automatically, but if we overwrite ``sdp_bound`` with a
     custom implementation, we need to manually set the primal solution X
 
     Args:
         primal_solution (np.ndarray): shape (P.n, P.n) where n is the size of the subproblem P passed into
-        ``heuristic`` and ``sdp_bound`` solver callbacks. It is in {-1, 1} range.
+            ``heuristic`` and ``sdp_bound`` solver callbacks. Entries must be in [-1, 1].
     """
     ...
-
 
 def get_fixed_value(node: BabNode, P0: Problem) -> float:
     """Calculate the objective value contribution of the "fixed" part,
@@ -46,7 +48,6 @@ def get_fixed_value(node: BabNode, P0: Problem) -> float:
     """
     ...
 
-
 def update_mc_lower_bound_solution(new_solution_x: npt.NDArray[np.int32]) -> bool:
     """Update Max-Cut global lower-bound solution, if it is better than the current one
 
@@ -58,17 +59,15 @@ def update_mc_lower_bound_solution(new_solution_x: npt.NDArray[np.int32]) -> boo
     """
     ...
 
-
-def goemans_williamson_heuristic(L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray) -> float:
+def goemans_williamson_heuristic(
+    L0: np.ndarray, L: np.ndarray, xfixed: np.ndarray, sol_X: np.ndarray, x: np.ndarray
+) -> float:
     """Default Biqbin GW heuristic implementation"""
     ...
 
-
 def set_node_evaluation(node_eval_function: Callable[[BabNode, Problem, Problem], float]) -> None:
-    """Set the function that will evaluate upper and lower bounds of a branch-and-bound node.
-    """
+    """Set the function that will evaluate upper and lower bounds of a branch-and-bound node."""
     ...
-
 
 def sdp_bound(node: BabNode, P0: Problem, P: Problem) -> float:
     """Default Biqbin SDPBound implementation which internally calls the heuristic function many times during execution.
@@ -83,7 +82,6 @@ def sdp_bound(node: BabNode, P0: Problem, P: Problem) -> float:
     """
     ...
 
-
 def get_root_sdp_bound() -> float:
     """Get the sdp bound value computed on the root node,
     used to check the validity of a custom sdp bound.
@@ -92,43 +90,36 @@ def get_root_sdp_bound() -> float:
         float: sdp bound value saved in the native solver as double
     """
 
-
 def get_rank() -> int:
     """Returns the MPI rank."""
     ...
-
 
 def init_mpi() -> Tuple[int, int]:
     """initializes MPI
 
     Returns:
-        (int, int): MPI (size, rank) tuple 
+        (int, int): MPI (size, rank) tuple
     """
     ...
 
-
 def finalize_mpi() -> None:
-    """Finalize MPI protocol after running the solver
-    """
-
+    """Finalize MPI protocol after running the solver"""
 
 def abort_mpi(abort_code: int):
     """Abort solver execution on fatal errors
 
     Args:
-        abort_code (int)
+        abort_code (int): Exit code passed to MPI abort.
     """
     ...
-
 
 def reduce_sum_mpi(number: int | float) -> int | float:
     """Reduce sum the input number of all ranks
 
     Returns:
-        int | float: the sum on master process ``MPI rank == 0``, else it returns 0. 
+        int | float: the sum on master process ``MPI rank == 0``, else it returns 0.
     """
     ...
-
 
 def interior_point_method_maxcut(L: np.ndarray) -> tuple[float, np.ndarray]:
     """
@@ -155,7 +146,6 @@ def interior_point_method_maxcut(L: np.ndarray) -> tuple[float, np.ndarray]:
     """
     ...
 
-
 class BabSolution:
     """Solution data attached to a branch-and-bound node.
 
@@ -181,7 +171,6 @@ class BabSolution:
         """
         ...
 
-
 class BabNode:
     """Branch-and-bound search node.
 
@@ -190,7 +179,7 @@ class BabNode:
     A ``BabNode`` is passed to node-evaluation callbacks such as ``sdp_bound`` and ``heuristic``.
 
     Treat array-valued attributes as short-lived views. Copy them before storing
-    them beyond the current callback.    
+    them beyond the current callback.
     """
 
     @property
@@ -206,7 +195,7 @@ class BabNode:
 
         - ``0``: variable is still free at this search-tree node
         - ``1``: variable has been fixed at this search-tree node, fixed solutions
-        value is stored in the ``sol.x[i]`` 
+        value is stored in the ``sol.x[i]``
 
         This is a fixing mask, not the fixed value itself. The returned array
         is read-only and backed by solver-owned memory.
@@ -259,7 +248,6 @@ class BabNode:
         """
         ...
 
-
 class Problem:
     """Problem data passed to node-evaluation callbacks.
 
@@ -279,7 +267,7 @@ class Problem:
 
         Two-dimensional read-only Python view with shape ``(self.n, self.n)``.
 
-        - For ``P0``, this is the objective matrix of the full problem. 
+        - For ``P0``, this is the objective matrix of the full problem.
         - For ``P``, this is the objective matrix of the current subproblem.
 
         The returned array is backed by solver-owned memory. Copy it before

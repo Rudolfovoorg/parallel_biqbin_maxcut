@@ -61,6 +61,7 @@ def solver_class_for(case: str, log_dir: Path):
     # ------------------------------------------------------------------
 
     if case == "callback_abort_rank0":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 if self.rank == 0:
@@ -73,6 +74,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "callback_exception_rank0":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 if self.rank == 0:
@@ -88,18 +90,19 @@ def solver_class_for(case: str, log_dir: Path):
     # ------------------------------------------------------------------
 
     if case == "initial_sdp_exception_rank0":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
                 if self.rank == 0:
                     self.mark("BIQBIN_TEST_INITIAL_SDP_EXCEPTION_RANK0")
-                    raise RuntimeError(
-                        "BIQBIN_TEST_INITIAL_SDP_EXCEPTION_RANK0")
+                    raise RuntimeError("BIQBIN_TEST_INITIAL_SDP_EXCEPTION_RANK0")
 
                 return self.good_sdp_bound(node, P0, P)
 
         return Solver
 
     if case == "sdp_exception_rank0":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 if self.rank == 0:
@@ -111,12 +114,12 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "initial_heuristic_exception_rank0":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_heuristic(self, L, *args, **kwargs):
                 if self.rank == 0:
                     self.mark("BIQBIN_TEST_INITIAL_HEURISTIC_EXCEPTION_RANK0")
-                    raise RuntimeError(
-                        "BIQBIN_TEST_INITIAL_HEURISTIC_EXCEPTION_RANK0")
+                    raise RuntimeError("BIQBIN_TEST_INITIAL_HEURISTIC_EXCEPTION_RANK0")
 
                 P = kwargs["P"]
                 return np.zeros(P.n - self._MC_OFFSET, dtype=np.int32)
@@ -124,6 +127,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "heuristic_exception_rank0":
+
         class Solver(BaseSolver):  # type: ignore
             def heuristic(self, L, *args, **kwargs):
                 if self.rank == 0:
@@ -140,6 +144,7 @@ def solver_class_for(case: str, log_dir: Path):
     # ------------------------------------------------------------------
 
     if case == "initial_sdp_returns_invalid_bound":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_INITIAL_SDP_RETURNS_INVALID_BOUND")
@@ -149,6 +154,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "initial_sdp_returns_nan":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_INITIAL_SDP_RETURNS_NAN")
@@ -158,6 +164,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "initial_sdp_returns_inf":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_INITIAL_SDP_RETURNS_INF")
@@ -167,6 +174,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "initial_sdp_missing_primal":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_INITIAL_SDP_MISSING_PRIMAL")
@@ -179,6 +187,7 @@ def solver_class_for(case: str, log_dir: Path):
     # ------------------------------------------------------------------
 
     if case == "sdp_returns_nan":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_RETURNS_NAN")
@@ -188,6 +197,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_returns_inf":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_RETURNS_INF")
@@ -197,6 +207,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_returns_none":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):  # type:ignore
                 self.mark("BIQBIN_TEST_SDP_RETURNS_NONE")
@@ -206,6 +217,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_returns_string":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):  # type:ignore
                 self.mark("BIQBIN_TEST_SDP_RETURNS_STRING")
@@ -215,6 +227,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_returns_array":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):  # type:ignore
                 self.mark("BIQBIN_TEST_SDP_RETURNS_ARRAY")
@@ -224,11 +237,11 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_rank1_rank2_returns_invalid_bound":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 if self.rank in (1, 2):
-                    self.mark(
-                        "BIQBIN_TEST_RANK1_RANK2_SDP_RETURNS_INVALID_BOUND")
+                    self.mark("BIQBIN_TEST_RANK1_RANK2_SDP_RETURNS_INVALID_BOUND")
                     self.set_sdp_primal_solution(np.eye(P.n, dtype=np.float64))
                     return -10.0
 
@@ -241,6 +254,7 @@ def solver_class_for(case: str, log_dir: Path):
     # ------------------------------------------------------------------
 
     if case == "sdp_wrong_primal_shape":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_WRONG_PRIMAL_SHAPE")
@@ -250,6 +264,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_missing_primal":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_MISSING_PRIMAL")
@@ -258,6 +273,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_primal_contains_nan":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_PRIMAL_CONTAINS_NAN")
@@ -271,6 +287,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_primal_contains_inf":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_PRIMAL_CONTAINS_INF")
@@ -284,6 +301,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_primal_out_of_range":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_PRIMAL_OUT_OF_RANGE")
@@ -298,6 +316,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_primal_not_2d":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_PRIMAL_NOT_2D")
@@ -310,6 +329,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_primal_non_square":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_PRIMAL_NON_SQUARE")
@@ -326,6 +346,7 @@ def solver_class_for(case: str, log_dir: Path):
     # ------------------------------------------------------------------
 
     if case == "heuristic_wrong_length":
+
         class Solver(BaseSolver):  # type: ignore
             def heuristic(self, L, *args, **kwargs):
                 self.mark("BIQBIN_TEST_HEURISTIC_WRONG_LENGTH")
@@ -336,6 +357,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "heuristic_non_binary01_vector":
+
         class Solver(BaseSolver):  # type: ignore
             def heuristic(self, L, *args, **kwargs):
                 self.mark("BIQBIN_TEST_HEURISTIC_NON_BINARY01_VECTOR")
@@ -352,6 +374,7 @@ def solver_class_for(case: str, log_dir: Path):
     # ------------------------------------------------------------------
 
     if case == "initial_heuristic_wrong_length":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_heuristic(self, L, *args, **kwargs):
                 self.mark("BIQBIN_TEST_INITIAL_HEURISTIC_WRONG_LENGTH")
@@ -362,6 +385,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "initial_heuristic_non_binary01_vector":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_heuristic(self, L, *args, **kwargs):
                 self.mark("BIQBIN_TEST_INITIAL_HEURISTIC_NON_BINARY01_VECTOR")
@@ -380,6 +404,7 @@ def solver_class_for(case: str, log_dir: Path):
     # ------------------------------------------------------------------
 
     if case == "callback_mutates_problem_matrix":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_MUTATE_PROBLEM_MATRIX")
@@ -391,6 +416,7 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "callback_mutates_node_solution":
+
         class Solver(BaseSolver):  # type: ignore
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_MUTATE_NODE_SOLUTION")
@@ -402,15 +428,14 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "sdp_bound_below_heuristic":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
                 return self.good_sdp_bound(node, P0, P)
 
             def sdp_bound(self, node, P0, P, *args, **kwargs):
                 self.mark("BIQBIN_TEST_SDP_BOUND_BELOW_HEURISTIC")
-                self.set_sdp_primal_solution(
-                    np.eye(P.n, dtype=np.float64)
-                )
+                self.set_sdp_primal_solution(np.eye(P.n, dtype=np.float64))
                 return -1.0e9
 
             def heuristic(self, L, *args, **kwargs):
@@ -423,11 +448,10 @@ def solver_class_for(case: str, log_dir: Path):
         return Solver
 
     if case == "initial_sdp_bound_below_heuristic":
+
         class Solver(BaseSolver):  # type: ignore
             def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
-                self.set_sdp_primal_solution(
-                    np.eye(P.n, dtype=np.float64)
-                )
+                self.set_sdp_primal_solution(np.eye(P.n, dtype=np.float64))
                 return 1
 
             def initial_heuristic(self, L, *args, **kwargs):
@@ -441,9 +465,7 @@ def solver_class_for(case: str, log_dir: Path):
                 return self.good_sdp_bound(node, P0, P)
 
             def heuristic(self, L, *args, **kwargs):
-                self.mark(
-                    "BIQBIN_TEST_INITIAL_SDP_BOUND_BELOW_HEURISTIC"
-                )
+                self.mark("BIQBIN_TEST_INITIAL_SDP_BOUND_BELOW_HEURISTIC")
                 node = kwargs["node"]
                 P = kwargs["P"]
 

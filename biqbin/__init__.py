@@ -1,44 +1,45 @@
-from biqbin.logging import logger, configure_logging
-
-from biqbin.biqbin_base import (ProblemMaxCut,
-                                SolutionMaxCut,
-                                MaxCutSolver,
-                                ProblemQubo,
-                                SolutionQubo,
-                                QUBOSolver,
-                                get_rank)
-
-from biqbin.data_parsers import (MaxCutSolutionToJson,
-                                 MaxCutFromJson,
-                                 MaxCutFromMatrixMarket,
-                                 MaxCutFromEdgeWeights,
-                                 QuboFromJson,
-                                 QuboSolutionToJson,
-                                 QuboFromMatrixMarket,
-                                 QuboFromEdgeWeights,
-                                 QuboFromQPLIB)
-
+from biqbin.biqbin_base import (
+    MaxCutSolver,
+    ProblemMaxCut,
+    ProblemQubo,
+    QUBOSolver,
+    SolutionMaxCut,
+    SolutionQubo,
+    get_rank,
+)
+from biqbin.data_parsers import (
+    MaxCutFromEdgeWeights,
+    MaxCutFromJson,
+    MaxCutFromMatrixMarket,
+    MaxCutSolutionToJson,
+    QuboFromEdgeWeights,
+    QuboFromJson,
+    QuboFromMatrixMarket,
+    QuboFromQPLIB,
+    QuboSolutionToJson,
+)
+from biqbin.logging import configure_logging, logger
 
 __all__ = [
-    'ProblemMaxCut',
-    'SolutionMaxCut',
-    'MaxCutSolver',
-    'ProblemQubo',
-    'SolutionQubo',
-    'QUBOSolver',
-    'logger',
-    'configure_logging',
-    'get_rank',
-    'init',
-    'MaxCutSolutionToJson',
-    'MaxCutFromJson',
-    'MaxCutFromMatrixMarket',
-    'MaxCutFromEdgeWeights',
-    'QuboSolutionToJson',
-    'QuboFromJson',
-    'QuboFromMatrixMarket',
-    'QuboFromEdgeWeights',
-    'QuboFromQPLIB'
+    "ProblemMaxCut",
+    "SolutionMaxCut",
+    "MaxCutSolver",
+    "ProblemQubo",
+    "SolutionQubo",
+    "QUBOSolver",
+    "logger",
+    "configure_logging",
+    "get_rank",
+    "init",
+    "MaxCutSolutionToJson",
+    "MaxCutFromJson",
+    "MaxCutFromMatrixMarket",
+    "MaxCutFromEdgeWeights",
+    "QuboSolutionToJson",
+    "QuboFromJson",
+    "QuboFromMatrixMarket",
+    "QuboFromEdgeWeights",
+    "QuboFromQPLIB",
 ]
 
 import atexit
@@ -50,6 +51,7 @@ def init():
     """Initialize the MPI environment. Must be called before creating any solver."""
     from biqbin.biqbin_module import init_mpi
     from biqbin.logging import _set_mpi_rank
+
     global _initialized
     if not _initialized:
         _, rank = init_mpi()
@@ -60,6 +62,7 @@ def init():
 def finalize():
     """Finalize MPI if initialized, is called atexit"""
     from biqbin.biqbin_module import finalize_mpi
+
     global _initialized
 
     if _initialized:

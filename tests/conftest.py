@@ -27,9 +27,6 @@ def pytest_generate_tests(metafunc):
         instances = metafunc.config.getoption("--instances")
 
         if not instances:
-            pytest.fail(
-                "No instances provided! Use:\n"
-                "   pytest --instances inst1 inst2 inst3"
-            )
+            pytest.fail("No instances provided! Use:\n   pytest --instances inst1 inst2 inst3")
 
         metafunc.parametrize("problem_instance", instances)

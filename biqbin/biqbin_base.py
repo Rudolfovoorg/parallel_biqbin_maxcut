@@ -1,22 +1,29 @@
-__version__ = '2.0.5'
+__version__ = "2.0.5"
 
 from logging import INFO
 from typing import ClassVar
 
-import numpy.typing as npt
 import numpy as np
+import numpy.typing as npt
+
+from biqbin.biqbin_module import (
+    BabNode,
+    Problem,
+    abort_mpi,
+    get_fixed_value,
+    get_rank,
+    get_root_sdp_bound,
+    goemans_williamson_heuristic,
+    reduce_sum_mpi,
+    run,
+    sdp_bound,
+    set_heuristic,
+    set_node_evaluation,
+    set_primal_solution,
+    update_mc_lower_bound_solution,
+)
 from biqbin.logging import logger
-
-
-from biqbin.utils import (check_matrix_validity_setter_wrap,
-                          divide_matrix_by_gcd,
-                          data_collector)
-from biqbin.biqbin_module import (BabNode, Problem,
-                                  reduce_sum_mpi, abort_mpi, get_rank, run,
-                                  update_mc_lower_bound_solution,
-                                  set_heuristic, goemans_williamson_heuristic,
-                                  set_primal_solution, set_node_evaluation, sdp_bound,
-                                  get_fixed_value, get_root_sdp_bound)
+from biqbin.utils import check_matrix_validity_setter_wrap, data_collector, divide_matrix_by_gcd
 
 
 class PrettyPrint:
@@ -57,10 +64,12 @@ class PrettyPrint:
 
 
 class ProblemMaxCut(PrettyPrint):
-    def __init__(self,
-                 maxcut_adjacency_matrix: npt.NDArray[np.floating | np.integer],
-                 problem_name: str,
-                 optimize_mc_adj_matrix: bool = False) -> None:
+    def __init__(
+        self,
+        maxcut_adjacency_matrix: npt.NDArray[np.floating | np.integer],
+        problem_name: str,
+        optimize_mc_adj_matrix: bool = False,
+    ) -> None:
 
         self.problem_name = problem_name
         self.optimize_mc_adj_matrix = optimize_mc_adj_matrix
@@ -99,23 +108,29 @@ class ProblemMaxCut(PrettyPrint):
         ]
 
     def _format_maxcut_problem(self, title: str = "Max-Cut") -> str:
-        return "\n".join([
-            f"--- {title} ---",
-            self._format_fields(
-                [("Vertices", self.maxcut_adjacency_matrix.shape[0])]),
-            self._format_array("Adjacency matrix",
-                               self.maxcut_adjacency_matrix),
-        ])
+        return "\n".join(
+            [
+                f"--- {title} ---",
+                self._format_fields([("Vertices", self.maxcut_adjacency_matrix.shape[0])]),
+                self._format_array("Adjacency matrix", self.maxcut_adjacency_matrix),
+            ]
+        )
 
     def _summary_sections(self, verbose: bool) -> list[str]:
         return [self._format_maxcut_problem()]
 
 
 class ProblemQubo(ProblemMaxCut):
-    """Inherits from ProblemMaxCut, takes a qubo np.ndarray and constructs the biqbin input (maxcut adjacency matrix)
-    """
+    """Inherits from ProblemMaxCut, takes a qubo np.ndarray and constructs the biqbin input (maxcut adjacency matrix)"""
 
-    def __init__(self, Q: np.ndarray, offset: float, problem_name: str, is_minimization: bool, optimize_input: bool = False):
+    def __init__(
+        self,
+        Q: np.ndarray,
+        offset: float,
+        problem_name: str,
+        is_minimization: bool,
+        optimize_input: bool = False,
+    ):
         """Initialize the ProblemQubo
 
         Args:
@@ -156,21 +171,24 @@ class ProblemQubo(ProblemMaxCut):
         Qe_plus_c = -np.array([(np.sum(q_sym, 1))])
         np.fill_diagonal(q_sym, 0)
 
-        return np.block([
-            [q_sym, Qe_plus_c.T],
-            [Qe_plus_c, np.zeros((1, 1))]
-        ])
+        return np.block([[q_sym, Qe_plus_c.T], [Qe_plus_c, np.zeros((1, 1))]])
 
     def _summary_sections(self, verbose: bool) -> list[str]:
-        sections = ["\n".join([
-            "--- QUBO ---",
-            self._format_fields([
-                ("Variables", self.Q.shape[0]),
-                ("Minimization", self.is_minimization),
-                ("Offset", self.offset),
-            ]),
-            self._format_array("Q", self.Q),
-        ])]
+        sections = [
+            "\n".join(
+                [
+                    "--- QUBO ---",
+                    self._format_fields(
+                        [
+                            ("Variables", self.Q.shape[0]),
+                            ("Minimization", self.is_minimization),
+                            ("Offset", self.offset),
+                        ]
+                    ),
+                    self._format_array("Q", self.Q),
+                ]
+            )
+        ]
         if verbose:
             sections.append(self._format_maxcut_problem("Underlying Max-Cut"))
         return sections
@@ -179,11 +197,11 @@ class ProblemQubo(ProblemMaxCut):
 class SolutionMaxCut(PrettyPrint):
     def __init__(self, biqbin_result: dict, problem: ProblemMaxCut) -> None:
         if problem.optimize_mc_adj_matrix and problem.gcd != 1:
-            biqbin_result['maxcut']['computed_val'] *= problem.gcd
+            biqbin_result["maxcut"]["computed_val"] *= problem.gcd
 
         self.__problem: ProblemMaxCut = problem
-        self.__solution: dict = biqbin_result['maxcut']
-        self.meta_data: dict = biqbin_result['meta_data']
+        self.__solution: dict = biqbin_result["maxcut"]
+        self.meta_data: dict = biqbin_result["meta_data"]
 
     @property
     def solution(self) -> dict:
@@ -197,22 +215,24 @@ class SolutionMaxCut(PrettyPrint):
         """Common run statistics are visible at every verbosity."""
         metadata = self.meta_data
         return [
-            ("Problem name", metadata['instance']),
+            ("Problem name", metadata["instance"]),
             ("Compute time", f"{metadata['time']:.2f} seconds"),
-            ("Time limit reached", metadata['time_limit_reached']),
-            ("B&B nodes evaluated", metadata['eval_bab_nodes']),
-            ("Heuristic calls", metadata['heuristic_call_count']),
-            ("Worker processes used", metadata['num_workers_used']),
-            ("Optimized input", metadata['parameters']['optimized']),
-            ("GCD", metadata['parameters']['gcd']),
+            ("Time limit reached", metadata["time_limit_reached"]),
+            ("B&B nodes evaluated", metadata["eval_bab_nodes"]),
+            ("Heuristic calls", metadata["heuristic_call_count"]),
+            ("Worker processes used", metadata["num_workers_used"]),
+            ("Optimized input", metadata["parameters"]["optimized"]),
+            ("GCD", metadata["parameters"]["gcd"]),
         ]
 
     def _format_maxcut_section(self, title: str = "Max-Cut") -> str:
-        return f"--- {title} ---\n" + self._format_fields([
-            ("Computed value", self.__solution['computed_val']),
-            ("Solution", self.__solution['solution']),
-            ("x", self.__solution['x']),
-        ])
+        return f"--- {title} ---\n" + self._format_fields(
+            [
+                ("Computed value", self.__solution["computed_val"]),
+                ("Solution", self.__solution["solution"]),
+                ("x", self.__solution["x"]),
+            ]
+        )
 
     def _summary_sections(self, verbose: bool) -> list[str]:
         return [self._format_maxcut_section()]
@@ -248,15 +268,15 @@ class SolutionQubo(SolutionMaxCut):
             self.solution_maxcut["solution"]
         )
 
-        computed_val = float(problem.Q.dot(
-            qubo_x).dot(qubo_x)) + self.problem.offset
-        return {'computed_val': computed_val,
-                'offset': self.problem.offset,
-                'solution': qubo_solution,
-                'x': qubo_x,
-                'cardinality': float(sum(qubo_x)),
-                'minimization': problem.is_minimization
-                }
+        computed_val = float(problem.Q.dot(qubo_x).dot(qubo_x)) + self.problem.offset
+        return {
+            "computed_val": computed_val,
+            "offset": self.problem.offset,
+            "solution": qubo_solution,
+            "x": qubo_x,
+            "cardinality": float(sum(qubo_x)),
+            "minimization": problem.is_minimization,
+        }
 
     def _maxcut_solution2qubo_solution(self, maxcut_solution: np.ndarray):
         """Convert maxcut solution nodes to qubo solution nodes
@@ -282,32 +302,39 @@ class SolutionQubo(SolutionMaxCut):
         return qubo_solution.tolist(), y.astype(int).tolist()
 
     def _summary_sections(self, verbose: bool) -> list[str]:
-        sections = ["--- QUBO ---\n" + self._format_fields([
-            ("Computed value", self.__solution['computed_val']),
-            ("Minimization", self.__problem.is_minimization),
-            ("Solution", self.__solution['solution']),
-            ("x", self.__solution['x']),
-        ])]
+        sections = [
+            "--- QUBO ---\n"
+            + self._format_fields(
+                [
+                    ("Computed value", self.__solution["computed_val"]),
+                    ("Minimization", self.__problem.is_minimization),
+                    ("Solution", self.__solution["solution"]),
+                    ("x", self.__solution["x"]),
+                ]
+            )
+        ]
         if verbose:
             sections.append(self._format_maxcut_section("Underlying Max-Cut"))
         return sections
 
 
 class MaxCutSolver(PrettyPrint):
-    """Default MaxCut Biqbin Python Wrapper, solves the MaxCut problem.
-    """
-    solver_name: ClassVar[str] = f'PyBiqBin-MaxCut {__version__}'
+    """Default MaxCut Biqbin Python Wrapper, solves the MaxCut problem."""
+
+    solver_name: ClassVar[str] = f"PyBiqBin-MaxCut {__version__}"
 
     # Biqbin solution has 1 element less than the problem size, the last elemenent is assumed to be 0
     _MC_OFFSET: ClassVar[int] = 1
 
-    def __init__(self,
-                 problem: ProblemMaxCut,
-                 params: str = 'params',
-                 time_limit: int = 0,
-                 initial_estimate: np.ndarray | None = None,
-                 collect_heuristic_root_data: bool = False,
-                 collect_sdp_bound_root_data: bool = False):
+    def __init__(
+        self,
+        problem: ProblemMaxCut,
+        params: str = "params",
+        time_limit: int = 0,
+        initial_estimate: np.ndarray | None = None,
+        collect_heuristic_root_data: bool = False,
+        collect_sdp_bound_root_data: bool = False,
+    ):
         """Initialize the solver
 
         Args:
@@ -315,7 +342,10 @@ class MaxCutSolver(PrettyPrint):
             params (str): path to parameters file
             time_limit (int): time limit in seconds
             initial_estimate (np.ndarray or None): Optional initial estimate solution binary vector
-            collect_heuristic_data (bool): If True saves runtimes of each heuristic call and the objective value of the found solution
+            collect_heuristic_root_data (bool): Collect heuristic runtimes and objective
+                values on the root rank.
+            collect_sdp_bound_root_data (bool): Collect SDP-bound runtimes and bounds
+                on the root rank.
         """
         self.__problem: ProblemMaxCut = problem
         self.params: str = params
@@ -328,11 +358,11 @@ class MaxCutSolver(PrettyPrint):
             if initial_estimate is not None:
                 # Use the initial estimate solution on the root node heuristic call
                 self._check_solution_validity(
-                    initial_estimate, problem.maxcut_adjacency_matrix.shape[0])
+                    initial_estimate, problem.maxcut_adjacency_matrix.shape[0]
+                )
                 self.initial_estimate_solution = initial_estimate
                 self.initial_heuristic = self._use_initial_estimate_on_root
-                logger.info(
-                    f'Using an initial estimate solution: {self.initial_estimate_solution}')
+                logger.info(f"Using an initial estimate solution: {self.initial_estimate_solution}")
 
             self._heuristic_fn = self.initial_heuristic
             self._sdp_bound_fn = self.initial_sdp_bound
@@ -347,10 +377,14 @@ class MaxCutSolver(PrettyPrint):
         # BZ TODO: Enable non-root data collection
         self.bab_node_evaluation_call_count = 0
         self.heuristic_call_count = 0
-        self.collect_heuristic_root_data: bool = collect_heuristic_root_data if self.rank == 0 else False
+        self.collect_heuristic_root_data: bool = (
+            collect_heuristic_root_data if self.rank == 0 else False
+        )
         self.heuristic_root_data: list[dict] = []
         self.sdp_bound_call_count = 0
-        self.collect_sdp_bound_root_data: bool = collect_sdp_bound_root_data if self.rank == 0 else False
+        self.collect_sdp_bound_root_data: bool = (
+            collect_sdp_bound_root_data if self.rank == 0 else False
+        )
         self.sdp_bound_root_data: list[dict] = []
 
         # Set the functions in C++ source to be called
@@ -368,17 +402,18 @@ class MaxCutSolver(PrettyPrint):
         # Warnings about the validity of the solution
         self._overridden_sdp = []
         if type(self).sdp_bound is not MaxCutSolver.sdp_bound:
-            self._overridden_sdp.append('sdp_bound')
+            self._overridden_sdp.append("sdp_bound")
         if type(self).initial_sdp_bound is not MaxCutSolver.initial_sdp_bound:
-            self._overridden_sdp.append('initial_sdp_bound')
+            self._overridden_sdp.append("initial_sdp_bound")
 
         if self.rank == 0:
             if self._overridden_sdp:
                 logger.warning(
-                    f'{type(self).__name__} overrides {" and ".join(self._overridden_sdp)}. '
-                    f'Biqbin is an exact solver thus the returned value must be a valid upper bound '
-                    f'on the subproblem optimal value. A bound that is too low will cause incorrect '
-                    f'branch pruning and an invalid optimal solution. ')
+                    f"{type(self).__name__} overrides {' and '.join(self._overridden_sdp)}. "
+                    f"Biqbin is an exact solver thus the returned value must be a valid upper bound "
+                    f"on the subproblem optimal value. A bound that is too low will cause incorrect "
+                    f"branch pruning and an invalid optimal solution. "
+                )
 
     @property
     def problem(self) -> ProblemMaxCut:
@@ -406,7 +441,7 @@ class MaxCutSolver(PrettyPrint):
         return sdp_bound(node, P0, P)
 
     def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
-        """Compute the SDP bound on the root node. 
+        """Compute the SDP bound on the root node.
         By default it will call ``self.upper_bound``, same as the leaf B&B nodes.
 
         Override in subclasses to use a custom bounding strategy.
@@ -425,15 +460,14 @@ class MaxCutSolver(PrettyPrint):
             P (Problem): Current nodes subproblem
 
         Returns:
-            npt.ArrayLike: Binary solution vector found by the heuristic. 
+            npt.ArrayLike: Binary solution vector found by the heuristic.
             Shape must be a 1D of length one less than subproblem size (L.shape[0] - 1, )
         """
-        P0: Problem = kwargs['P0']
-        node: BabNode = kwargs['node']
+        P0: Problem = kwargs["P0"]
+        node: BabNode = kwargs["node"]
 
         if not self._primal_solution_set:
-            logger.fatal(
-                f'SDP primal solution was not set before calling the default heuristc!')
+            logger.fatal("SDP primal solution was not set before calling the default heuristc!")
             abort_mpi(10)
 
         # biqbin GW implementation expects a full solution vector
@@ -466,30 +500,31 @@ class MaxCutSolver(PrettyPrint):
     def set_sdp_primal_solution(self, primal_solution: npt.NDArray[np.float64]):
         """Sets the SDP primal solution matrix X.
 
-        Vital for branching and the GW heuristic, default SDPBound routine in C does this automatically, 
+        Vital for branching and the GW heuristic, default SDPBound routine in C does this automatically,
         but if we overwrite ``sdp_bound`` with a custom implementation, we need to manually set the primal solution X before running.
 
         NOTE: The matrix must be in [-1, 1] range.
 
         Args:
             primal_solution (np.ndarray): shape (P.n, P.n) where n is the size of the subproblem P passed into
-            ``heuristic`` and ``sdp_bound`` solver callbacks.
+                ``heuristic`` and ``sdp_bound`` solver callbacks.
         """
         fatal_error = False
         if not primal_solution.ndim == 2:
             logger.fatal(
-                f'primal_solution must be a 2D matrix, got {primal_solution.ndim}D matrix!')
+                f"primal_solution must be a 2D matrix, got {primal_solution.ndim}D matrix!"
+            )
             fatal_error = True
 
         PRIMAL_SOLUTION_TOL = 1e-5
-        if np.any(primal_solution < -1.0 - PRIMAL_SOLUTION_TOL) or np.any(primal_solution > 1.0 + PRIMAL_SOLUTION_TOL):
-            logger.fatal(
-                'The primal_solution must be in the [-1, 1] range!')
+        if np.any(primal_solution < -1.0 - PRIMAL_SOLUTION_TOL) or np.any(
+            primal_solution > 1.0 + PRIMAL_SOLUTION_TOL
+        ):
+            logger.fatal("The primal_solution must be in the [-1, 1] range!")
             fatal_error = True
 
         if not np.all(np.isfinite(primal_solution)):
-            logger.fatal(
-                "The primal_solution must contain only finite values!")
+            logger.fatal("The primal_solution must contain only finite values!")
             fatal_error = True
 
         if fatal_error:
@@ -499,7 +534,7 @@ class MaxCutSolver(PrettyPrint):
         self._primal_solution_set = True
 
     def _bab_node_evaluation(self, node: BabNode, P0: Problem, P: Problem) -> float:
-        """ Compute the upper and lower bound of the current B&B node
+        """Compute the upper and lower bound of the current B&B node
 
         Args:
             node (BabNode): current B&B node
@@ -530,17 +565,25 @@ class MaxCutSolver(PrettyPrint):
             fatal_error = False
 
             fixed_value = get_fixed_value(node, P0)
-            if (self._latest_heuristic_value > upper_bound_value + fixed_value):
-                logger.fatal((f"[rank {self.rank}] SDP bound is greater than heuristic bound, "
-                              f"custom SDP bound confirmed to not give a true bound!\n"
-                              f"Heuristic value = {self._latest_heuristic_value}; SDP bound {upper_bound_value + fixed_value}"))
+            if self._latest_heuristic_value > upper_bound_value + fixed_value:
+                logger.fatal(
+                    (
+                        f"[rank {self.rank}] SDP bound is greater than heuristic bound, "
+                        f"custom SDP bound confirmed to not give a true bound!\n"
+                        f"Heuristic value = {self._latest_heuristic_value}; SDP bound {upper_bound_value + fixed_value}"
+                    )
+                )
                 fatal_error = True
 
             initial_sdp_bound = get_root_sdp_bound()
-            if (self.rank != 0 and self._latest_heuristic_value > initial_sdp_bound):
-                logger.fatal((f"[rank {self.rank}] Initial SDP bound is greater than heuristic bound, "
-                              f"custom SDP bound confirmed to not give a true bound!\n"
-                              f"Heuristic value = {self._latest_heuristic_value}; initial SDP bound {initial_sdp_bound}"))
+            if self.rank != 0 and self._latest_heuristic_value > initial_sdp_bound:
+                logger.fatal(
+                    (
+                        f"[rank {self.rank}] Initial SDP bound is greater than heuristic bound, "
+                        f"custom SDP bound confirmed to not give a true bound!\n"
+                        f"Heuristic value = {self._latest_heuristic_value}; initial SDP bound {initial_sdp_bound}"
+                    )
+                )
                 fatal_error = True
 
             if fatal_error:
@@ -548,7 +591,7 @@ class MaxCutSolver(PrettyPrint):
 
         return upper_bound_value
 
-    @data_collector(enabled_flag='collect_sdp_bound_root_data', data_box='sdp_bound_root_data')
+    @data_collector(enabled_flag="collect_sdp_bound_root_data", data_box="sdp_bound_root_data")
     def _call_sdp_bound(self, node: BabNode, P0: Problem, P: Problem) -> float:
         """Wrapper around sdp bound function call.
 
@@ -563,17 +606,19 @@ class MaxCutSolver(PrettyPrint):
 
         if not self._primal_solution_set:
             logger.fatal(
-                f'SDP primal solution was not set before leaving `self.sdp_bound`!\n'
-                f'Please set the primal solution with `self.set_primal_solution` method!')
+                "SDP primal solution was not set before leaving `self.sdp_bound`!\n"
+                "Please set the primal solution with `self.set_primal_solution` method!"
+            )
             abort_mpi(10)
         if not np.isfinite(sdp_bound_value):
             logger.fatal("sdp_bound must return a finite float")
             abort_mpi(10)
         logger.debug(
-            f'SDP bound value = {sdp_bound_value}; B&B node level = {node.level}; B&B parent SDP bound value {node.upper_bound}')
+            f"SDP bound value = {sdp_bound_value}; B&B node level = {node.level}; B&B parent SDP bound value {node.upper_bound}"
+        )
         return sdp_bound_value
 
-    @data_collector(enabled_flag='collect_heuristic_root_data', data_box='heuristic_root_data')
+    @data_collector(enabled_flag="collect_heuristic_root_data", data_box="heuristic_root_data")
     def _call_heuristic(self, node: BabNode, P0: Problem, P: Problem) -> float:
         """Wrapper around heuristic function, it validates the provided solution vector by ``self.heuristic``
         before sending it to the native solver. It also collects additional metadata (runtime and return value).
@@ -596,8 +641,7 @@ class MaxCutSolver(PrettyPrint):
         # Check if the solution is in valid format
         if not isinstance(heur_sol, np.ndarray):
             heur_sol = np.array(heur_sol)
-        self._check_solution_validity(
-            heur_sol, P.n - MaxCutSolver._MC_OFFSET)
+        self._check_solution_validity(heur_sol, P.n - MaxCutSolver._MC_OFFSET)
 
         # copy to full solution x
         x = node.sol.x.copy()
@@ -611,18 +655,19 @@ class MaxCutSolver(PrettyPrint):
         return self._latest_heuristic_value
 
     def _use_initial_estimate_on_root(self, L: np.ndarray, *args, **kwargs) -> npt.ArrayLike:
-        """ Heuristic call on root node if initial estimate solution is used
-        """
+        """Heuristic call on root node if initial estimate solution is used"""
         fatal_error = False
-        if kwargs['P0'].L.shape != L.shape:
+        if kwargs["P0"].L.shape != L.shape:
             logger.fatal(
-                f"Original problem shape {kwargs['P0'].L.shape} != Subproblem shape {L.shape}!")
+                f"Original problem shape {kwargs['P0'].L.shape} != Subproblem shape {L.shape}!"
+            )
             fatal_error = True
-        if kwargs['P'].L.shape != self.problem.maxcut_adjacency_matrix.shape:
+        if kwargs["P"].L.shape != self.problem.maxcut_adjacency_matrix.shape:
             logger.fatal(
-                f"Original problem shape {kwargs['P0'].L.shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!")
+                f"Original problem shape {kwargs['P0'].L.shape} != mc adjacency matrix shape {self.problem.maxcut_adjacency_matrix.shape}!"
+            )
             fatal_error = True
-        if np.any(kwargs['node'].xfixed):
+        if np.any(kwargs["node"].xfixed):
             logger.fatal("xfixed is nonzero!")
             fatal_error = True
 
@@ -630,7 +675,7 @@ class MaxCutSolver(PrettyPrint):
             abort_mpi(10)
 
         assert self.initial_estimate_solution is not None
-        return self.initial_estimate_solution[:-MaxCutSolver._MC_OFFSET]
+        return self.initial_estimate_solution[: -MaxCutSolver._MC_OFFSET]
 
     def _evaluate_solution(self, L0: np.ndarray, sol: np.ndarray) -> float:
         """Calculate the Max-Cut objective value of the solution
@@ -643,9 +688,9 @@ class MaxCutSolver(PrettyPrint):
             float: value of the solution
         """
         self._check_solution_validity(
-            sol, self.problem.maxcut_adjacency_matrix.shape[0] - MaxCutSolver._MC_OFFSET)
-        sol_val = sol @ L0[:-MaxCutSolver._MC_OFFSET,
-                           :-MaxCutSolver._MC_OFFSET] @ sol
+            sol, self.problem.maxcut_adjacency_matrix.shape[0] - MaxCutSolver._MC_OFFSET
+        )
+        sol_val = sol @ L0[: -MaxCutSolver._MC_OFFSET, : -MaxCutSolver._MC_OFFSET] @ sol
 
         return float(sol_val)
 
@@ -657,25 +702,22 @@ class MaxCutSolver(PrettyPrint):
         """
         # MC adjacency matrix is passed in on rank 0 and broadcasted to worker ranks during execution
         if self.rank == 0:
-            input_matrix = self.problem.maxcut_adjacency_matrix.astype(
-                np.float64)
+            input_matrix = self.problem.maxcut_adjacency_matrix.astype(np.float64)
             if logger.isEnabledFor(INFO):  # lazy evaluating
                 logger.info("%s", self.problem.format_summary(verbose=True))
         else:
             input_matrix = None
 
-        raw_results = run(self.solver_name,
-                          self.problem.problem_name,
-                          input_matrix,
-                          self.params,
-                          self.time_limit)
+        raw_results = run(
+            self.solver_name, self.problem.problem_name, input_matrix, self.params, self.time_limit
+        )
 
         result = self._update_result_dict(raw_results)
         return result
 
     def _update_result_dict(self, raw_result: dict) -> dict | None:
         """Update the raw result from BiqBin C implementation with additional metadata.
-        Calls ``MPI_Reduce`` to sum up data from worker ranks. 
+        Calls ``MPI_Reduce`` to sum up data from worker ranks.
 
         Args:
             raw_result (dict): result dictionary built in C-solver, is empty on ``self.rank != 0``
@@ -683,46 +725,48 @@ class MaxCutSolver(PrettyPrint):
         Returns:
             dict | None: updated result on ``self.rank == 0``; else None
         """
-        bab_node_call_count_sum = reduce_sum_mpi(
-            self.bab_node_evaluation_call_count)
+        bab_node_call_count_sum = reduce_sum_mpi(self.bab_node_evaluation_call_count)
         sdp_call_count_sum = reduce_sum_mpi(self.sdp_bound_call_count)
         heur_call_count_sum = reduce_sum_mpi(self.heuristic_call_count)
 
         if self.rank != 0:
             return None
 
-        raw_result['meta_data']['solver'] = self.solver_name
-        raw_result['meta_data']['instance'] = self.problem.problem_name
-        raw_result['meta_data']['parameters'] = {
-            'time_limit': self.time_limit if self.time_limit > 0 else None,
-            'optimized': self.problem.optimize_mc_adj_matrix,
-            'gcd': self.problem.gcd
+        raw_result["meta_data"]["solver"] = self.solver_name
+        raw_result["meta_data"]["instance"] = self.problem.problem_name
+        raw_result["meta_data"]["parameters"] = {
+            "time_limit": self.time_limit if self.time_limit > 0 else None,
+            "optimized": self.problem.optimize_mc_adj_matrix,
+            "gcd": self.problem.gcd,
         }
         if self.initial_estimate_solution is not None:
-            raw_result['meta_data']['initial_estimate_solution'] = self.initial_estimate_solution.tolist()
+            raw_result["meta_data"]["initial_estimate_solution"] = (
+                self.initial_estimate_solution.tolist()
+            )
 
-        raw_result['meta_data']['bab_node_evaluation_call_count'] = bab_node_call_count_sum
-        raw_result['meta_data']['sdp_call_count'] = sdp_call_count_sum
-        raw_result['meta_data']['heuristic_call_count'] = heur_call_count_sum
+        raw_result["meta_data"]["bab_node_evaluation_call_count"] = bab_node_call_count_sum
+        raw_result["meta_data"]["sdp_call_count"] = sdp_call_count_sum
+        raw_result["meta_data"]["heuristic_call_count"] = heur_call_count_sum
 
         if self.collect_heuristic_root_data:
-            raw_result['meta_data']['root_node']['total_heur_time'] = sum(
-                d['time'] for d in self.heuristic_root_data)
-            raw_result['meta_data']['root_node']['heuristic_call_count'] = self.heuristic_call_count
-            raw_result['meta_data']['root_node']['heuristic_data'] = self.heuristic_root_data
+            raw_result["meta_data"]["root_node"]["total_heur_time"] = sum(
+                d["time"] for d in self.heuristic_root_data
+            )
+            raw_result["meta_data"]["root_node"]["heuristic_call_count"] = self.heuristic_call_count
+            raw_result["meta_data"]["root_node"]["heuristic_data"] = self.heuristic_root_data
         if self.collect_sdp_bound_root_data:
-            raw_result['meta_data']['root_node']['sdp_bound_data'] = self.sdp_bound_root_data
+            raw_result["meta_data"]["root_node"]["sdp_bound_data"] = self.sdp_bound_root_data
         return raw_result
 
     def _check_solution_validity(self, solution: np.ndarray, problem_size: int):
         """Check if the passed in solution is in correct format (binary 0-1 vector) for Biqbin solver."""
         fatal_error = False
-        error_msg = ''
+        error_msg = ""
         if solution.ndim != 1 or solution.shape[0] != problem_size:
-            error_msg += f'Solution vector must be a 1D vector of size {problem_size}, but got shape {solution.shape}! '
+            error_msg += f"Solution vector must be a 1D vector of size {problem_size}, but got shape {solution.shape}! "
             fatal_error = True
         if not ((solution == 0) | (solution == 1)).all():
-            error_msg += 'Solution vector must be a binary [0, 1] vector!'
+            error_msg += "Solution vector must be a binary [0, 1] vector!"
             fatal_error = True
 
         if fatal_error:
@@ -730,35 +774,41 @@ class MaxCutSolver(PrettyPrint):
             abort_mpi(10)
 
     def __str__(self) -> str:
-        return (f'{super().__str__()}'
-                f'    Problem = {self.problem.problem_name}\n'
-                f'Params path = {self.params}\n'
-                f' Time limit = {self.time_limit}\n')
+        return (
+            f"{super().__str__()}"
+            f"    Problem = {self.problem.problem_name}\n"
+            f"Params path = {self.params}\n"
+            f" Time limit = {self.time_limit}\n"
+        )
 
 
 class QUBOSolver(MaxCutSolver):
-    solver_name = f'PyBiqBin-QUBO {__version__}'
+    solver_name = f"PyBiqBin-QUBO {__version__}"
 
-    def __init__(self,
-                 problem: ProblemQubo,
-                 params: str = 'params',
-                 time_limit: int = 0,
-                 initial_estimate: np.ndarray | None = None,
-                 collect_heuristic_root_data: bool = False,
-                 collect_sdp_bound_root_data: bool = False
-                 ):
+    def __init__(
+        self,
+        problem: ProblemQubo,
+        params: str = "params",
+        time_limit: int = 0,
+        initial_estimate: np.ndarray | None = None,
+        collect_heuristic_root_data: bool = False,
+        collect_sdp_bound_root_data: bool = False,
+    ):
 
         mc_initial_solution = None
         if get_rank() == 0 and initial_estimate is not None:
-            self._check_solution_validity(
-                initial_estimate, problem.Q.shape[0])
+            self._check_solution_validity(initial_estimate, problem.Q.shape[0])
             # Maxcut solution is one larger than Qubo solution
             mc_initial_solution = np.append(initial_estimate, 0)
 
-        super().__init__(problem, params, time_limit,
-                         mc_initial_solution,
-                         collect_heuristic_root_data,
-                         collect_sdp_bound_root_data)
+        super().__init__(
+            problem,
+            params,
+            time_limit,
+            mc_initial_solution,
+            collect_heuristic_root_data,
+            collect_sdp_bound_root_data,
+        )
 
         self.__problem: ProblemQubo = problem
 

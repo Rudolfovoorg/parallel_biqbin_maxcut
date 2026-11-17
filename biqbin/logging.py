@@ -5,7 +5,6 @@ import sys
 from os import PathLike
 from pathlib import Path
 
-
 # Keep this name in sync with the native bridge in src/wrapper.cpp.
 logger = logging.getLogger("biqbin")
 logger.addHandler(logging.NullHandler())
@@ -101,7 +100,10 @@ def configure_rank_logging(directory: str | PathLike[str] | None, rank: int) -> 
 
         # Report independently of handlers: configuring those is what failed.
         try:
-            print(f"BiqBin rank {rank}: cannot configure log directory {str(path)!r}: {error}",
-                  file=sys.stderr, flush=True)
+            print(
+                f"BiqBin rank {rank}: cannot configure log directory {str(path)!r}: {error}",
+                file=sys.stderr,
+                flush=True,
+            )
         finally:
             abort_mpi(10)

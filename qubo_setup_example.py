@@ -1,13 +1,11 @@
 import json
+
 import numpy as np
+
 from biqbin.utils import qubo_to_biqbin_representation
 
 # Some "qubo" 2D matrix, all values must be integers
-qubo = np.array(
-    [
-        [-1, 3],
-        [3, -1]
-    ])
+qubo = np.array([[-1, 3], [3, -1]])
 
 # Make a dictionary with the key "qubo" and to_sparse return value as value
 offset = 10

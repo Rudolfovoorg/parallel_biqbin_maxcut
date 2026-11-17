@@ -73,7 +73,8 @@ export OMP_NUM_THREADS=1
 srun python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json
 ```
 
-The above example runs the QUBO version of the solver on a test instance, for other examples please refer to the [readme file](README.md).
+The above example runs the QUBO version of the solver on a test instance, for other examples please refer to the 
+[README](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/README.md).
 
 For `#SBATCH` variables please refer to your [HPC documentation](https://en-vegadocs.vega.izum.si/first-job/).
 

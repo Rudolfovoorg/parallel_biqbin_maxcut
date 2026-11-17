@@ -38,8 +38,8 @@ $(error Invalid LOG_LEVEL '$(LOG_LEVEL)'; use DEBUG, INFO, WARNING, ERROR, CRITI
 endif
 LOG_DEFINES = -DBIQBIN_LOG_MIN_LEVEL=$(LOG_LEVEL_VALUE)
 
-# Docker and cleanup targets do not need Python development tools on the host.
-ifneq ($(filter-out docker% clean clean-output,$(or $(MAKECMDGOALS),all)),)
+# Docker, tooling, and cleanup targets do not need native build dependencies.
+ifneq ($(filter-out docker% clean clean-output lint format format-check docs docs-serve,$(or $(MAKECMDGOALS),all)),)
 PYTHON_VERSION := $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PYTHON_INCLUDE := $(shell python3-config --includes)
 PYBIND11_INCLUDES := $(shell python3 -m pybind11 --includes)
@@ -279,3 +279,33 @@ docker-test: docker
 docker-shell:
 	docker run --interactive --tty --rm --mount type=bind,src=$(shell pwd)/$(DATA_DIR),dst=/data $(IMAGE):$(TAG) /bin/bash
 
+
+
+.PHONY: lint format format-check test-unit coverage docs docs-serve
+
+PYTHON ?= python3
+RUFF ?= $(PYTHON) -m ruff
+lint:
+	$(RUFF) check .
+
+format:
+	$(RUFF) format .
+
+format-check:
+	$(RUFF) format --check .
+
+test-unit: test-logging test-summaries test-parsers
+
+coverage:
+	$(PYTHON) -m coverage erase
+	PYTEST_ADDOPTS="--cov=biqbin --cov-branch --cov-append --junitxml=junit.xml" \
+		$(MAKE) test
+	$(PYTHON) -m coverage report -m
+	$(PYTHON) -m coverage xml
+	$(PYTHON) -m coverage html
+
+docs:
+	$(PYTHON) -m mkdocs build --strict
+
+docs-serve:
+	$(PYTHON) -m mkdocs serve

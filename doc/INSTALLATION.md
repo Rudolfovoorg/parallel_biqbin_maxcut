@@ -83,7 +83,7 @@ make
 
 ## Docker
 
-[**`Dockerfile`**](../Dockerfile) available for running the solver in a docker container, image can be created using Makefile command
+[**`Dockerfile`**](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/Dockerfile) available for running the solver in a docker container, image can be created using Makefile command
 
 ```bash
 make docker
@@ -95,4 +95,4 @@ To access the docker container use:
 make docker-shell
 ```
 
-for other specific commands please check the [`Makefile`](../Makefile)
+for other specific commands please check the [`Makefile`](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/Makefile)

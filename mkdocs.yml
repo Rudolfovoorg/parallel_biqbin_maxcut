@@ -1,0 +1,77 @@
+
+site_name: BiqBin
+site_description: Parallel Max-Cut and binary quadratic optimization solver
+repo_url: https://github.com/Rudolfovoorg/parallel_biqbin_maxcut
+repo_name: Rudolfovoorg/parallel_biqbin_maxcut
+
+docs_dir: doc
+site_dir: site
+
+nav:
+  - Home: index.md
+  - Guides:
+      - Installation: INSTALLATION.md
+      - HPC: HPC_EXAMPLE.md
+      - Input formats: PROBLEM_INSTANCE_FORMATS.md
+      - BQP input example: BQP_INPUT_EXAMPLE.md
+      - Custom solvers: CUSTOM_SOLVER.md
+      - SDP and heuristic callbacks: CUSTOM_SDP_HEURISTIC.md
+      - Heuristics: HEURISTIC.md
+  - Python API:
+      - Overview and MPI lifecycle: api/index.md
+      - Max-Cut and QUBO: api/solvers.md
+      - BQP: api/bqp.md
+      - File parsers: api/parsers.md
+      - CLI argument parsers: api/arguments.md
+      - Logging: api/logging.md
+      - Utilities: api/utilities.md
+      - Native bindings: api/native.md
+
+watch:
+  - biqbin
+  - biqbin_bqp.py
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]  # Python sources live at the repository root, outside doc/.
+          options:
+            allow_inspection: false  # Read .py/.pyi files; never import the MPI extension.
+            docstring_style: google
+            docstring_options:
+              returns_named_value: false  # Existing Returns/Yields sections use "type: description".
+            show_if_no_docstring: true
+            show_root_heading: true
+            show_source: false
+            members_order: source
+            merge_init_into_class: true
+            show_signature_annotations: true
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true

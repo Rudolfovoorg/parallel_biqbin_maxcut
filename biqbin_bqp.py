@@ -1,19 +1,19 @@
-from biqbin.logging import configure_rank_logging
-import scipy as sp
 import json
-from typing import Any
 import warnings
+from argparse import SUPPRESS, ArgumentTypeError
+from typing import Any, Literal
+
 import numpy as np
-from typing import Literal
-from argparse import ArgumentTypeError, SUPPRESS
+import scipy as sp
 
-from biqbin.utils import convert_numpy_to_json_serializable
-from biqbin import MaxCutSolver, SolutionMaxCut, ProblemMaxCut, get_rank, init, logger
+from biqbin import MaxCutSolver, ProblemMaxCut, SolutionMaxCut, get_rank, init, logger
 from biqbin.argparsers import ArgParserBase
+from biqbin.biqbin_module import abort_mpi, interior_point_method_maxcut
 from biqbin.data_parsers import FromFile, ToFile
-from biqbin.biqbin_module import interior_point_method_maxcut, abort_mpi
+from biqbin.logging import configure_rank_logging
+from biqbin.utils import convert_numpy_to_json_serializable
 
-FileDataSection = Literal['F', 'c', 'A', 'b']
+FileDataSection = Literal["F", "c", "A", "b"]
 
 
 class ProblemBQP(ProblemMaxCut):
@@ -27,7 +27,16 @@ class ProblemBQP(ProblemMaxCut):
     ```
     """
 
-    def __init__(self, F: np.ndarray, c: np.ndarray, A: np.ndarray, b: np.ndarray, problem_name: str, offset: int = 0, optimize_input: bool = False):
+    def __init__(
+        self,
+        F: np.ndarray,
+        c: np.ndarray,
+        A: np.ndarray,
+        b: np.ndarray,
+        problem_name: str,
+        offset: int = 0,
+        optimize_input: bool = False,
+    ):
         """
         All values in the inputs `F`, `c`, `A` and `b` need to have integer values.
 
@@ -48,46 +57,45 @@ class ProblemBQP(ProblemMaxCut):
         fatal_error = False
 
         if F.ndim != 2 or F.shape[0] != F.shape[1]:
-            logger.fatal(f'Matrix F must be square, got {F.shape}')
+            logger.fatal(f"Matrix F must be square, got {F.shape}")
             fatal_error = True
             n = None
         else:
             n = F.shape[0]
             if not np.array_equal(F, F.T):
-                logger.fatal('Matrix F must be symmetric')
+                logger.fatal("Matrix F must be symmetric")
                 fatal_error = True
         if not np.all(np.isfinite(F)) or not np.array_equal(F, np.round(F)):
-            logger.fatal('All values in matrix F must be integers!')
+            logger.fatal("All values in matrix F must be integers!")
             fatal_error = True
 
         if n is not None and (c.ndim != 1 or c.shape != (n,)):
-            logger.fatal(f'Vector c expected shape is ({n},), got {c.shape}')
+            logger.fatal(f"Vector c expected shape is ({n},), got {c.shape}")
             fatal_error = True
         if not np.all(np.isfinite(c)) or not np.array_equal(c, np.round(c)):
-            logger.fatal('All values in vector c must be integers!')
+            logger.fatal("All values in vector c must be integers!")
             fatal_error = True
 
         if A.ndim != 2:
-            logger.fatal(f'Matrix A must be 2-dimensional, got {A.shape}')
+            logger.fatal(f"Matrix A must be 2-dimensional, got {A.shape}")
             fatal_error = True
         elif n is not None and A.shape[1] != n:
-            logger.fatal(f'Matrix A expected {n} columns, got {A.shape}')
+            logger.fatal(f"Matrix A expected {n} columns, got {A.shape}")
             fatal_error = True
 
         if not np.all(np.isfinite(A)) or not np.array_equal(A, np.round(A)):
-            logger.fatal('All values in matrix A must be integers!')
+            logger.fatal("All values in matrix A must be integers!")
             fatal_error = True
 
         if A.ndim == 2 and (b.ndim != 1 or b.shape != (A.shape[0],)):
-            logger.fatal(
-                f'Vector b expected shape is ({A.shape[0]},), got {b.shape}')
+            logger.fatal(f"Vector b expected shape is ({A.shape[0]},), got {b.shape}")
             fatal_error = True
         if not np.all(np.isfinite(b)) or not np.array_equal(b, np.round(b)):
-            logger.fatal('All values in vector b must be integers!')
+            logger.fatal("All values in vector b must be integers!")
             fatal_error = True
 
         if fatal_error:
-            raise ValueError('Invalid BQP problem.')
+            raise ValueError("Invalid BQP problem.")
 
         self.F: np.ndarray = F.astype(np.int64)
         self.c: np.ndarray = c.astype(np.int64)
@@ -104,25 +112,36 @@ class ProblemBQP(ProblemMaxCut):
         super().__init__(maxcut_adj, problem_name, optimize_input)
 
     def _summary_sections(self, verbose: bool) -> list[str]:
-        sections = ["\n".join([
-            "--- BQP ---",
-            self._format_fields([
-                ("Variables", self.F.shape[0]),
-                ("Equality constraints", self.A.shape[0]),
-                ("Offset", self.offset),
-            ]),
-            self._format_array("F", self.F),
-            self._format_array("c", self.c),
-            self._format_array("A", self.A),
-            self._format_array("b", self.b),
-        ])]
+        sections = [
+            "\n".join(
+                [
+                    "--- BQP ---",
+                    self._format_fields(
+                        [
+                            ("Variables", self.F.shape[0]),
+                            ("Equality constraints", self.A.shape[0]),
+                            ("Offset", self.offset),
+                        ]
+                    ),
+                    self._format_array("F", self.F),
+                    self._format_array("c", self.c),
+                    self._format_array("A", self.A),
+                    self._format_array("b", self.b),
+                ]
+            )
+        ]
         if verbose:
             sections.append(self._format_maxcut_problem("Underlying Max-Cut"))
-            sections.append("--- BQP transformation ---\n" + self._format_fields([
-                ("Rho", self.rho),
-                ("Const value", self.const_value),
-                ("Penalty", self.penalty),
-            ]))
+            sections.append(
+                "--- BQP transformation ---\n"
+                + self._format_fields(
+                    [
+                        ("Rho", self.rho),
+                        ("Const value", self.const_value),
+                        ("Penalty", self.penalty),
+                    ]
+                )
+            )
         return sections
 
     def process_bqp_input(self) -> tuple[np.ndarray, int, int, float]:
@@ -152,10 +171,12 @@ class ProblemBQP(ProblemMaxCut):
         F_scaled = 0.25 * self.F
 
         # SDP matrix
-        C = np.block([
-            [F_scaled,                 0.5 * c_shifted[:, None]],
-            [0.5 * c_shifted[None, :], np.array([[sdp_constant]])],
-        ])
+        C = np.block(
+            [
+                [F_scaled, 0.5 * c_shifted[:, None]],
+                [0.5 * c_shifted[None, :], np.array([[sdp_constant]])],
+            ]
+        )
 
         # SDP maximum and minimum.
         r_max, _ = interior_point_method_maxcut(C)
@@ -169,10 +190,12 @@ class ProblemBQP(ProblemMaxCut):
         top_right = 0.5 * c_shifted - penalty * A_scaled.T @ b_shifted
         bottom_right = sdp_constant + penalty * (b_shifted @ b_shifted)
 
-        B = np.block([
-            [top_left,                 top_right[:, None]],
-            [top_right[None, :],       np.array([[bottom_right]])],
-        ])
+        B = np.block(
+            [
+                [top_left, top_right[:, None]],
+                [top_right[None, :], np.array([[bottom_right]])],
+            ]
+        )
 
         # original_value = const_val - max_cut_value
         #
@@ -186,7 +209,7 @@ class ProblemBQP(ProblemMaxCut):
 
         const_val = B.sum()
         if not np.isclose(const_val, round(const_val)):
-            raise ValueError(f'Constant must be an integer, got {const_val}')
+            raise ValueError(f"Constant must be an integer, got {const_val}")
         const_val = round(const_val)
 
         # Standard weighted Max-Cut adjacency matrix.
@@ -206,8 +229,7 @@ class SolutionBQP(SolutionMaxCut):
     def solution(self):
         return self.__solution
 
-    def get_bqp_solution(self, biqbin_result: dict,
-                         problem: ProblemBQP) -> dict[str, Any]:
+    def get_bqp_solution(self, biqbin_result: dict, problem: ProblemBQP) -> dict[str, Any]:
         """Construct BQP solution from Biqbins Max-Cut solution
 
         Args:
@@ -223,21 +245,21 @@ class SolutionBQP(SolutionMaxCut):
         """
 
         bqp_result: dict[str, Any] = {
-            'rho': problem.rho,
-            'const_value': problem.const_value,
-            'penalty': problem.penalty,
-            'feasible_solution': False,
-            'computed_val': None,
-            'x': None
+            "rho": problem.rho,
+            "const_value": problem.const_value,
+            "penalty": problem.penalty,
+            "feasible_solution": False,
+            "computed_val": None,
+            "x": None,
         }
 
-        biqbin_result['bqp'] = bqp_result
+        biqbin_result["bqp"] = bqp_result
 
-        mc_obj_value = biqbin_result['maxcut']['computed_val']
+        mc_obj_value = biqbin_result["maxcut"]["computed_val"]
 
         # The Max-Cut solution has one additional auxiliary variable.
         # Remove it to recover the BQP-sized vector.
-        mc_x = np.asarray(biqbin_result['maxcut']['x'])[:-1]
+        mc_x = np.asarray(biqbin_result["maxcut"]["x"])[:-1]
 
         # Recover the objective value of the penalized BQP from Max-Cut.
         bqp_obj_value = problem.const_value - mc_obj_value
@@ -254,65 +276,80 @@ class SolutionBQP(SolutionMaxCut):
         # orientations and select the one that satisfies the original
         # constraints and reproduces the recovered BQP objective.
         for candidate in (mc_x, 1 - mc_x):
-            constraints_ok = np.array_equal(problem.A @ candidate,
-                                            problem.b)
+            constraints_ok = np.array_equal(problem.A @ candidate, problem.b)
 
             if not constraints_ok:
                 continue
 
-            objective = (
-                candidate @ problem.F @ candidate
-                + problem.c @ candidate
-            )
+            objective = candidate @ problem.F @ candidate + problem.c @ candidate
 
             if np.isclose(objective, bqp_obj_value):
-                bqp_result['x'] = candidate.tolist()
-                bqp_result['computed_val'] = bqp_obj_value + problem.offset
-                bqp_result['feasible_solution'] = True
-                bqp_result['offset'] = problem.offset
+                bqp_result["x"] = candidate.tolist()
+                bqp_result["computed_val"] = bqp_obj_value + problem.offset
+                bqp_result["feasible_solution"] = True
+                bqp_result["offset"] = problem.offset
                 return bqp_result
 
         # If the penalty test says the solution should be feasible but neither
         # Max-Cut orientation maps back to a valid BQP solution, something is
         # inconsistent in the transformation/reconstruction.
         raise ValueError(
-            'Max-Cut solution could not be mapped back to a feasible BQP '
-            'solution with the expected objective value.'
+            "Max-Cut solution could not be mapped back to a feasible BQP "
+            "solution with the expected objective value."
         )
 
     def _summary_sections(self, verbose: bool) -> list[str]:
-        sections = ["--- BQP ---\n" + self._format_fields([
-            ("Computed value", self.__solution['computed_val']),
-            ("Feasible solution", self.__solution['feasible_solution']),
-            ("x", self.__solution['x']),
-        ])]
+        sections = [
+            "--- BQP ---\n"
+            + self._format_fields(
+                [
+                    ("Computed value", self.__solution["computed_val"]),
+                    ("Feasible solution", self.__solution["feasible_solution"]),
+                    ("x", self.__solution["x"]),
+                ]
+            )
+        ]
         if verbose:
-            sections.append("--- BQP transformation ---\n" + self._format_fields([
-                ("Rho", self.__solution['rho']),
-                ("Const value", self.__solution['const_value']),
-                ("Penalty", self.__solution['penalty']),
-            ]))
+            sections.append(
+                "--- BQP transformation ---\n"
+                + self._format_fields(
+                    [
+                        ("Rho", self.__solution["rho"]),
+                        ("Const value", self.__solution["const_value"]),
+                        ("Penalty", self.__solution["penalty"]),
+                    ]
+                )
+            )
             sections.append(self._format_maxcut_section("Underlying Max-Cut"))
         return sections
 
 
 class BQPSolver(MaxCutSolver):
-    solver_name = 'PyBiqBin-BQP'
+    solver_name = "PyBiqBin-BQP"
 
-    def __init__(self, problem: ProblemBQP, params: str, time_limit: int = 0, initial_estimate=None, collect_heuristic_root_data=False, collect_sdp_bound_root_data=False):
+    def __init__(
+        self,
+        problem: ProblemBQP,
+        params: str,
+        time_limit: int = 0,
+        initial_estimate=None,
+        collect_heuristic_root_data=False,
+        collect_sdp_bound_root_data=False,
+    ):
         self.__problem: ProblemBQP = problem
 
         if initial_estimate is not None:
             # Transform BQP solution to Biqbin Max-Cut solution vector, throwing error if not feasible
-            initial_estimate = self._initial_estimate_bqp_to_maxcut(
-                initial_estimate)
+            initial_estimate = self._initial_estimate_bqp_to_maxcut(initial_estimate)
 
-        super().__init__(problem=problem,
-                         params=params,
-                         time_limit=time_limit,
-                         initial_estimate=initial_estimate,
-                         collect_heuristic_root_data=collect_heuristic_root_data,
-                         collect_sdp_bound_root_data=collect_sdp_bound_root_data)
+        super().__init__(
+            problem=problem,
+            params=params,
+            time_limit=time_limit,
+            initial_estimate=initial_estimate,
+            collect_heuristic_root_data=collect_heuristic_root_data,
+            collect_sdp_bound_root_data=collect_sdp_bound_root_data,
+        )
 
     @property
     def problem(self) -> ProblemBQP:
@@ -344,18 +381,14 @@ class BQPSolver(MaxCutSolver):
             or not np.all(np.isfinite(bqp_x))
             or not np.all((bqp_x == 0) | (bqp_x == 1))
         ):
-            logger.fatal(
-                f'Initial estimate must be a binary vector of length {n}.'
-            )
+            logger.fatal(f"Initial estimate must be a binary vector of length {n}.")
             abort_mpi(10)
 
         if not np.array_equal(
             self.__problem.A @ bqp_x,
             self.__problem.b,
         ):
-            logger.fatal(
-                'Initial estimate does not satisfy A @ x = b.'
-            )
+            logger.fatal("Initial estimate does not satisfy A @ x = b.")
             abort_mpi(10)
 
         bqp_obj = bqp_x @ self.__problem.F @ bqp_x + self.__problem.c @ bqp_x
@@ -364,16 +397,20 @@ class BQPSolver(MaxCutSolver):
             # append the fixed auxiliary coordinate
             mc_candidate = np.append(candidate, 0)
             y = 1 - 2 * mc_candidate  # 0/1 partition -> {-1, 1}
-            cut_value = 0.25 * (self.__problem.maxcut_adjacency_matrix.sum() -
-                                y @ self.__problem.maxcut_adjacency_matrix @ y)
+            cut_value = 0.25 * (
+                self.__problem.maxcut_adjacency_matrix.sum()
+                - y @ self.__problem.maxcut_adjacency_matrix @ y
+            )
 
             cut_value *= self.__problem.gcd  # undo Max-cut adjacency matrix optimization
             if np.isclose(self.__problem.const_value - cut_value, bqp_obj):
                 return mc_candidate
 
         logger.fatal(
-            'initial estimate solution is not a feasible solution to the problem.\n'
-            'Please input a feasible initial estimate or run without passing one in.', stack_info=True)
+            "initial estimate solution is not a feasible solution to the problem.\n"
+            "Please input a feasible initial estimate or run without passing one in.",
+            stack_info=True,
+        )
         abort_mpi(10)
 
 
@@ -382,12 +419,12 @@ class BQPFromQBODense(FromFile):
         with open(self.filename) as f:
             data = json.load(f)
 
-        F = np.array(data['QBO']['Q'])
+        F = np.array(data["QBO"]["Q"])
         if not np.allclose(F, F.T):
             F = F + F.T
         c = F.diagonal().copy()
-        A = np.array(data['QBO']['constraints']['linear'][0])
-        b = np.array(data['QBO']['constraints']['linear'][1])
+        A = np.array(data["QBO"]["constraints"]["linear"][0])
+        b = np.array(data["QBO"]["constraints"]["linear"][1])
 
         return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
 
@@ -406,16 +443,14 @@ class BQPFromQBOSparse(FromFile):
 
         A, b, sense = lin[0]
 
-        if sense != '==':
-            raise ValueError(
-                'BiqBin can only solve equality constraints!'
-            )
+        if sense != "==":
+            raise ValueError("BiqBin can only solve equality constraints!")
 
         # if data['QBO']['offset'] != 0:
         #     raise ValueError(
         #         f"Offset == {data['QBO']['offset']}"
         #     )
-        offset = data['QBO']['offset']
+        offset = data["QBO"]["offset"]
         return ProblemBQP(F, c, A.toarray(), b, self.problem_name, offset, self.optimize_input)
 
     def _load_qbo_new_format(self, path):
@@ -442,24 +477,24 @@ class BQPFromQBOSparse(FromFile):
 
         linear = [
             (
-                sp.sparse.coo_matrix(
-                    (Bi_data, (Bi_row, Bi_col)), shape=Bi_shape),
+                sp.sparse.coo_matrix((Bi_data, (Bi_row, Bi_col)), shape=Bi_shape),
                 np.asarray(Ci, dtype=float),
                 sense,
             )
-            for ((Bi_data, (Bi_row, Bi_col)), Bi_shape), Ci, sense
-            in data["QBO"]["constraints"]["linear"]
+            for ((Bi_data, (Bi_row, Bi_col)), Bi_shape), Ci, sense in data["QBO"]["constraints"][
+                "linear"
+            ]
         ]
 
         quadratic = [
             (
-                sp.sparse.coo_matrix(
-                    (Qi_data, (Qi_row, Qi_col)), shape=Qi_shape),
+                sp.sparse.coo_matrix((Qi_data, (Qi_row, Qi_col)), shape=Qi_shape),
                 float(ri),
                 sense,
             )
-            for ((Qi_data, (Qi_row, Qi_col)), Qi_shape), ri, sense
-            in data["QBO"]["constraints"]["quadratic"]
+            for ((Qi_data, (Qi_row, Qi_col)), Qi_shape), ri, sense in data["QBO"]["constraints"][
+                "quadratic"
+            ]
         ]
 
         return data, Q, linear, quadratic
@@ -471,18 +506,16 @@ class BQPFromBQPFile(FromFile):
     """
 
     def read(self) -> ProblemBQP:
-        with open(self.filename, 'r') as f:
+        with open(self.filename, "r") as f:
             lines = f.readlines()
 
         if not lines:
-            raise ValueError(f'File {self.filename} is empty!')
+            raise ValueError(f"File {self.filename} is empty!")
 
         try:
             n, m = map(int, lines[0].split())
         except ValueError:
-            raise ValueError(
-                f'File {self.filename}: first line must be "n m", got: {lines[0]!r}'
-            )
+            raise ValueError(f'File {self.filename}: first line must be "n m", got: {lines[0]!r}')
 
         F = np.zeros((n, n))
         c = np.zeros(n)
@@ -493,47 +526,46 @@ class BQPFromBQPFile(FromFile):
 
         def check_index(name: str, i: int, upper: int) -> None:
             if not (1 <= i <= upper):
-                raise IndexError(
-                    f'{name} index {i} out of range (must be 1..{upper})')
+                raise IndexError(f"{name} index {i} out of range (must be 1..{upper})")
 
         for lineno, raw_line in enumerate(lines[1:], start=2):
             line = raw_line.strip()
             if not line:
                 continue
-            if line in {'F', 'c', 'A', 'b'}:
+            if line in {"F", "c", "A", "b"}:
                 current_section = line  # type: ignore
                 continue
             if current_section is None:
                 raise ValueError(
-                    f'File {self.filename}, line {lineno}: data before any section header: {line!r}'
+                    f"File {self.filename}, line {lineno}: data before any section header: {line!r}"
                 )
             try:
                 match current_section:
-                    case 'F':
+                    case "F":
                         i, j, v = map(int, line.split())
-                        check_index('F row', i, n)
-                        check_index('F column', j, n)
+                        check_index("F row", i, n)
+                        check_index("F column", j, n)
                         i, j = i - 1, j - 1
                         F[i, j] = v
                         if i != j:
                             F[j, i] = v
-                    case 'c':
+                    case "c":
                         i, v = map(int, line.split())
-                        check_index('c', i, n)
+                        check_index("c", i, n)
                         c[i - 1] = v
-                    case 'A':
+                    case "A":
                         i, j, v = map(int, line.split())
-                        check_index('A row', i, m)
-                        check_index('A column', j, n)
+                        check_index("A row", i, m)
+                        check_index("A column", j, n)
                         A[i - 1, j - 1] = v
-                    case 'b':
+                    case "b":
                         i, v = map(int, line.split())
-                        check_index('b', i, m)
+                        check_index("b", i, m)
                         b[i - 1] = v
 
             except ValueError as e:
                 raise ValueError(
-                    f'File {self.filename}, line {lineno} (section {current_section!r}): {e}\n  {line!r}'
+                    f"File {self.filename}, line {lineno} (section {current_section!r}): {e}\n  {line!r}"
                 ) from e
 
         return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
@@ -545,10 +577,9 @@ class BQPFromJson(FromFile):
     """
 
     def read(self) -> ProblemBQP:
-        """Read the bqp json file and return a ProblemBQP class instance that SolverBQP can read.
-        """
+        """Read the bqp json file and return a ProblemBQP class instance that SolverBQP can read."""
 
-        with open(self.filename, 'r') as file:
+        with open(self.filename, "r") as file:
             instance = json.load(file)
 
         n = instance["number_of_variables"]
@@ -556,32 +587,30 @@ class BQPFromJson(FromFile):
 
         def check_index(name: str, i: int, upper: int):
             if not 0 <= i < upper:
-                raise IndexError(
-                    f'{name} index {i} out of range (must be 0..{upper - 1})'
-                )
+                raise IndexError(f"{name} index {i} out of range (must be 0..{upper - 1})")
 
         F = np.zeros((n, n))
         for i, j, v in instance["F"]:
-            check_index('F row', i, n)
-            check_index('F column', j, n)
+            check_index("F row", i, n)
+            check_index("F column", j, n)
             F[i, j] = v
             if i != j:
                 F[j, i] = v
 
         A = np.zeros((m, n))
         for i, j, v in instance["A"]:
-            check_index('A row', i, m)
-            check_index('A column', j, n)
+            check_index("A row", i, m)
+            check_index("A column", j, n)
             A[i, j] = v
 
         c = np.zeros(n)
         for i, v in instance["c"]:
-            check_index('c', i, n)
+            check_index("c", i, n)
             c[i] = v
 
         b = np.zeros(m)
         for i, v in instance["b"]:
-            check_index('b', i, m)
+            check_index("b", i, m)
             b[i] = v
 
         return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
@@ -591,11 +620,19 @@ class BQPToJson(ToFile):
     def __init__(self, solution: SolutionBQP) -> None:
         self.solution: SolutionBQP = solution
 
-    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True, with_maxcut_solution: bool = False) -> None:
+    def write(
+        self,
+        filename: str,
+        overwrite: bool = False,
+        with_metadata: bool = True,
+        with_maxcut_solution: bool = False,
+    ) -> None:
         """Save the bqp solution as JSON file.
 
         Args:
-            solution (SolutionBQP): Solution class returned by Biqbin after solving the problem
+            filename (str): Destination filename.
+            overwrite (bool): Replace an existing file when True; otherwise choose
+                an unused filename.
             with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
         """
 
@@ -603,42 +640,40 @@ class BQPToJson(ToFile):
         output_path = self.get_output_path(filename, overwrite)
 
         save_output = {
-            'bqp': self.solution.solution,
+            "bqp": self.solution.solution,
         }
         if with_maxcut_solution:
-            save_output['maxcut'] = self.solution.maxcut_solution
+            save_output["maxcut"] = self.solution.maxcut_solution
         if with_metadata:
-            save_output['meta_data'] = self.solution.meta_data
+            save_output["meta_data"] = self.solution.meta_data
 
-        with open(output_path, 'w') as f:
-            json.dump(save_output, f,
-                      default=convert_numpy_to_json_serializable)
+        with open(output_path, "w") as f:
+            json.dump(save_output, f, default=convert_numpy_to_json_serializable)
 
 
 class ParserBQP(ArgParserBase):
     FORMAT_CHOICES = {
-        'json': BQPFromJson,
-        'bqp': BQPFromBQPFile,
-        'sparse': BQPFromQBOSparse,
-        'dense': BQPFromQBODense
+        "json": BQPFromJson,
+        "bqp": BQPFromBQPFile,
+        "sparse": BQPFromQBOSparse,
+        "dense": BQPFromQBODense,
     }
 
     def __init__(self):
-        super().__init__(prog='biqbin_bqp.py', description='Biqbin BQP solver')
-        self.add_argument('-j', '--json', action='store_true',
-                          help=SUPPRESS)
+        super().__init__(prog="biqbin_bqp.py", description="Biqbin BQP solver")
+        self.add_argument("-j", "--json", action="store_true", help=SUPPRESS)
         self.add_argument(
-            '--format',
+            "--format",
             default=self.FORMAT_CHOICES["bqp"],
             type=self.parse_format,
-            help=f'BQP problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}; Defaults to \'bqp\'')
+            help=f"BQP problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}; Defaults to 'bqp'",
+        )
 
     def parse_args(self, *args, **kwargs):
         ns = super().parse_args(*args, **kwargs)
         if ns.json:
             warnings.warn(
-                "[DEPRECATED] `-j`, `--json` is deprecated, please use --format json",
-                UserWarning
+                "[DEPRECATED] `-j`, `--json` is deprecated, please use --format json", UserWarning
             )
             ns.format = BQPFromJson
         return ns
@@ -647,44 +682,47 @@ class ParserBQP(ArgParserBase):
         fmt = fmt.lower()
         if fmt not in self.FORMAT_CHOICES:
             raise ArgumentTypeError(
-                f'invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}')
+                f"invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}"
+            )
 
         return self.FORMAT_CHOICES[fmt]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = ParserBQP()
     args = parser.parse_args()
 
     init()  # initialize MPI
     configure_rank_logging(args.log_dir, get_rank())
     problem_reader_cls = args.format
-    problem_reader = problem_reader_cls(
-        args.problem_instance, optimize_input=args.optimize)
+    problem_reader = problem_reader_cls(args.problem_instance, optimize_input=args.optimize)
     problem = problem_reader.read()
 
     if get_rank() == 0 and args.solution:
-        with open(args.solution, 'r') as f:
-            initial_estimate = np.array(json.load(f)['initial_estimate'])
+        with open(args.solution, "r") as f:
+            initial_estimate = np.array(json.load(f)["initial_estimate"])
         logger.info("Initial solution: %s", initial_estimate)
     else:
         initial_estimate = None
 
-    solver = BQPSolver(problem, args.params, args.time, initial_estimate,
-                       collect_heuristic_root_data=args.collect_root_data,
-                       collect_sdp_bound_root_data=args.collect_root_data)
+    solver = BQPSolver(
+        problem,
+        args.params,
+        args.time,
+        initial_estimate,
+        collect_heuristic_root_data=args.collect_root_data,
+        collect_sdp_bound_root_data=args.collect_root_data,
+    )
 
     solution = solver.compute()  # run the solver
 
     if get_rank() == 0:
         if solution is None:
-            raise ValueError(f'Solution to problem {problem} not found!')
+            raise ValueError(f"Solution to problem {problem} not found!")
         solution.print_computed_solution(args.verbose)
         solution_writer = BQPToJson(solution)
         if isinstance(args.output, str):
             output_path = args.output
         else:
-            output_path = args.problem_instance + '.output'
-        solution_writer.write(output_path,
-                              with_metadata=True,
-                              with_maxcut_solution=True)
+            output_path = args.problem_instance + ".output"
+        solution_writer.write(output_path, with_metadata=True, with_maxcut_solution=True)

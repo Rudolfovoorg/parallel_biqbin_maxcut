@@ -7,3 +7,18 @@ build
 tests/bqp/QBO_rescaled
 .pytest_cache/
 ci-artifacts/
+
+# Python tools
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+junit.xml
+htmlcov/
+
+# Generated documentation
+site/
+
+# Virtual environments
+.venv/
+venv/

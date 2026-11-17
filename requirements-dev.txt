@@ -2,3 +2,4 @@
 pytest==9.0.2
 # Only the local simulated annealer is used by biqbin_heuristic.py.
 dwave-samplers==1.8.0
+ruff==0.17.5

@@ -31,26 +31,30 @@ QUBO also supports:
 
 ## Python Example
 
-There is a seperate python class for each of the supported formats split between Max-Cut and QUBO data parsers. Implementation is located in [biqbin/data_parsers.py](../biqbin/data_parsers.py)
+There is a seperate python class for each of the supported formats split between Max-Cut and QUBO data parsers. Implementation is located in [Python data parsers](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/biqbin/data_parsers.py)
 
 ```py
 # All importable data parsers and solvers
-from biqbin import (MaxCutFromJson, # For MaxCut problems
-                    MaxCutFromMatrixMarket,
-                    MaxCutFromEdgeWeights,
-                    MaxCutSolver,
-                    QuboFromJson, # For QUBO problems
-                    QuboFromMatrixMarket,
-                    QuboFromEdgeWeights,
-                    QuboFromQPLIB,
-                    QUBOSolver)
+from biqbin import (
+    MaxCutFromJson,  # For MaxCut problems
+    MaxCutFromMatrixMarket,
+    MaxCutFromEdgeWeights,
+    MaxCutSolver,
+    QuboFromJson,  # For QUBO problems
+    QuboFromMatrixMarket,
+    QuboFromEdgeWeights,
+    QuboFromQPLIB,
+    QUBOSolver,
+)
 
 # They are all used in the same way:
-data_parser = QuboFromJson(filename) # instantiate with the path to the problem file
-problem = data_parser.read()         # call the read() method, which returns a 'Problem' instance for the solver
+data_parser = QuboFromJson(filename)  # instantiate with the path to the problem file
+problem = (
+    data_parser.read()
+)  # call the read() method, which returns a 'Problem' instance for the solver
 
-solver = QUBOSolver(problem_qubo)    # Instantiate the solver with the returned 'Problem' instance
-solution = solver_qubo.compute()     # Compute the solution
+solver = QUBOSolver(problem_qubo)  # Instantiate the solver with the returned 'Problem' instance
+solution = solver_qubo.compute()  # Compute the solution
 ```
 
 

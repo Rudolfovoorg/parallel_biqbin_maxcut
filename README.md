@@ -64,6 +64,18 @@ scipy
 
 ## Build and test
 
+CI also runs a separate `Ruff (lint and format)` check using Ruff 0.17.5 and
+our existing `pyproject.toml` configuration. After installing
+`requirements-dev.txt`, run the same checks locally:
+
+```bash
+ruff check .
+ruff format --check .
+```
+
+These checks report failures without modifying files. If branch protection is
+enabled, require this check alongside the build-and-test check.
+
 `make` performs a clean build of the native executable and Python extension.
 Install `requirements-dev.txt`, then run `make test` for the complete regression
 suite (including a clean rebuild). Plain `pytest` is not equivalent: some tests
@@ -93,6 +105,15 @@ This builds the local solver image first, then runs the tests inside it; no
 pre-existing image or registry login is needed. `make docker-dev` builds both
 the solver image and a development image with test dependencies, running the
 tests during the development-image build.
+
+## Documentation
+
+Install `requirements-docs.txt`, then run `make docs` for a strict HTML build
+or `make docs-serve` for a local preview. Generated files go into `site/`.
+The guides in `doc/` are combined with API references extracted from
+`biqbin/*.py`, `biqbin/biqbin_module.pyi`, and `biqbin_bqp.py`.
+Documentation builds do not import the solver or require MPI/native builds.
+See [the documentation home](doc/index.md) for details.
 
 ## [Installation readme](doc/INSTALLATION.md)
 

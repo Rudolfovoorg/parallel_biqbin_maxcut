@@ -24,7 +24,7 @@ Biqbin requires a primal SDP solution matrix (a PSD matrix `X` with entries in t
 ```python
 def sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
     # ... your SDP routine ...
-    X = np.identity(P.n) # your PSD matrix of shape (P.n, P.n)
+    X = np.identity(P.n)  # your PSD matrix of shape (P.n, P.n)
     self.set_sdp_primal_solution(X)
     return my_sdp_value
 ```
@@ -34,17 +34,16 @@ def sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
 ## Method Signatures
 
 ```python
-def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
-    ...
+def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float: ...
 
-def sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
-    ...
 
-def initial_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
-    ...
+def sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float: ...
 
-def heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
-    ...
+
+def initial_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]: ...
+
+
+def heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]: ...
 ```
 
 - `node` — current B&B node
@@ -65,9 +64,9 @@ class CustomSolver(QUBOSolver):
     def initial_sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
         # Compute the SDP relaxation value and SDP primal solution X
         bound, X = custom_root_sdp(P.L)
-        self.set_sdp_primal_solution(X) # set it before leaving the function
+        self.set_sdp_primal_solution(X)  # set it before leaving the function
         return bound
-        
+
     def initial_heuristic(self, L, *args, **kwargs) -> npt.NDArray[np.int32]:
         # Run heuristic on root and return a binary 0-1 solution vector of size L.shape[0] - 1
         x = custom_root_heuristic(L)
@@ -76,7 +75,7 @@ class CustomSolver(QUBOSolver):
     def sdp_bound(self, node, P0, P, *args, **kwargs) -> float:
         # Compute the SDP relaxation value and SDP primal solution X
         bound, X = custom_sdp(P.L)
-        self.set_sdp_primal_solution(X) # set it before leaving the function
+        self.set_sdp_primal_solution(X)  # set it before leaving the function
         return bound
 
     def heuristic(self, L, *args, **kwargs) -> npt.NDArray[np.int32]:
@@ -109,5 +108,5 @@ Without `--log-dir`, logs go only to stderr. Bare `--log-dir` selects
 directory. Each rank appends to its own `rank-NNNNN.log`. Use separate directories
 for concurrent jobs. A directory-creation or file-opening failure reports to
 stderr and calls `MPI_Abort(10)` so other ranks cannot hang in MPI communication.
-See [the README logging section](../README.md#native-logging) for application
-configuration and compile-time severity levels.
+See [Native logging](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/README.md#native-logging) 
+for application configuration and compile-time severity levels.

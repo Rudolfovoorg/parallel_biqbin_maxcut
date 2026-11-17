@@ -3,6 +3,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -10,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -29,11 +31,13 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - name: Set up Python
+        uses:  actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -55,11 +59,13 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -70,7 +76,7 @@ jobs:
         run: make docs
 
   # ==========================================================
-  # Native builds, MPI tests and coverage
+  # Native builds, MPI tests and Python coverage
   # ==========================================================
   test:
     name: Test (Python ${{ matrix.python }}, ${{ matrix.mpi }})
@@ -81,26 +87,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Canonical environment: complete suite + coverage
           - python: "3.12"
             mpi: mpich
             suite: coverage
 
+          # Python compatibility: focused unit tests
           - python: "3.13"
             mpi: mpich
             suite: unit
 
+          # MPI compatibility: smoke and failure tests
           - python: "3.12"
             mpi: openmpi
             suite: smoke
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Prepare diagnostics
         run: mkdir -p ci-artifacts
 
+      # ------------------------------------------------------
+      # Build
+      # ------------------------------------------------------
       - name: Build CI image
         shell: bash
         run: |
@@ -113,6 +126,9 @@ jobs:
             -t biqbin-ci . \
             2>&1 | tee ci-artifacts/build.log
 
+      # ------------------------------------------------------
+      # Test
+      # ------------------------------------------------------
       - name: Run regression suite
         shell: bash
         run: |
@@ -132,19 +148,22 @@ jobs:
 
               echo "=== Tests ==="
 
+              mkdir -p test-results
+
               case "$TEST_SUITE" in
                 coverage)
                   make coverage
                   ;;
 
                 unit)
-                  make test-unit
+                  make test-unit JUNIT_DIR=test-results
                   ;;
 
                 smoke)
                   make test-logging \
                     test-maxcut \
-                    test-expected-failure
+                    test-expected-failure \
+                    JUNIT_DIR=test-results
                   ;;
 
                 *)
@@ -154,6 +173,9 @@ jobs:
               esac
             ' 2>&1 | tee ci-artifacts/tests.log
 
+      # ------------------------------------------------------
+      # Diagnostics (also on failure)
+      # ------------------------------------------------------
       - name: Collect reports
         if: always()
         shell: bash
@@ -180,14 +202,16 @@ jobs:
         shell: bash
         run: |
           docker rm -f biqbin-ci-tests || true
+
+          # Container-generated files may be owned by root.
           sudo chmod -R a+rX ci-artifacts
 
       - name: Upload diagnostics
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-${{ matrix.python }}-${{ matrix.mpi }}
           path: ci-artifacts/
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error
           include-hidden-files: true

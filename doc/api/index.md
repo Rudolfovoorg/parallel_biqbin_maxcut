@@ -1,29 +1,41 @@
 # Python API
 
-These pages document the project's Python modules. They are generated from
-source signatures and docstrings, including the `.pyi` stub for the native
-extension. Third-party code in `biqbin/external/` is not included.
+This reference covers the main application API. It is organized by what you
+work with, rather than by the files that implement it.
 
-- [Max-Cut and QUBO](solvers.md): problem, solver, and solution classes.
-- [BQP](bqp.md): constrained binary quadratic problems and their parsers.
-- [File parsers](parsers.md): reading problems and writing solutions.
-- [CLI argument parsers](arguments.md): options used by the example commands.
-- [Logging](logging.md): application and per-rank logging configuration.
-- [Utilities](utilities.md): matrix conversion, validation, and serialization.
-- [Native bindings](native.md): callbacks and low-level solver operations.
+| Problem type | Problem | Solver | Result |
+| --- | --- | --- | --- |
+| Max-Cut | [ProblemMaxCut](problems.md#biqbin.ProblemMaxCut) | [MaxCutSolver](solvers.md#biqbin.MaxCutSolver) | [SolutionMaxCut](solutions.md#biqbin.SolutionMaxCut) |
+| QUBO | [ProblemQubo](problems.md#biqbin.ProblemQubo) | [QUBOSolver](solvers.md#biqbin.QUBOSolver) | [SolutionQubo](solutions.md#biqbin.SolutionQubo) |
+| BQP | [ProblemBQP](problems.md#biqbin_bqp.ProblemBQP) | [BQPSolver](solvers.md#biqbin_bqp.BQPSolver) | [SolutionBQP](solutions.md#biqbin_bqp.SolutionBQP) |
 
-Max-Cut and QUBO classes are also re-exported from `biqbin` (for example,
-`from biqbin import MaxCutSolver`). BQP classes currently live in the
-repository-root module `biqbin_bqp`.
+See [entry points](entrypoints.md) for MPI initialization, logging, and the
+command-line programs. The [input format guide](../PROBLEM_INSTANCE_FORMATS.md)
+and [custom solver guide](../CUSTOM_SOLVER.md) cover loading instances and
+implementing callbacks. See [utilities](utilities.md) for matrix conversion,
+QUBO export, JSON encoding, and result-data analysis.
 
-## MPI lifecycle
+## Public imports
 
-Call `biqbin.init()` before using a solver. Launch solver programs with at least
-three MPI processes. The package registers `finalize()` to run at interpreter
-exit; importing the package does not initialize MPI.
+```python
+from biqbin import ProblemMaxCut, ProblemQubo, MaxCutSolver, QUBOSolver
+from biqbin import SolutionMaxCut, SolutionQubo
+from biqbin_bqp import ProblemBQP, BQPSolver, SolutionBQP
+```
 
-::: biqbin
-    options:
-      members:
-        - init
-        - finalize
+The Max-Cut and QUBO reference uses the public `biqbin` exports. Their
+implementation can move into `problem.py`, `solution.py`, or other modules
+without changing these documentation references, provided those exports remain
+available. BQP currently uses the root-level `biqbin_bqp` module.
+
+## Reference scope
+
+The API pages explicitly select the classes, methods, and utility functions
+intended for callers.
+Formatting helpers, conversion internals, parser base classes, and the raw
+native module are not listed as separate APIs. Public inherited methods are
+shown on the main classes where they are used.
+
+To document another public API, add an explicit object directive to the
+appropriate page in `doc/api/`. Avoid whole-module directives, which expose
+implementation helpers automatically.

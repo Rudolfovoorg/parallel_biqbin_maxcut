@@ -24,9 +24,11 @@ problem formats, configuration and examples.
 
 ## Python API
 
-The [API reference](api/index.md) is generated from the Python source and
-native binding type stubs. It includes the solver classes, file parsers,
-logging helpers, utilities, and callback interfaces.
+The [API reference](api/index.md) documents the main problem, solution, and
+solver classes, lifecycle, logging, and command-line entry points, plus selected
+data-preparation, export, and result-analysis utilities.
+It uses explicit public API selections rather than listing every class or
+helper in each module.
 
 ## Building these docs
 
@@ -46,5 +48,5 @@ SciPy, and MPI are not required to build the documentation.
 `doc/` contains the guide and reference-page Markdown. The `mkdocstrings`
 plugin reads Python code from the repository root; `docs_dir` does not limit
 which Python packages can be documented. Edit docstrings in the source files
-and rebuild to update the API reference. Add new modules to the API pages and
-navigation in `mkdocs.yml`.
+and rebuild to update the API reference. Add new public objects explicitly to the relevant API page;
+keep internal helpers out of the reference.

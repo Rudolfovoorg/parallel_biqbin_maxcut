@@ -27,13 +27,14 @@ def to_sparse(qubo: npt.ArrayLike):
 
 
 def from_sparse(sparse_matrix: dict) -> npt.NDArray[np.float64]:
-    """Helper function that converts from sparse coo matrix to regular form
+    """Reconstruct a dense matrix from BiqBin's sparse dictionary format.
 
     Args:
-        sparse_matrix (dict): scipy sparse coo matrix
+        sparse_matrix (dict): Dictionary with `shape`, `row`, `col`, and `data`
+            fields, as returned by `to_sparse`.
 
     Returns:
-        np.ndarray: regular form matrix
+        np.ndarray: Dense floating-point matrix.
     """
     return sp.sparse.coo_matrix(
         (sparse_matrix["data"], (sparse_matrix["row"], sparse_matrix["col"])),
@@ -54,7 +55,11 @@ def qubo_to_biqbin_representation(
         minimization (bool): objective sense
 
     Returns:
-        dict: json serializable dictionary that Biqbin can parse. Save to file and pass the path to DataGetterJson.
+        dict: JSON-serializable problem dictionary. Save it to a file and read
+            it with `biqbin.QuboFromJson`.
+
+    Raises:
+        ValueError: If any QUBO coefficient is not integer-valued.
     """
     if not np.all(np.asarray(qubo) % 1 == 0):
         raise ValueError("All QUBO values need to be integers!")
@@ -63,6 +68,19 @@ def qubo_to_biqbin_representation(
 
 
 def check_matrix_validity(input_matrix: np.ndarray) -> npt.NDArray[np.float64]:
+    """Validate a square matrix with finite, integer-valued coefficients.
+
+    Args:
+        input_matrix (np.ndarray): Matrix with an integer or floating-point dtype.
+
+    Returns:
+        np.ndarray: The original matrix, without copying or changing its dtype.
+
+    Raises:
+        TypeError: If the input is not an ndarray with an integer or floating dtype.
+        ValueError: If the input is not square and two-dimensional, or contains
+            non-finite or non-integer values.
+    """
     if not isinstance(input_matrix, np.ndarray):
         raise TypeError(f"Input matrix must be a numpy.ndarray, got {type(input_matrix)}")
 
@@ -163,6 +181,18 @@ def data_collector(enabled_flag, data_box):
 
 
 def convert_numpy_to_json_serializable(obj):
+    """Convert a NumPy value for use as the `default` callback of `json.dump`.
+
+    Args:
+        obj (object): NumPy array or scalar that the JSON encoder cannot handle.
+
+    Returns:
+        object: A list for an ndarray, or the value returned by a NumPy scalar's
+            `item()` method. The resulting value must itself be JSON-serializable.
+
+    Raises:
+        TypeError: If the object is not a NumPy array or scalar.
+    """
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     if isinstance(obj, np.generic):
@@ -204,8 +234,10 @@ def flatten_dict(d: dict, prefix="", level=0):
 
 
 def data_reader_pd(filelist):
-    """Load a list of filenames into a pandas dataframe.
-    Usage: pd.DataFrame(data_reader_pd(filelist))
+    """Yield flattened records from JSON files for tabular analysis.
+
+    This returns an iterator of dictionaries, not a DataFrame. To create one,
+    pass the iterator to `pandas.DataFrame`; pandas is not required by this helper.
 
     Args:
         filelist (iterable): a list or equivalent of filepaths
@@ -219,14 +251,19 @@ def data_reader_pd(filelist):
 
 
 def qubo_to_qplib_str(qubo: np.ndarray, offset: float, minimize: bool, problem_name: str):
-    """Converts a dense qubo representation 2D np array into the qplib format string
+    """Yield QPLIB text chunks for a dense QUBO matrix.
+
+    Use `"".join(qubo_to_qplib_str(...))` to obtain one string, or pass the
+    iterator to a file's `writelines()` method.
 
     Args:
-        qubo (np.ndarray): 2D list or numpy array
-        problem_name (str): Saves the name of the problem inside the qplib format
+        qubo (np.ndarray): Dense QUBO coefficient matrix.
+        offset (float): Constant added to the objective value.
+        minimize (bool): Whether to minimize rather than maximize the objective.
+        problem_name (str): Problem name written into the QPLIB header.
 
-    Returns:
-        str: qplib format that can be saved directly to .qplib file or used elsewhere
+    Yields:
+        str: A QPLIB text chunk containing one or more lines.
     """
     # QPLIB expects a lower triangular matrix
     diag = np.diag(qubo)
@@ -282,6 +319,13 @@ def qubo_to_qplib_str(qubo: np.ndarray, offset: float, minimize: bool, problem_n
 
 
 def save_qubo_problem_as_qplib(filename: str, problem):
+    """Write a QUBO problem to QPLIB, overwriting an existing destination file.
+
+    Args:
+        filename (str): Destination path; parent directories must already exist.
+        problem (biqbin.ProblemQubo): Problem supplying the coefficient matrix,
+            objective offset and sense, and problem name.
+    """
     with open(filename, "w") as f:
         f.writelines(
             qubo_to_qplib_str(
@@ -291,6 +335,13 @@ def save_qubo_problem_as_qplib(filename: str, problem):
 
 
 def save_qubo_problem_as_json(filename: str, problem):
+    """Write a QUBO problem as BiqBin JSON, overwriting an existing file.
+
+    Args:
+        filename (str): Destination path; parent directories must already exist.
+        problem (biqbin.ProblemQubo): Problem supplying the coefficient matrix,
+            objective offset, and minimization flag.
+    """
     with open(filename, "w") as f:
         json.dump(
             qubo_to_biqbin_representation(problem.Q, problem.offset, problem.is_minimization), f

@@ -18,14 +18,12 @@ nav:
       - SDP and heuristic callbacks: CUSTOM_SDP_HEURISTIC.md
       - Heuristics: HEURISTIC.md
   - Python API:
-      - Overview and MPI lifecycle: api/index.md
-      - Max-Cut and QUBO: api/solvers.md
-      - BQP: api/bqp.md
-      - File parsers: api/parsers.md
-      - CLI argument parsers: api/arguments.md
-      - Logging: api/logging.md
+      - Overview: api/index.md
+      - Problems: api/problems.md
+      - Solutions: api/solutions.md
+      - Solvers: api/solvers.md
+      - Entry points: api/entrypoints.md
       - Utilities: api/utilities.md
-      - Native bindings: api/native.md
 
 watch:
   - biqbin
@@ -63,6 +61,9 @@ plugins:
             show_root_heading: true
             show_source: false
             members_order: source
+            members: false  # API pages explicitly select public classes and methods.
+            inherited_members: true
+            show_bases: false  # Keep implementation helpers such as PrettyPrint out of the reference.
             merge_init_into_class: true
             show_signature_annotations: true
 

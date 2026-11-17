@@ -110,8 +110,10 @@ tests during the development-image build.
 
 Install `requirements-docs.txt`, then run `make docs` for a strict HTML build
 or `make docs-serve` for a local preview. Generated files go into `site/`.
-The guides in `doc/` are combined with API references extracted from
-`biqbin/*.py`, `biqbin/biqbin_module.pyi`, and `biqbin_bqp.py`.
+The guides in `doc/` are combined with a curated reference for the main
+problem, solution, and solver classes and their entry points. API pages use
+public `biqbin` exports where available, plus the BQP classes in `biqbin_bqp`;
+implementation helpers are excluded.
 Documentation builds do not import the solver or require MPI/native builds.
 See [the documentation home](doc/index.md) for details.
 

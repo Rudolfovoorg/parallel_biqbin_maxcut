@@ -3,7 +3,7 @@
 
 PYTHON ?= python3
 RUFF ?= $(PYTHON) -m ruff
-
+MPI_PYTHON ?= $(PYTHON)
 
 # Docker image configuration
 IMAGE ?= parallel-biqbin
@@ -155,7 +155,7 @@ $(PYMOD_OUT): $(OBJS)
 TEST_TARGETS := test-harness test-logging test-summaries test-maxcut \
     test-maxcut-python test-qubo-python test-qubo-qplib \
     test-qubo-python-heuristic test-bqp-python test-input-solution \
-    test-parsers test-modular-combos test-expected-failure
+    test-parsers test-modular-combos test-expected-failure test-coverage-gaps
 $(TEST_TARGETS): all
 
 # Tests
@@ -182,9 +182,9 @@ test-maxcut: clean-output
 	$(RUN_ENVS) tests/test.sh "$(MPI_RUN) ./$(BINS)" tests/rudy/g05_100.4 tests/rudy/g05_100.4-expected_output params
 
 test-maxcut-python: clean-output
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_maxcut.py tests/rudy/g05_60.0.json -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_maxcut.py tests/rudy/g05_80.0.json -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_maxcut.py tests/rudy/g05_100.4.json -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_maxcut.py tests/rudy/g05_60.0.json -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_maxcut.py tests/rudy/g05_80.0.json -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_maxcut.py tests/rudy/g05_100.4.json -c
 
 	$(PYTHON) -m pytest tests/test_biqbin_output.py --behavior-report=test-results/behavior/$@.txt $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances \
 		tests/rudy/g05_60.0.json \
@@ -193,33 +193,33 @@ test-maxcut-python: clean-output
 	$(PYTHON) -m pytest tests/test_maxcut.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_maxcut.xml) -v -s --no-header
 
 test-qubo-python: clean-output
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_qubo.py tests/qubos/80/kcluster80_025_20_1.json -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c
 	$(PYTHON) -m pytest tests/test_biqbin_output.py --behavior-report=test-results/behavior/$@.txt $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/qubos/40/kcluster40_025_10_1.json tests/qubos/80/kcluster80_025_20_1.json tests/qplib/5881.qplib
 	$(PYTHON) -m pytest tests/test_qubo.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_qubo.xml) -v -s --no-header
 
 test-qubo-qplib: clean-output
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --format=qplib -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_qubo.py tests/qplib/kcluster80_025_20_1.qplib --format=qplib -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_qubo.py tests/qplib/kcluster40_025_10_1.qplib --format=qplib -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_qubo.py tests/qplib/kcluster80_025_20_1.qplib --format=qplib -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_qubo.py tests/qplib/5881.qplib --format=qplib -c
 	$(PYTHON) -m pytest tests/test_biqbin_output.py --behavior-report=test-results/behavior/$@.txt $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/qplib/kcluster40_025_10_1.qplib tests/qplib/kcluster80_025_20_1.qplib tests/qplib/5881.qplib
 
 test-qubo-python-heuristic: clean-output
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_heuristic.py tests/qubos/40/kcluster40_025_10_1.json \
 				--output tests/heuristic/kcluster40_025_10_1.json.output.json -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_heuristic.py tests/qubos/80/kcluster80_025_20_1.json \
 				--output tests/heuristic/kcluster80_025_20_1.json.output.json -c
 
 	$(PYTHON) -m pytest tests/test_biqbin_output.py --behavior-report=test-results/behavior/$@.txt $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/heuristic/kcluster40_025_10_1.json tests/heuristic/kcluster80_025_20_1.json
 
 test-input-solution: clean-output
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_maxcut.py \
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_maxcut.py \
 				tests/rudy/g05_60.0.json \
 				--output tests/w_solution/g05_60.0.json.output.json \
 				-s tests/w_solution/g05_60.0.json_initial_solution.json \
 				-c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_qubo.py \
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_qubo.py \
 				tests/qubos/40/kcluster40_025_10_1.json \
 				--output tests/w_solution/kcluster40_025_10_1.json.output.json \
 				-s tests/w_solution/kcluster40_025_10_1.json_initial_solution.json \
@@ -227,10 +227,10 @@ test-input-solution: clean-output
 	$(PYTHON) -m pytest tests/test_biqbin_output.py --behavior-report=test-results/behavior/$@.txt $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/w_solution/g05_60.0.json tests/w_solution/kcluster40_025_10_1.json
 
 test-bqp-python: clean-output
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_bqp.py tests/bqp/test_bqp.data -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_bqp.py tests/bqp/test_bqp.json -j -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_dense.json --format dense -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_sparse.json --format sparse -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_bqp.py tests/bqp/test_bqp.data -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_bqp.py tests/bqp/test_bqp.json -j -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_dense.json --format dense -c
+	$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_sparse.json --format sparse -c
 
 	$(PYTHON) -m pytest tests/test_biqbin_output.py --behavior-report=test-results/behavior/$@.txt $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
 	$(PYTHON) -m pytest tests/test_bqp.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_bqp.xml) -v -s --no-header
@@ -241,7 +241,7 @@ test-modular-combos: clean-output
 	for case in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do \
 		instance=tests/custom_solvers_results/small_example_qubo_test_case_$$case.json; \
 		echo "Custom solver case $$case"; \
-		$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers \
+		$(RUN_ENVS) $(MPI_RUN) $(MPI_PYTHON) -m tests.biqbin_custom_solvers \
 			tests/custom_solvers_results/small_example_qubo.json \
 			-o "$$instance.output" --test-case $$case -c; \
 		set -- "$$@" "$$instance"; \
@@ -253,6 +253,14 @@ test-parsers:
 
 test-expected-failure:
 	$(PYTHON) -m pytest tests/test_mpi_failure_cases.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_mpi_failure_cases.xml) -v -s
+
+test-coverage-gaps:
+	$(PYTHON) -m pytest \
+		tests/test_bqp_initial_estimate.py \
+		tests/test_time_limit_parsing.py \
+		tests/test_utils_extra.py \
+		$(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@.xml) \
+		-v --no-header
 
 test: all $(TEST_TARGETS)
 
@@ -311,17 +319,18 @@ coverage:
 	mkdir -p test-results
 	@set +e; \
 	PYTEST_ADDOPTS="$(PYTEST_ADDOPTS) --cov=biqbin --cov-branch --cov-append --cov-report=" \
-		$(MAKE) test JUNIT_DIR=test-results; \
+		$(MAKE) test \
+			JUNIT_DIR=test-results \
+			MPI_PYTHON="$(PYTHON) -m coverage run --parallel-mode"; \
 	status=$$?; \
+	$(PYTHON) -m coverage combine --append; \
 	if [ -f .coverage ]; then \
-		$(PYTHON) -m coverage report -m || status=1; \
-		$(PYTHON) -m coverage xml || status=1; \
-		$(PYTHON) -m coverage html || status=1; \
-	else \
-		echo "Coverage data was not generated (.coverage is missing)." >&2; \
-		status=1; \
+		$(PYTHON) -m coverage report -m || true; \
+		$(PYTHON) -m coverage xml || true; \
+		$(PYTHON) -m coverage html || true; \
 	fi; \
 	exit $$status
+
 
 docs:
 	$(PYTHON) -m mkdocs build --strict

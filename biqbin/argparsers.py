@@ -131,8 +131,12 @@ class ArgParserBase(ArgumentParser):
             hours, minutes = map(int, parts)
             seconds = 0
         elif len(parts) == 1:
-            # Slurm allows just minutes like "30"
-            return int(parts[0]) * 60
+            if days:
+                hours = int(parts[0])
+                minutes = seconds = 0
+            else:
+                hours = seconds = 0
+                minutes = int(parts[0])
         else:
             raise ArgumentTypeError(f"Invalid time format: {s}")
 

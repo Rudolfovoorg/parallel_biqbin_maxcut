@@ -333,9 +333,9 @@ coverage:
 		$(MAKE) test JUNIT_DIR=test-results; \
 	status=$$?; \
 	if [ -f .coverage ]; then \
-		$(PYTHON) -m coverage report -m || true; \
-		$(PYTHON) -m coverage xml || true; \
-		$(PYTHON) -m coverage html || true; \
+		$(PYTHON) -m coverage report -m || status=1; \
+		$(PYTHON) -m coverage xml || status=1; \
+		$(PYTHON) -m coverage html || status=1; \
 	fi; \
 	exit $$status
 

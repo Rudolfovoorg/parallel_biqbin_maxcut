@@ -23,325 +23,9 @@ from biqbin.biqbin_module import (
     update_mc_lower_bound_solution,
 )
 from biqbin.logging import logger
-from biqbin.utils import check_matrix_validity_setter_wrap, data_collector, divide_matrix_by_gcd
-
-
-class PrettyPrint:
-    """Render a class heading, aligned fields, and type-specific sections."""
-
-    @staticmethod
-    def _format_fields(fields: list[tuple[str, object]]) -> str:
-        return "\n".join(f"{label:<21} = {value}" for label, value in fields)
-
-    @staticmethod
-    def _format_array(name: str, array: np.ndarray) -> str:
-        return f"{name} = {array.shape}\n{array}"
-
-    def _summary_fields(self) -> list[tuple[str, object]]:
-        return []
-
-    def _summary_sections(self, verbose: bool) -> list[str]:
-        return []
-
-    def format_summary(self, verbose: bool = False) -> str:
-        """Return a class heading and summary; verbose adds conversion details.
-
-        The heading shares the first line with a logging handler's prefix when
-        an object is logged with ``logger.info("%s", object)``.
-        """
-        parts = [type(self).__name__]
-        fields = self._summary_fields()
-        if fields:
-            parts.append(self._format_fields(fields))
-        parts.extend(self._summary_sections(verbose))
-        return "\n".join(parts)
-
-    def __str__(self) -> str:
-        return self.format_summary()
-
-    def __repr__(self) -> str:
-        return str(self)
-
-
-class ProblemMaxCut(PrettyPrint):
-    """Weighted Max-Cut problem with an integer-valued symmetric adjacency matrix.
-
-    Args:
-        maxcut_adjacency_matrix: Square matrix of edge weights with zero diagonal.
-        problem_name: Name used in logging and result metadata.
-        optimize_mc_adj_matrix: Divide weights by their greatest common divisor.
-            This may modify the supplied matrix; pass a copy to preserve it.
-    """
-
-    def __init__(
-        self,
-        maxcut_adjacency_matrix: npt.NDArray[np.floating | np.integer],
-        problem_name: str,
-        optimize_mc_adj_matrix: bool = False,
-    ) -> None:
-
-        self.problem_name = problem_name
-        self.optimize_mc_adj_matrix = optimize_mc_adj_matrix
-        self.gcd: int = 1
-        self.maxcut_adjacency_matrix = maxcut_adjacency_matrix
-
-    @property
-    def maxcut_adjacency_matrix(self) -> npt.NDArray[np.floating | np.integer]:
-        """Returns the valid input which Biqbin can solve.
-        Checks if the input is valid for Biqbin (if all values are integers).
-
-        Returns:
-            np.ndarray: adjacency matrix for the MaxCut problem
-        """
-
-        return self._maxcut_adjacency_matrix
-
-    @maxcut_adjacency_matrix.setter
-    @check_matrix_validity_setter_wrap
-    def maxcut_adjacency_matrix(self, value: npt.NDArray[np.floating | np.integer]):
-        """Sets Biqbin input which is an adjacency matrix for the MaxCut problem.
-        Optionally optimizes the input (divides the values of the matrix by their greatest common divisor).
-
-        Args:
-            value (npt.NDArray[np.floating  |  np.integer]): MaxCut adjacency matrix
-        """
-        if self.optimize_mc_adj_matrix:
-            self.gcd = divide_matrix_by_gcd(value)
-        self._maxcut_adjacency_matrix = value
-
-    def _summary_fields(self) -> list[tuple[str, object]]:
-        return [
-            ("Problem name", self.problem_name),
-            ("Optimized input", self.optimize_mc_adj_matrix),
-            ("GCD", self.gcd),
-        ]
-
-    def _format_maxcut_problem(self, title: str = "Max-Cut") -> str:
-        return "\n".join(
-            [
-                f"--- {title} ---",
-                self._format_fields([("Vertices", self.maxcut_adjacency_matrix.shape[0])]),
-                self._format_array("Adjacency matrix", self.maxcut_adjacency_matrix),
-            ]
-        )
-
-    def _summary_sections(self, verbose: bool) -> list[str]:
-        return [self._format_maxcut_problem()]
-
-
-class ProblemQubo(ProblemMaxCut):
-    """Inherits from ProblemMaxCut, takes a qubo np.ndarray and constructs the biqbin input (maxcut adjacency matrix)"""
-
-    def __init__(
-        self,
-        Q: np.ndarray,
-        offset: float,
-        problem_name: str,
-        is_minimization: bool,
-        optimize_input: bool = False,
-    ):
-        """Initialize the ProblemQubo
-
-        Args:
-            Q (np.ndarray): Dense matrix defining the objective ``x.T @ Q @ x + offset``.
-            offset (float): Constant added to the objective value.
-            problem_name (str): Name (filename) of the problem instance.
-            is_minimization (bool): If the objective is to minimize (True) or maximize (False)
-            optimize_input (bool, optional): Divides the biqbin input (maxcut adjacency matrix) by the greatest common divisor of the values.
-                                             Defaults to False.
-        """
-        self.Q: np.ndarray = Q
-        self.offset: float = offset
-        self.is_minimization: bool = is_minimization
-        if self.is_minimization:
-            super().__init__(self.qubo2maxcut(Q), problem_name, optimize_input)
-        else:
-            super().__init__(self.qubo2maxcut(-Q), problem_name, optimize_input)
-
-    @check_matrix_validity_setter_wrap
-    def qubo2maxcut(self, qubo: np.ndarray) -> np.ndarray:
-        """Convert a QUBO matrix to a Max-Cut instance.
-
-        QUBO coefficients must be integer-valued. Since the conversion
-        symmetrizes Q as (Q + Q.T) / 2, triangular QUBO inputs must have
-        even off-diagonal coefficients so that the resulting Max-Cut
-        weights remain integer-valued.
-
-        Raises:
-            ValueError: If the resulting Max-Cut matrix is not integer-valued.
-
-        Args:
-            qubo (np.ndarray): qubo as 2D numpy array
-        Returns:
-            np.ndarray: adjacency matrix for max cut problem
-        """
-
-        q_sym = 1 / 2 * (qubo.T + qubo)
-
-        Qe_plus_c = -np.array([(np.sum(q_sym, 1))])
-        np.fill_diagonal(q_sym, 0)
-
-        return np.block([[q_sym, Qe_plus_c.T], [Qe_plus_c, np.zeros((1, 1))]])
-
-    def _summary_sections(self, verbose: bool) -> list[str]:
-        sections = [
-            "\n".join(
-                [
-                    "--- QUBO ---",
-                    self._format_fields(
-                        [
-                            ("Variables", self.Q.shape[0]),
-                            ("Minimization", self.is_minimization),
-                            ("Offset", self.offset),
-                        ]
-                    ),
-                    self._format_array("Q", self.Q),
-                ]
-            )
-        ]
-        if verbose:
-            sections.append(self._format_maxcut_problem("Underlying Max-Cut"))
-        return sections
-
-
-class SolutionMaxCut(PrettyPrint):
-    """Max-Cut result returned by the solver on MPI rank 0.
-
-    ``solution`` contains ``computed_val``, the binary partition vector ``x``,
-    and ``solution`` (the 1-based indices where ``x`` equals one).
-    ``meta_data`` contains timings, search statistics, and root-node diagnostics.
-    A time-limited run can return an incumbent; check ``time_limit_reached``
-    in ``meta_data`` before treating the result as proven optimal.
-    """
-
-    def __init__(self, biqbin_result: dict, problem: ProblemMaxCut) -> None:
-        if problem.optimize_mc_adj_matrix and problem.gcd != 1:
-            biqbin_result["maxcut"]["computed_val"] *= problem.gcd
-
-        self.__problem: ProblemMaxCut = problem
-        self.__solution: dict = biqbin_result["maxcut"]
-        self.meta_data: dict = biqbin_result["meta_data"]
-
-    @property
-    def solution(self) -> dict:
-        return self.__solution
-
-    @property
-    def problem(self) -> ProblemMaxCut:
-        return self.__problem
-
-    def _summary_fields(self) -> list[tuple[str, object]]:
-        """Common run statistics are visible at every verbosity."""
-        metadata = self.meta_data
-        return [
-            ("Problem name", metadata["instance"]),
-            ("Compute time", f"{metadata['time']:.2f} seconds"),
-            ("Time limit reached", metadata["time_limit_reached"]),
-            ("B&B nodes evaluated", metadata["eval_bab_nodes"]),
-            ("Heuristic calls", metadata["heuristic_call_count"]),
-            ("Worker processes used", metadata["num_workers_used"]),
-            ("Optimized input", metadata["parameters"]["optimized"]),
-            ("GCD", metadata["parameters"]["gcd"]),
-        ]
-
-    def _format_maxcut_section(self, title: str = "Max-Cut") -> str:
-        return f"--- {title} ---\n" + self._format_fields(
-            [
-                ("Computed value", self.__solution["computed_val"]),
-                ("Solution", self.__solution["solution"]),
-                ("x", self.__solution["x"]),
-            ]
-        )
-
-    def _summary_sections(self, verbose: bool) -> list[str]:
-        return [self._format_maxcut_section()]
-
-    def print_computed_solution(self, verbose: bool = False) -> None:
-        """Print the shared summary, optionally including transformation details."""
-        print(self.format_summary(verbose))
-
-
-class SolutionQubo(SolutionMaxCut):
-    """QUBO result in the original problem's objective and variable space.
-
-    ``solution`` contains ``computed_val`` (including the offset), binary ``x``,
-    1-based selected indices in ``solution``, ``cardinality``, ``offset``, and
-    ``minimization``. ``solution_maxcut`` retains the transformed Max-Cut result.
-    """
-
-    def __init__(self, biqbin_result: dict, problem: ProblemQubo) -> None:
-        super().__init__(biqbin_result, problem)
-        self.solution_maxcut = super().solution
-
-        self.__problem: ProblemQubo = problem
-        self.__solution = self.maxcut2qubo(problem)
-
-    @property
-    def solution(self):
-        return self.__solution
-
-    @property
-    def problem(self) -> ProblemQubo:
-        return self.__problem
-
-    def maxcut2qubo(self, problem: ProblemQubo) -> dict:
-        """Write qubo solution from the retrievied maxcut solution
-
-        Returns:
-            dict: Qubo specific result (computed_val, x, solution, cardinality, obj)
-        """
-        qubo_solution, qubo_x = self._maxcut_solution2qubo_solution(
-            self.solution_maxcut["solution"]
-        )
-
-        computed_val = float(problem.Q.dot(qubo_x).dot(qubo_x)) + self.problem.offset
-        return {
-            "computed_val": computed_val,
-            "offset": self.problem.offset,
-            "solution": qubo_solution,
-            "x": qubo_x,
-            "cardinality": float(sum(qubo_x)),
-            "minimization": problem.is_minimization,
-        }
-
-    def _maxcut_solution2qubo_solution(self, maxcut_solution: np.ndarray):
-        """Convert maxcut solution nodes to qubo solution nodes
-
-        Args:
-            maxcut_solution (np.ndarray): maxcut solution found by biqbin
-        Returns:
-            np.ndarray: qubo solution nodes
-        """
-
-        n, _ = self.problem.Q.shape
-
-        _x_mc = np.array(maxcut_solution, dtype=int) - 1
-        x_mc_sol = np.ones(n + 1)
-        xx = np.zeros(n + 1, dtype=int)
-        xx[_x_mc] = 1
-
-        x_mc_sol[_x_mc] = -1
-        x_mc_sol *= -x_mc_sol[-1]
-        y = 1 / 2 * (x_mc_sol + 1)[:-1]
-        qubo_solution = np.nonzero(y)[0] + 1
-
-        return qubo_solution.tolist(), y.astype(int).tolist()
-
-    def _summary_sections(self, verbose: bool) -> list[str]:
-        sections = [
-            "--- QUBO ---\n"
-            + self._format_fields(
-                [
-                    ("Computed value", self.__solution["computed_val"]),
-                    ("Minimization", self.__problem.is_minimization),
-                    ("Solution", self.__solution["solution"]),
-                    ("x", self.__solution["x"]),
-                ]
-            )
-        ]
-        if verbose:
-            sections.append(self._format_maxcut_section("Underlying Max-Cut"))
-        return sections
+from biqbin.problem import ProblemBQP, ProblemMaxCut, ProblemQubo
+from biqbin.solution import SolutionBQP, SolutionMaxCut, SolutionQubo
+from biqbin.utils import PrettyPrint, data_collector
 
 
 class MaxCutSolver(PrettyPrint):
@@ -861,3 +545,106 @@ class QUBOSolver(MaxCutSolver):
             return SolutionQubo(biqbin_result, self.problem)
         else:
             return None
+
+
+class BQPSolver(MaxCutSolver):
+    """Solve an equality-constrained binary quadratic minimization problem.
+
+    Call ``biqbin.init()`` before constructing the solver. Constructor options
+    follow ``MaxCutSolver``; an ``initial_estimate`` must satisfy ``A @ x == b``.
+    Every MPI rank must participate in ``compute()``.
+    """
+
+    solver_name = "PyBiqBin-BQP"
+
+    def __init__(
+        self,
+        problem: ProblemBQP,
+        params: str,
+        time_limit: int = 0,
+        initial_estimate=None,
+        collect_heuristic_root_data=False,
+        collect_sdp_bound_root_data=False,
+    ):
+        self.__problem: ProblemBQP = problem
+
+        if initial_estimate is not None:
+            # Transform BQP solution to Biqbin Max-Cut solution vector, throwing error if not feasible
+            initial_estimate = self._initial_estimate_bqp_to_maxcut(initial_estimate)
+
+        super().__init__(
+            problem=problem,
+            params=params,
+            time_limit=time_limit,
+            initial_estimate=initial_estimate,
+            collect_heuristic_root_data=collect_heuristic_root_data,
+            collect_sdp_bound_root_data=collect_sdp_bound_root_data,
+        )
+
+    @property
+    def problem(self) -> ProblemBQP:
+        return self.__problem
+
+    def compute(self) -> SolutionBQP | None:
+        """Run the solver collectively and recover the original BQP result.
+
+        Returns:
+            SolutionBQP | None: Result on MPI rank 0; ``None`` on workers.
+                Check ``solution["feasible_solution"]`` before using ``x``.
+        """
+        result = self._run_solver()
+        if result is not None:
+            return SolutionBQP(result, self.problem)
+
+    def _initial_estimate_bqp_to_maxcut(self, bqp_x):
+        """Transforms the BQP solution vector to a Max-Cut vector.
+
+        Args:
+            bqp_x (np.ndarray): BQP binary vector solution
+
+        Raises:
+            ValueError: bqp_x must be a feasable solution to the problem
+
+        Returns:
+            np.ndarray: Max-Cut solution vector
+        """
+        bqp_x = np.asarray(bqp_x)
+        n = self.__problem.F.shape[0]
+
+        if (
+            bqp_x.ndim != 1
+            or bqp_x.shape != (n,)
+            or not np.all(np.isfinite(bqp_x))
+            or not np.all((bqp_x == 0) | (bqp_x == 1))
+        ):
+            logger.fatal(f"Initial estimate must be a binary vector of length {n}.")
+            abort_mpi(10)
+
+        if not np.array_equal(
+            self.__problem.A @ bqp_x,
+            self.__problem.b,
+        ):
+            logger.fatal("Initial estimate does not satisfy A @ x = b.")
+            abort_mpi(10)
+
+        bqp_obj = bqp_x @ self.__problem.F @ bqp_x + self.__problem.c @ bqp_x
+
+        for candidate in (bqp_x, 1 - bqp_x):
+            # append the fixed auxiliary coordinate
+            mc_candidate = np.append(candidate, 0)
+            y = 1 - 2 * mc_candidate  # 0/1 partition -> {-1, 1}
+            cut_value = 0.25 * (
+                self.__problem.maxcut_adjacency_matrix.sum()
+                - y @ self.__problem.maxcut_adjacency_matrix @ y
+            )
+
+            cut_value *= self.__problem.gcd  # undo Max-cut adjacency matrix optimization
+            if np.isclose(self.__problem.const_value - cut_value, bqp_obj):
+                return mc_candidate
+
+        logger.fatal(
+            "initial estimate solution is not a feasible solution to the problem.\n"
+            "Please input a feasible initial estimate or run without passing one in.",
+            stack_info=True,
+        )
+        abort_mpi(10)

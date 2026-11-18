@@ -1,13 +1,10 @@
-from biqbin.biqbin_base import (
-    MaxCutSolver,
-    ProblemMaxCut,
-    ProblemQubo,
-    QUBOSolver,
-    SolutionMaxCut,
-    SolutionQubo,
-    get_rank,
-)
+from biqbin.biqbin_base import BQPSolver, MaxCutSolver, QUBOSolver, get_rank
 from biqbin.data_parsers import (
+    BQPFromBQPFile,
+    BQPFromJson,
+    BQPFromQBODense,
+    BQPFromQBOSparse,
+    BQPToJson,
     MaxCutFromEdgeWeights,
     MaxCutFromJson,
     MaxCutFromMatrixMarket,
@@ -19,8 +16,18 @@ from biqbin.data_parsers import (
     QuboSolutionToJson,
 )
 from biqbin.logging import configure_logging, logger
+from biqbin.problem import ProblemBQP, ProblemMaxCut, ProblemQubo
+from biqbin.solution import SolutionBQP, SolutionMaxCut, SolutionQubo
 
 __all__ = [
+    "ProblemBQP",
+    "SolutionBQP",
+    "BQPSolver",
+    "BQPFromBQPFile",
+    "BQPFromJson",
+    "BQPFromQBODense",
+    "BQPFromQBOSparse",
+    "BQPToJson",
     "ProblemMaxCut",
     "SolutionMaxCut",
     "MaxCutSolver",

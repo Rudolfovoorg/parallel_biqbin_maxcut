@@ -17,7 +17,7 @@ come from the Python source.
         - is_minimization
         - maxcut_adjacency_matrix
 
-::: biqbin_bqp.ProblemBQP
+::: biqbin.ProblemBQP
     options:
       members:
         - F

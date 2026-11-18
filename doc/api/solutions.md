@@ -23,7 +23,7 @@ solver rather than constructed directly by application code.
         - format_summary
         - print_computed_solution
 
-::: biqbin_bqp.SolutionBQP
+::: biqbin.SolutionBQP
     options:
       members:
         - solution

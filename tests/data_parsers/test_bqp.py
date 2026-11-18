@@ -3,7 +3,7 @@ import json
 import numpy as np
 import pytest
 
-import biqbin_bqp
+import biqbin.data_parsers as data_parsers
 
 
 @pytest.mark.parametrize(
@@ -21,7 +21,7 @@ def test_bqp_file_reader_rejects_invalid_indices(tmp_path, content, match):
     path.write_text(content)
 
     with pytest.raises(IndexError, match=match):
-        biqbin_bqp.BQPFromBQPFile(str(path)).read()
+        data_parsers.BQPFromBQPFile(str(path)).read()
 
 
 @pytest.mark.parametrize(
@@ -39,14 +39,14 @@ def test_bqp_file_reader_rejects_invalid_values(tmp_path, content, match):
     path.write_text(content)
 
     with pytest.raises(ValueError, match=match):
-        biqbin_bqp.BQPFromBQPFile(str(path)).read()
+        data_parsers.BQPFromBQPFile(str(path)).read()
 
 
 def test_bqp_file_reader(tmp_path, monkeypatch):
-    import biqbin_bqp
+    import biqbin.problem as problem_module
 
     monkeypatch.setattr(
-        biqbin_bqp,
+        problem_module,
         "interior_point_method_maxcut",
         lambda C: (0.0, None),
     )
@@ -54,7 +54,7 @@ def test_bqp_file_reader(tmp_path, monkeypatch):
     path = tmp_path / "test.bqp"
     path.write_text("2 1\nF\n1 1 1\n1 2 2\n2 2 3\nc\n1 4\n2 5\nA\n1 1 1\n1 2 1\nb\n1 1\n")
 
-    problem = biqbin_bqp.BQPFromBQPFile(str(path)).read()
+    problem = data_parsers.BQPFromBQPFile(str(path)).read()
 
     np.testing.assert_array_equal(problem.F, [[1, 2], [2, 3]])
     np.testing.assert_array_equal(problem.c, [4, 5])
@@ -93,7 +93,7 @@ def test_bqp_json_reader_rejects_invalid_indices(tmp_path, key, entries):
     path.write_text(json.dumps(data))
 
     with pytest.raises(IndexError, match="out of range"):
-        biqbin_bqp.BQPFromJson(str(path)).read()
+        data_parsers.BQPFromJson(str(path)).read()
 
 
 @pytest.mark.parametrize(
@@ -122,4 +122,4 @@ def test_bqp_json_reader_rejects_missing_keys(tmp_path, key):
     path.write_text(json.dumps(data))
 
     with pytest.raises(KeyError, match=key):
-        biqbin_bqp.BQPFromJson(str(path)).read()
+        data_parsers.BQPFromJson(str(path)).read()

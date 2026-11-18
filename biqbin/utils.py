@@ -346,3 +346,40 @@ def save_qubo_problem_as_json(filename: str, problem):
         json.dump(
             qubo_to_biqbin_representation(problem.Q, problem.offset, problem.is_minimization), f
         )
+
+
+class PrettyPrint:
+    """Render a class heading, aligned fields, and type-specific sections."""
+
+    @staticmethod
+    def _format_fields(fields: list[tuple[str, object]]) -> str:
+        return "\n".join(f"{label:<21} = {value}" for label, value in fields)
+
+    @staticmethod
+    def _format_array(name: str, array: np.ndarray) -> str:
+        return f"{name} = {array.shape}\n{array}"
+
+    def _summary_fields(self) -> list[tuple[str, object]]:
+        return []
+
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        return []
+
+    def format_summary(self, verbose: bool = False) -> str:
+        """Return a class heading and summary; verbose adds conversion details.
+
+        The heading shares the first line with a logging handler's prefix when
+        an object is logged with ``logger.info("%s", object)``.
+        """
+        parts = [type(self).__name__]
+        fields = self._summary_fields()
+        if fields:
+            parts.append(self._format_fields(fields))
+        parts.extend(self._summary_sections(verbose))
+        return "\n".join(parts)
+
+    def __str__(self) -> str:
+        return self.format_summary()
+
+    def __repr__(self) -> str:
+        return str(self)

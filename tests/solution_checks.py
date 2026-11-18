@@ -5,8 +5,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from biqbin.data_parsers import MaxCutFromJson, QuboFromJson, QuboFromQPLIB
-from biqbin_bqp import BQPFromBQPFile, BQPFromJson, BQPFromQBODense, BQPFromQBOSparse
+from biqbin.data_parsers import (
+    BQPFromBQPFile,
+    BQPFromJson,
+    BQPFromQBODense,
+    BQPFromQBOSparse,
+    MaxCutFromJson,
+    QuboFromJson,
+    QuboFromQPLIB,
+)
 
 
 def load_problem(result):

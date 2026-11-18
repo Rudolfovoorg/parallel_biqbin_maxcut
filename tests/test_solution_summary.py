@@ -4,8 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from biqbin import ProblemMaxCut, ProblemQubo, SolutionMaxCut, SolutionQubo
-from biqbin_bqp import SolutionBQP
+from biqbin import ProblemMaxCut, ProblemQubo, SolutionBQP, SolutionMaxCut, SolutionQubo
 
 
 def make_solution(kind, time_limit):
@@ -97,11 +96,10 @@ def test_problem_summary(kind, verbose, monkeypatch):
     elif kind == "QUBO":
         problem = ProblemQubo(np.array([[2, 0], [0, 4]]), 3, "example.json", False, True)
     else:
-        import biqbin_bqp
+        import biqbin.problem as problem_module
 
-        monkeypatch.setattr(biqbin_bqp, "get_rank", lambda: 0)
-        monkeypatch.setattr(biqbin_bqp, "interior_point_method_maxcut", lambda C: (0.0, None))
-        problem = biqbin_bqp.ProblemBQP(
+        monkeypatch.setattr(problem_module, "interior_point_method_maxcut", lambda C: (0.0, None))
+        problem = problem_module.ProblemBQP(
             np.zeros((2, 2)),
             np.zeros(2),
             np.array([[1, 1]]),

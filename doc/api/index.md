@@ -7,7 +7,7 @@ work with, rather than by the files that implement it.
 | --- | --- | --- | --- |
 | Max-Cut | [ProblemMaxCut](problems.md#biqbin.ProblemMaxCut) | [MaxCutSolver](solvers.md#biqbin.MaxCutSolver) | [SolutionMaxCut](solutions.md#biqbin.SolutionMaxCut) |
 | QUBO | [ProblemQubo](problems.md#biqbin.ProblemQubo) | [QUBOSolver](solvers.md#biqbin.QUBOSolver) | [SolutionQubo](solutions.md#biqbin.SolutionQubo) |
-| BQP | [ProblemBQP](problems.md#biqbin_bqp.ProblemBQP) | [BQPSolver](solvers.md#biqbin_bqp.BQPSolver) | [SolutionBQP](solutions.md#biqbin_bqp.SolutionBQP) |
+| BQP | [ProblemBQP](problems.md#biqbin.ProblemBQP) | [BQPSolver](solvers.md#biqbin.BQPSolver) | [SolutionBQP](solutions.md#biqbin.SolutionBQP) |
 
 See [entry points](entrypoints.md) for MPI initialization, logging, and the
 command-line programs. The [input format guide](../PROBLEM_INSTANCE_FORMATS.md)
@@ -20,13 +20,12 @@ QUBO export, JSON encoding, and result-data analysis.
 ```python
 from biqbin import ProblemMaxCut, ProblemQubo, MaxCutSolver, QUBOSolver
 from biqbin import SolutionMaxCut, SolutionQubo
-from biqbin_bqp import ProblemBQP, BQPSolver, SolutionBQP
+from biqbin import ProblemBQP, BQPSolver, SolutionBQP
 ```
 
-The Max-Cut and QUBO reference uses the public `biqbin` exports. Their
-implementation can move into `problem.py`, `solution.py`, or other modules
-without changing these documentation references, provided those exports remain
-available. BQP currently uses the root-level `biqbin_bqp` module.
+All three problem types use the public `biqbin` exports. Problem definitions
+live in `biqbin/problem.py`, results in `biqbin/solution.py`, and solvers in
+`biqbin/biqbin_base.py`. The root-level scripts are command-line entry points.
 
 ## Reference scope
 

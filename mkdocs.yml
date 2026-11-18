@@ -27,7 +27,6 @@ nav:
 
 watch:
   - biqbin
-  - biqbin_bqp.py
 
 theme:
   name: material

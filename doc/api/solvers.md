@@ -29,7 +29,7 @@ and heuristics. See the [custom solver guide](../CUSTOM_SOLVER.md) and
         - heuristic
         - set_sdp_primal_solution
 
-::: biqbin_bqp.BQPSolver
+::: biqbin.BQPSolver
     options:
       members:
         - problem

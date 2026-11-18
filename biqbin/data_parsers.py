@@ -1,12 +1,14 @@
 import json
 from abc import ABC, abstractmethod
 from glob import glob
+from typing import Literal
 
 import numpy as np
 import scipy as sp
 
 import biqbin.external.pyqplib as pyqplib
-from biqbin.biqbin_base import ProblemMaxCut, ProblemQubo, SolutionMaxCut, SolutionQubo
+from biqbin.problem import ProblemBQP, ProblemMaxCut, ProblemQubo
+from biqbin.solution import SolutionBQP, SolutionMaxCut, SolutionQubo
 from biqbin.utils import convert_numpy_to_json_serializable, from_sparse
 
 
@@ -356,6 +358,246 @@ class QuboSolutionToJson(ToFile):
 
         if with_maxcut_solution:
             save_output["maxcut"] = self.solution.solution_maxcut
+        if with_metadata:
+            save_output["meta_data"] = self.solution.meta_data
+
+        with open(output_path, "w") as f:
+            json.dump(save_output, f, default=convert_numpy_to_json_serializable)
+
+
+FileDataSection = Literal["F", "c", "A", "b"]
+
+
+class BQPFromQBODense(FromFile):
+    def read(self) -> ProblemBQP:
+        with open(self.filename) as f:
+            data = json.load(f)
+
+        F = np.array(data["QBO"]["Q"])
+        if not np.allclose(F, F.T):
+            F = F + F.T
+        c = F.diagonal().copy()
+        A = np.array(data["QBO"]["constraints"]["linear"][0])
+        b = np.array(data["QBO"]["constraints"]["linear"][1])
+
+        return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
+
+
+class BQPFromQBOSparse(FromFile):
+    def read(self):
+        data, Q, lin, quad = self._load_qbo_new_format(self.filename)
+
+        Q_dense = Q.toarray() * 2
+
+        # Scale the original QBO objective by 2:
+        #   2 * x.T @ Q @ x == x.T @ F @ x + c.T @ x
+        c = np.diag(Q_dense).copy()
+        F = (Q_dense + Q_dense.T) * 0.5
+        np.fill_diagonal(F, 0)
+
+        A, b, sense = lin[0]
+
+        if sense != "==":
+            raise ValueError("BiqBin can only solve equality constraints!")
+
+        # if data['QBO']['offset'] != 0:
+        #     raise ValueError(
+        #         f"Offset == {data['QBO']['offset']}"
+        #     )
+        offset = data["QBO"]["offset"]
+        return ProblemBQP(F, c, A.toarray(), b, self.problem_name, offset, self.optimize_input)
+
+    def _load_qbo_new_format(self, path):
+        """
+        NOTE: function taken from https://github.com/Rudolfovoorg/A-Direct-SDP-Approach-for-QBOs/blob/main/WP1-SDP/new_format/qbo_sdp_new_format.py
+
+        Load a new-format QBO JSON instance.
+
+        New sparse matrix format:
+            ((data, (row, col)), shape)
+
+        Returns:
+            data, Q, linear_constraints, quadratic_constraints
+        where
+            Q: scipy sparse COO matrix
+            linear_constraints: [(B, c, sense), ...]
+            quadratic_constraints: [(Qi, ri, sense), ...]
+        """
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        ((Q_data, (Q_row, Q_col)), Q_shape) = data["QBO"]["Q"]
+        Q = sp.sparse.coo_matrix((Q_data, (Q_row, Q_col)), shape=Q_shape)
+
+        linear = [
+            (
+                sp.sparse.coo_matrix((Bi_data, (Bi_row, Bi_col)), shape=Bi_shape),
+                np.asarray(Ci, dtype=float),
+                sense,
+            )
+            for ((Bi_data, (Bi_row, Bi_col)), Bi_shape), Ci, sense in data["QBO"]["constraints"][
+                "linear"
+            ]
+        ]
+
+        quadratic = [
+            (
+                sp.sparse.coo_matrix((Qi_data, (Qi_row, Qi_col)), shape=Qi_shape),
+                float(ri),
+                sense,
+            )
+            for ((Qi_data, (Qi_row, Qi_col)), Qi_shape), ri, sense in data["QBO"]["constraints"][
+                "quadratic"
+            ]
+        ]
+
+        return data, Q, linear, quadratic
+
+
+class BQPFromBQPFile(FromFile):
+    """
+    Read the custom BQP file format, defined in https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/doc/BQP_INPUT_EXAMPLE.md
+    """
+
+    def read(self) -> ProblemBQP:
+        with open(self.filename, "r") as f:
+            lines = f.readlines()
+
+        if not lines:
+            raise ValueError(f"File {self.filename} is empty!")
+
+        try:
+            n, m = map(int, lines[0].split())
+        except ValueError:
+            raise ValueError(f'File {self.filename}: first line must be "n m", got: {lines[0]!r}')
+
+        F = np.zeros((n, n))
+        c = np.zeros(n)
+        A = np.zeros((m, n))
+        b = np.zeros(m)
+
+        current_section: FileDataSection | None = None
+
+        def check_index(name: str, i: int, upper: int) -> None:
+            if not (1 <= i <= upper):
+                raise IndexError(f"{name} index {i} out of range (must be 1..{upper})")
+
+        for lineno, raw_line in enumerate(lines[1:], start=2):
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line in {"F", "c", "A", "b"}:
+                current_section = line  # type: ignore
+                continue
+            if current_section is None:
+                raise ValueError(
+                    f"File {self.filename}, line {lineno}: data before any section header: {line!r}"
+                )
+            try:
+                match current_section:
+                    case "F":
+                        i, j, v = map(int, line.split())
+                        check_index("F row", i, n)
+                        check_index("F column", j, n)
+                        i, j = i - 1, j - 1
+                        F[i, j] = v
+                        if i != j:
+                            F[j, i] = v
+                    case "c":
+                        i, v = map(int, line.split())
+                        check_index("c", i, n)
+                        c[i - 1] = v
+                    case "A":
+                        i, j, v = map(int, line.split())
+                        check_index("A row", i, m)
+                        check_index("A column", j, n)
+                        A[i - 1, j - 1] = v
+                    case "b":
+                        i, v = map(int, line.split())
+                        check_index("b", i, m)
+                        b[i - 1] = v
+
+            except ValueError as e:
+                raise ValueError(
+                    f"File {self.filename}, line {lineno} (section {current_section!r}): {e}\n  {line!r}"
+                ) from e
+
+        return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
+
+
+class BQPFromJson(FromFile):
+    """
+    Reads and parses BQP JSON file.
+    """
+
+    def read(self) -> ProblemBQP:
+        """Read the bqp json file and return a ProblemBQP class instance that SolverBQP can read."""
+
+        with open(self.filename, "r") as file:
+            instance = json.load(file)
+
+        n = instance["number_of_variables"]
+        m = instance["number_of_constraints"]
+
+        def check_index(name: str, i: int, upper: int):
+            if not 0 <= i < upper:
+                raise IndexError(f"{name} index {i} out of range (must be 0..{upper - 1})")
+
+        F = np.zeros((n, n))
+        for i, j, v in instance["F"]:
+            check_index("F row", i, n)
+            check_index("F column", j, n)
+            F[i, j] = v
+            if i != j:
+                F[j, i] = v
+
+        A = np.zeros((m, n))
+        for i, j, v in instance["A"]:
+            check_index("A row", i, m)
+            check_index("A column", j, n)
+            A[i, j] = v
+
+        c = np.zeros(n)
+        for i, v in instance["c"]:
+            check_index("c", i, n)
+            c[i] = v
+
+        b = np.zeros(m)
+        for i, v in instance["b"]:
+            check_index("b", i, m)
+            b[i] = v
+
+        return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
+
+
+class BQPToJson(ToFile):
+    def __init__(self, solution: SolutionBQP) -> None:
+        self.solution: SolutionBQP = solution
+
+    def write(
+        self,
+        filename: str,
+        overwrite: bool = False,
+        with_metadata: bool = True,
+        with_maxcut_solution: bool = False,
+    ) -> None:
+        """Save the bqp solution as JSON file.
+
+        Args:
+            filename (str): Destination filename.
+            overwrite (bool): Replace an existing file when True; otherwise choose
+                an unused filename.
+            with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
+        """
+
+        # Check if output filename exists if we are not overriding and replace with filename_N.json
+        output_path = self.get_output_path(filename, overwrite)
+
+        save_output = {
+            "bqp": self.solution.solution,
+        }
+        if with_maxcut_solution:
+            save_output["maxcut"] = self.solution.maxcut_solution
         if with_metadata:
             save_output["meta_data"] = self.solution.meta_data
 

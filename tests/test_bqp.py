@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from biqbin_bqp import ProblemBQP, SolutionBQP
+from biqbin import ProblemBQP, SolutionBQP
 
 
 def make_bqp(**kwargs):
@@ -74,10 +74,10 @@ def test_bqp_rejects_non_finite_values(kwargs):
 
 
 def test_bqp_inputs_are_converted_to_int(monkeypatch):
-    import biqbin_bqp
+    import biqbin.problem as problem_module
 
     monkeypatch.setattr(
-        biqbin_bqp,
+        problem_module,
         "interior_point_method_maxcut",
         lambda C: (0.0, None),
     )

@@ -4,6 +4,10 @@ from argparse import SUPPRESS, ArgumentParser, ArgumentTypeError
 from pathlib import Path
 
 from biqbin.data_parsers import (
+    BQPFromBQPFile,
+    BQPFromJson,
+    BQPFromQBODense,
+    BQPFromQBOSparse,
     FromFile,
     MaxCutFromEdgeWeights,
     MaxCutFromJson,
@@ -224,3 +228,40 @@ class ArgParserDWaveHeuristic(ArgParserQubo):
             else logging.WARNING,
         )
         return ns
+
+
+class ArgParserBQP(ArgParserBase):
+    FORMAT_CHOICES = {
+        "json": BQPFromJson,
+        "bqp": BQPFromBQPFile,
+        "sparse": BQPFromQBOSparse,
+        "dense": BQPFromQBODense,
+    }
+
+    def __init__(self):
+        super().__init__(prog="biqbin_bqp.py", description="Biqbin BQP solver")
+        self.add_argument("-j", "--json", action="store_true", help=SUPPRESS)
+        self.add_argument(
+            "--format",
+            default=self.FORMAT_CHOICES["bqp"],
+            type=self.parse_format,
+            help=f"BQP problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}; Defaults to 'bqp'",
+        )
+
+    def parse_args(self, *args, **kwargs):
+        ns = super().parse_args(*args, **kwargs)
+        if ns.json:
+            warnings.warn(
+                "[DEPRECATED] `-j`, `--json` is deprecated, please use --format json", UserWarning
+            )
+            ns.format = BQPFromJson
+        return ns
+
+    def parse_format(self, fmt: str) -> FromFile:
+        fmt = fmt.lower()
+        if fmt not in self.FORMAT_CHOICES:
+            raise ArgumentTypeError(
+                f"invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}"
+            )
+
+        return self.FORMAT_CHOICES[fmt]

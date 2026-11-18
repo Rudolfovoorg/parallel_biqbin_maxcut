@@ -3,6 +3,7 @@ import json
 import numpy as np
 import pytest
 
+from tests.behavior_report import compare_behavior
 from tests.solution_checks import assert_binary_vector, assert_cut, load_problem
 
 """
@@ -10,7 +11,7 @@ from tests.solution_checks import assert_binary_vector, assert_cut, load_problem
 """
 
 
-def test_biqbin_output(problem_instance, subtests):
+def test_biqbin_output(problem_instance, subtests, behavior_report):
     """
     Compare Biqbin output with expected output for one instance.
     """
@@ -20,6 +21,12 @@ def test_biqbin_output(problem_instance, subtests):
 
     with open(problem_instance + "-expected_output.json", "r") as f:
         expected_result = json.load(f)
+
+    # Write diagnostics before any correctness assertion, so failures retain them.
+    report, changes = compare_behavior(problem_instance, expected_result, result)
+    with behavior_report.open("a") as output:
+        output.write(report + "\n" + "=" * 80 + "\n\n")
+    print(f"Behavior: {changes} changed fields for {problem_instance}; see {behavior_report}")
 
     problem = load_problem(result)
     adjacency = problem.maxcut_adjacency_matrix * problem.gcd

@@ -288,6 +288,22 @@ make format
 
 Vendored third-party Python code is excluded from the project's Ruff checks.
 
+### Solver behavior diagnostics
+
+Output comparisons retain strict correctness checks and also write readable
+expected-versus-actual reports to `test-results/behavior/<test-target>.txt`.
+Each instance lists changed fields, expected and actual values, numeric deltas
+(actual minus expected), and changed vector positions (1-based). Matching fields
+are listed separately. Reports include solution vectors, root bounds and heuristic
+values, node/call counts, runtimes, and custom-callback counters. Behavioral
+differences alone do not fail tests; existing correctness assertions still apply.
+
+The CI diagnostic artifact includes these reports under `test-results/behavior/`.
+There is a separate report for each test target, so repeated instances in different
+suites are retained. Reports are written before correctness checks and replaced
+on the next run of that target. A direct pytest invocation defaults to
+`test-results/behavior/output.txt`; use `--behavior-report=PATH` to choose another file.
+
 ### Python coverage
 
 Collect coverage across the complete Makefile regression suite:

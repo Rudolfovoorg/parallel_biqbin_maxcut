@@ -236,37 +236,17 @@ test-bqp-python: clean-output
 	$(PYTHON) -m pytest tests/test_bqp.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_bqp.xml) -v -s --no-header
 
 test-modular-combos: clean-output
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_0.json.output --test-case 0 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_1.json.output --test-case 1 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_2.json.output --test-case 2 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_3.json.output --test-case 3 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_4.json.output --test-case 4 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_5.json.output --test-case 5 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_6.json.output --test-case 6 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_7.json.output --test-case 7 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_8.json.output --test-case 8 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_9.json.output --test-case 9 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_10.json.output --test-case 10 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_11.json.output --test-case 11 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_12.json.output --test-case 12 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_13.json.output --test-case 13 -c
-	$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers tests/custom_solvers_results/small_example_qubo.json -o tests/custom_solvers_results/small_example_qubo_test_case_14.json.output --test-case 14 -c
-
-	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances  tests/custom_solvers_results/small_example_qubo_test_case_0.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_1.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_2.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_3.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_4.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_5.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_6.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_7.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_8.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_9.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_10.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_11.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_12.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_13.json \
-		tests/custom_solvers_results/small_example_qubo_test_case_14.json \
+	@set -e; \
+	set --; \
+	for case in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do \
+		instance=tests/custom_solvers_results/small_example_qubo_test_case_$$case.json; \
+		echo "Custom solver case $$case"; \
+		$(RUN_ENVS) $(MPI_RUN) $(PYTHON) -m tests.biqbin_custom_solvers \
+			tests/custom_solvers_results/small_example_qubo.json \
+			-o "$$instance.output" --test-case $$case -c; \
+		set -- "$$@" "$$instance"; \
+	done; \
+	$(PYTHON) -m pytest tests/test_biqbin_output.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_biqbin_output.xml) -v -s --no-header --instances "$$@"
 
 test-parsers:
 	$(PYTHON) -m pytest tests/data_parsers $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-data_parsers.xml) -v --no-header
@@ -324,6 +304,7 @@ format-check:
 	$(RUFF) format --check .
 
 test-unit: all test-logging test-summaries test-parsers
+	$(RUN_ENVS) $(PYTHON) -m pytest tests/test_maxcut.py tests/test_qubo.py tests/test_bqp.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-solvers.xml) -v --no-header
 
 coverage:
 	$(PYTHON) -m coverage erase
@@ -336,6 +317,9 @@ coverage:
 		$(PYTHON) -m coverage report -m || status=1; \
 		$(PYTHON) -m coverage xml || status=1; \
 		$(PYTHON) -m coverage html || status=1; \
+	else \
+		echo "Coverage data was not generated (.coverage is missing)." >&2; \
+		status=1; \
 	fi; \
 	exit $$status
 

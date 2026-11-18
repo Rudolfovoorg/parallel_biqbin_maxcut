@@ -21,13 +21,14 @@ mpirun -n 3 python3 biqbin_qubo.py matrixmarket_problem_path --format mm
 ```
 
 `--format` valid options are:
+
 - `json` for the default [JSON format](#json-input-example)
 - `mm` for the [MatrixMarket format](#matrix-market-format)
 - `ew` for the [Edge-Weight list format](#edge-weight-list-input-example)
 
 QUBO also supports:
-- `qplib` for the [qplib file format](#qplib-format-for-qubos)
 
+- `qplib` for the [qplib file format](#qplib-format-for-qubos)
 
 ## Python Example
 
@@ -48,13 +49,16 @@ from biqbin import (
 )
 
 # They are all used in the same way:
-data_parser = QuboFromJson(filename)  # instantiate with the path to the problem file
-problem = data_parser.read()  # call the read() method, which returns a 'Problem' instance for the solver
+# instantiate with the path to the problem file
+data_parser = QuboFromJson(filename)
 
-solver = QUBOSolver(problem)  # Instantiate the solver with the returned 'Problem' instance
-solution = solver.compute()  # Compute the solution
+# call the read() method, which returns a 'Problem' instance for the solver
+problem = data_parser.read()
+# Instantiate the solver with the returned 'Problem' instance
+solver = QUBOSolver(problem)
+# Compute the solution
+solution = solver.compute()
 ```
-
 
 ## Edge-Weight List input example
 
@@ -89,6 +93,7 @@ MaxCut:
 ```
 
 QUBO example, it allows optional values:
+
 - an offset (a constant value added to the objective value)
 - and the objective sense (true for minimization, false for maximization)
 
@@ -126,8 +131,7 @@ We support both the coordinate and array format, as [documented here](https://ma
 ## QPLIB format for QUBOs
 
 Qubo problem instances can be loaded from the qplib file, [documented here](https://qplib.zib.de/).
-Please note that we only support *"QBN"* or *"LBN"* problems, which stands for "Quadratic", "Binary", "No-constraints".
-
+Please note that we only support _"QBN"_ or _"LBN"_ problems, which stands for "Quadratic", "Binary", "No-constraints".
 
 ```
 tests/qubos/40/kcluster40_025_10_1.json
@@ -159,7 +163,6 @@ minimize
 
 Python versions of the solver use a `ToFile` class, split into seperate subclasses to read different types of input formats, instances/problems.
 `ToFile` derived class needs to implement `read(filename: str)` method that returns and instance of a `ProblemMaxCut` class (or it's subclass, such as `ProblemQubo` class).
-
 
 ## BQP input example
 

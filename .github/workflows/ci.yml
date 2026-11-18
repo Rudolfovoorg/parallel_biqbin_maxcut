@@ -179,19 +179,10 @@ jobs:
         run: |
           mkdir -p ci-artifacts
 
-          if docker container inspect biqbin-ci-tests \
-            >/dev/null 2>&1; then
-
-            for file in \
-              coverage.xml \
-              .coverage \
-              htmlcov \
-              test-results
-            do
-              docker cp \
-                biqbin-ci-tests:/solver/artifacts/. \
-                ci-artifacts/ 2>/dev/null || true
-            done
+          if docker container inspect biqbin-ci-tests >/dev/null 2>&1; then
+            docker cp \
+              biqbin-ci-tests:/solver/artifacts/. \
+              ci-artifacts/ 2>/dev/null || true
           fi
 
       - name: Clean up

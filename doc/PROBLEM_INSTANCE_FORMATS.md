@@ -49,12 +49,10 @@ from biqbin import (
 
 # They are all used in the same way:
 data_parser = QuboFromJson(filename)  # instantiate with the path to the problem file
-problem = (
-    data_parser.read()
-)  # call the read() method, which returns a 'Problem' instance for the solver
+problem = data_parser.read()  # call the read() method, which returns a 'Problem' instance for the solver
 
-solver = QUBOSolver(problem_qubo)  # Instantiate the solver with the returned 'Problem' instance
-solution = solver_qubo.compute()  # Compute the solution
+solver = QUBOSolver(problem)  # Instantiate the solver with the returned 'Problem' instance
+solution = solver.compute()  # Compute the solution
 ```
 
 

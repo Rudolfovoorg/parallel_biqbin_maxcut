@@ -26,9 +26,7 @@ def solver(monkeypatch):
         b=np.array([1], dtype=np.int64),
         # An edge to the auxiliary vertex distinguishes a vector from
         # its complement when the auxiliary vertex is held at zero.
-        maxcut_adjacency_matrix=np.array(
-            [[0, 0, 2], [0, 0, 0], [2, 0, 0]], dtype=np.int64
-        ),
+        maxcut_adjacency_matrix=np.array([[0, 0, 2], [0, 0, 0], [2, 0, 0]], dtype=np.int64),
         gcd=1,
         const_value=2,
     )

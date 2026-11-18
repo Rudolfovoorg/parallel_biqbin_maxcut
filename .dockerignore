@@ -22,6 +22,6 @@ coverage.xml
 junit.xml
 test-results
 venv
-
+artifacts/
 *.egg-info/
 dist/

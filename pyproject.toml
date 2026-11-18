@@ -2,6 +2,7 @@
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+cache-dir = "artifacts/cache/ruff"
 
 extend-exclude = [
     "biqbin/external",
@@ -42,3 +43,4 @@ output = "coverage.xml"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+cache_dir = "artifacts/cache/pytest"

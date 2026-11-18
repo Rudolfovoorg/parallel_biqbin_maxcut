@@ -1,26 +1,40 @@
-**/*.output*
+
+# ============================================================
+# Build artifacts
+# ============================================================
+/build/
+/biqbin_executable
 *.so
-**/__pycache__
-biqbin_executable
-.vscode
-build
-tests/bqp/QBO_rescaled
-.pytest_cache/
-ci-artifacts/
+*.py[cod]
+__pycache__/
 
-# Python tools
-.ruff_cache/
-.coverage
-.coverage.*
-coverage.xml
-junit.xml
-htmlcov/
+# ============================================================
+# Solver-generated outputs
+# ============================================================
+*.output*
+/tests/bqp/QBO_rescaled/
 
+# ============================================================
+# Test results and coverage
+# ============================================================
+/artifacts/
+/ci-artifacts/
+/test-results/
+/.pytest_cache/
+/.ruff_cache/
+/.coverage*
+/coverage.xml
+/junit.xml
+/htmlcov/
+
+# ============================================================
 # Generated documentation
-site/
+# ============================================================
+/site/
 
-# Virtual environments
-.venv/
-venv/
-# Per-invocation JUnit reports
-test-results/
+# ============================================================
+# Local development
+# ============================================================
+/.venv/
+/venv/
+/.vscode/

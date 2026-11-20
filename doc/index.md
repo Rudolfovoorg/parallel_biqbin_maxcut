@@ -6,24 +6,24 @@ It provides a native C solver using MPI, Python bindings through pybind11, and s
 
 ## Getting started
 
-New users should start with the [Installation guide](INSTALLATION.md).
-
-For a standard native build:
+From the repository root, follow the [installation guide](INSTALLATION.md)
+to install native dependencies and activate a Python environment. Then:
 
 ```bash
 python -m pip install -r requirements.txt
 make
+export OPENBLAS_NUM_THREADS=1 GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1
+mpiexec -n 3 python biqbin_qubo.py \
+  tests/qubos/40/kcluster40_025_10_1.json -o qubo_result.json
 ```
 
-Or build the ready-to-use Docker environment:
+The result is written to `qubo_result.json`. If it already exists, the CLI
+chooses a numbered filename; add `--overwrite` to replace it. Keep the same
+Python environment active when building and running the solver.
 
-```bash
-docker build -t biqbin .
-```
-
-BiqBin requires at least three MPI processes for solver execution.
-
-See the repository [README](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut) for runnable examples and command-line options.
+For Max-Cut or constrained BQP, see [command-line entry points](api/entrypoints.md).
+For Python integration, start with the [runnable QUBO API example](api/index.md#runnable-qubo-example).
+For custom callbacks, use the separate [SDP and heuristic template](CUSTOM_SDP_HEURISTIC.md#custom-solver-template).
 
 ## Guides
 

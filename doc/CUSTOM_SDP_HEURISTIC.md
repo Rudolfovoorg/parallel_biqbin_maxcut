@@ -424,7 +424,13 @@ Validate external-library inputs before expensive work and avoid mutating native
 
 ---
 
-## Minimal complete example
+## Custom solver template
+
+This is a template, not a runnable example: replace `my_sdp_solver` and
+`my_heuristic` with your implementations following the contracts above.
+Override only the callbacks you need; omitted methods keep the built-in
+implementation. For a runnable example using the built-in solver, see the
+[QUBO API example](api/index.md#runnable-qubo-example).
 
 ```python
 import numpy as np

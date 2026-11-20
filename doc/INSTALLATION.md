@@ -21,13 +21,18 @@ The build uses `mpicc` and `mpic++`, so both compiler wrappers must be available
 
 ## Native Linux installation
 
-On Debian or Ubuntu, install the system dependencies:
+The commands below target Ubuntu 24.04 with Python 3.12. On other Linux
+distributions, use equivalent packages and Python 3.12 or later, or follow
+the Conda or Docker instructions below. CI tests Python 3.12 and 3.13.
+
+Run project commands from the repository root. Install the system dependencies:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y \
   build-essential \
   python3-dev \
+  python3-venv \
   mpich \
   libmpich-dev \
   libopenblas-dev
@@ -39,6 +44,7 @@ You may use OpenMPI instead of MPICH:
 sudo apt-get install -y \
   build-essential \
   python3-dev \
+  python3-venv \
   openmpi-bin \
   libopenmpi-dev \
   libopenblas-dev
@@ -46,11 +52,17 @@ sudo apt-get install -y \
 
 Use one MPI implementation consistently when compiling and running the solver.
 
-Install the Python runtime requirements:
+Create and activate a virtual environment, then install the runtime requirements.
+The environment provides its own pip; do not install into the system Python.
 
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
+
+Activate this environment again with `source .venv/bin/activate` in each new
+shell before building or running BiqBin.
 
 Build the project:
 
@@ -154,7 +166,7 @@ Docker uses Python 3.12, Debian Bookworm and MPICH by default.
 ### Build the runtime image
 
 ```bash
-docker build -t biqbin .
+docker build -t parallel-biqbin:1.0.0 .
 ```
 
 Equivalent Makefile target:
@@ -166,7 +178,7 @@ make docker
 Open a shell:
 
 ```bash
-docker run --rm -it biqbin bash
+docker run --rm -it parallel-biqbin:1.0.0 bash
 ```
 
 Or use:
@@ -180,7 +192,7 @@ The Makefile command mounts the configured host data directory into `/data`.
 ### Build the development image
 
 ```bash
-docker build --target ci -t biqbin-ci .
+docker build --target ci -t parallel-biqbin-dev:1.0.0 .
 ```
 
 Or:
@@ -194,7 +206,7 @@ The CI image additionally installs `requirements-dev.txt`, including pytest, Ruf
 Run the complete suite:
 
 ```bash
-docker run --rm --init biqbin-ci make test
+docker run --rm --init parallel-biqbin-dev:1.0.0 make test
 ```
 
 Alternatively:
@@ -249,7 +261,7 @@ Mount a directory containing problem instances:
 ```bash
 docker run --rm -it \
   -v "$PWD/instances:/data" \
-  biqbin bash
+  parallel-biqbin:1.0.0 bash
 ```
 
 Inside the container, the host files are available under `/data`.

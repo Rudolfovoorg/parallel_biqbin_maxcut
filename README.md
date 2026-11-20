@@ -36,6 +36,27 @@ The repository provides:
 
 BiqBin requires **at least three MPI processes** for solver execution: one master and two workers.
 
+## Quick start
+
+From the repository root, follow the [installation guide](doc/INSTALLATION.md)
+to install native dependencies and activate a Python environment. Then:
+
+```bash
+python -m pip install -r requirements.txt
+make
+export OPENBLAS_NUM_THREADS=1 GOTO_NUM_THREADS=1 OMP_NUM_THREADS=1
+mpiexec -n 3 python biqbin_qubo.py \
+  tests/qubos/40/kcluster40_025_10_1.json -o qubo_result.json
+```
+
+The result is written to `qubo_result.json`. If it already exists, the CLI
+chooses a numbered filename; add `--overwrite` to replace it. Keep the same
+Python environment active when building and running the solver.
+
+For Max-Cut or constrained BQP, see [Running BiqBin](#running-biqbin).
+For Python integration, start with the [runnable QUBO API example](doc/api/index.md#runnable-qubo-example).
+For custom callbacks, use the separate [SDP and heuristic template](doc/CUSTOM_SDP_HEURISTIC.md#custom-solver-template).
+
 ## License
 
 BiqBin is free software distributed under the **GNU General Public License, version 3 or later**.
@@ -68,7 +89,7 @@ Native builds require:
 - OpenBLAS.
 - The Python packages listed in `requirements.txt`.
 
-Install the Python runtime dependencies:
+In the Python environment created using the installation guide, install the runtime dependencies:
 
 ```bash
 python -m pip install -r requirements.txt
@@ -127,7 +148,7 @@ The default environment uses Python 3.12, Debian Bookworm and MPICH.
 Build the default image:
 
 ```bash
-docker build -t biqbin .
+docker build -t parallel-biqbin:1.0.0 .
 ```
 
 Or use the Makefile:
@@ -141,7 +162,7 @@ The `runtime` target is the default Docker build target.
 Open an interactive shell:
 
 ```bash
-docker run --rm -it biqbin bash
+docker run --rm -it parallel-biqbin:1.0.0 bash
 ```
 
 Alternatively:
@@ -157,7 +178,7 @@ The Makefile shell target mounts the configured local `DATA_DIR` at `/data` insi
 Build the testing environment:
 
 ```bash
-docker build --target ci -t biqbin-ci .
+docker build --target ci -t parallel-biqbin-dev:1.0.0 .
 ```
 
 Or:
@@ -208,7 +229,7 @@ You can mount a local directory into the container:
 ```bash
 docker run --rm -it \
   -v "$PWD/instances:/data" \
-  biqbin bash
+  parallel-biqbin:1.0.0 bash
 ```
 
 Problem files can then be accessed at `/data` from within the container.

@@ -32,11 +32,12 @@ QUBO also supports:
 
 ## Python Example
 
-There is a seperate python class for each of the supported formats split between Max-Cut and QUBO data parsers. Implementation is located in [Python data parsers](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/biqbin/data_parsers.py)
+There is a separate Python class for each of the supported formats split between Max-Cut and QUBO data parsers. Implementation is located in [Python data parsers](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/biqbin/data_parsers.py)
 
 ```py
 # All importable data parsers and solvers
 from biqbin import (
+    init,
     MaxCutFromJson,  # For MaxCut problems
     MaxCutFromMatrixMarket,
     MaxCutFromEdgeWeights,
@@ -48,6 +49,9 @@ from biqbin import (
     QUBOSolver,
 )
 
+init()  # Call on every MPI rank before creating a solver.
+filename = "tests/qubos/40/kcluster40_025_10_1.json"
+
 # They are all used in the same way:
 # instantiate with the path to the problem file
 data_parser = QuboFromJson(filename)
@@ -58,7 +62,13 @@ problem = data_parser.read()
 solver = QUBOSolver(problem)
 # Compute the solution
 solution = solver.compute()
+if solution is not None:  # Result handling runs only on rank 0.
+    print(solution)
 ```
+
+Run Python solver scripts with at least three MPI processes from the repository
+root. See the [runnable API example](api/index.md#runnable-qubo-example) for
+launch instructions and creating a QUBO directly from a NumPy matrix.
 
 ## Edge-Weight List input example
 

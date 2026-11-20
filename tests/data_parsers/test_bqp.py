@@ -123,3 +123,35 @@ def test_bqp_json_reader_rejects_missing_keys(tmp_path, key):
 
     with pytest.raises(KeyError, match=key):
         data_parsers.BQPFromJson(str(path)).read()
+
+
+@pytest.mark.parametrize("optimize", [False, True])
+@pytest.mark.parametrize(
+    "reader,filename,offset",
+    [
+        (data_parsers.BQPFromBQPFile, "tests/bqp/test_bqp.data", 0),
+        (data_parsers.BQPFromJson, "tests/bqp/test_bqp.json", 0),
+        (data_parsers.BQPFromQBODense, "tests/bqp/kcluster40_025_10_1_QBO_dense.json", 0),
+        (data_parsers.BQPFromQBOSparse, "tests/bqp/kcluster40_025_10_1_QBO_sparse.json", 7),
+    ],
+)
+def test_bqp_reader_preserves_offset_and_optimization(tmp_path, reader, filename, offset, optimize):
+    # Keep the real SDP-based transformation: compare the same input before and
+    # after GCD scaling, including a nonzero offset in the format supporting it.
+    if offset:
+        from pathlib import Path
+
+        data = json.loads(Path(filename).read_text())
+        data["QBO"]["offset"] = offset
+        path = tmp_path / "offset.json"
+        path.write_text(json.dumps(data))
+        filename = str(path)
+    reference = reader(filename, optimize_input=False).read()
+    problem = reader(filename, optimize_input=optimize).read()
+    assert problem.offset == reference.offset == offset
+    assert problem.optimize_mc_adj_matrix is optimize
+    np.testing.assert_array_equal(
+        problem.maxcut_adjacency_matrix * problem.gcd, reference.maxcut_adjacency_matrix
+    )
+    np.testing.assert_array_equal(problem.F, reference.F)
+    np.testing.assert_array_equal(problem.c, reference.c)

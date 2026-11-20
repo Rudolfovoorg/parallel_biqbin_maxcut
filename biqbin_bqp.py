@@ -45,4 +45,6 @@ if __name__ == "__main__":
             output_path = args.output
         else:
             output_path = args.problem_instance + ".output"
-        solution_writer.write(output_path, with_metadata=True, with_maxcut_solution=True)
+        solution_writer.write(
+            output_path, overwrite=args.overwrite, with_metadata=True, with_maxcut_solution=True
+        )

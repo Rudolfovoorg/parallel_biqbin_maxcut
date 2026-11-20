@@ -380,7 +380,7 @@ class BQPFromQBODense(FromFile):
         A = np.array(data["QBO"]["constraints"]["linear"][0])
         b = np.array(data["QBO"]["constraints"]["linear"][1])
 
-        return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
+        return ProblemBQP(F, c, A, b, self.problem_name, optimize_input=self.optimize_input)
 
 
 class BQPFromQBOSparse(FromFile):
@@ -405,7 +405,15 @@ class BQPFromQBOSparse(FromFile):
         #         f"Offset == {data['QBO']['offset']}"
         #     )
         offset = data["QBO"]["offset"]
-        return ProblemBQP(F, c, A.toarray(), b, self.problem_name, offset, self.optimize_input)
+        return ProblemBQP(
+            F,
+            c,
+            A.toarray(),
+            b,
+            self.problem_name,
+            offset=offset,
+            optimize_input=self.optimize_input,
+        )
 
     def _load_qbo_new_format(self, path):
         """
@@ -522,7 +530,7 @@ class BQPFromBQPFile(FromFile):
                     f"File {self.filename}, line {lineno} (section {current_section!r}): {e}\n  {line!r}"
                 ) from e
 
-        return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
+        return ProblemBQP(F, c, A, b, self.problem_name, optimize_input=self.optimize_input)
 
 
 class BQPFromJson(FromFile):
@@ -567,7 +575,7 @@ class BQPFromJson(FromFile):
             check_index("b", i, m)
             b[i] = v
 
-        return ProblemBQP(F, c, A, b, self.problem_name, self.optimize_input)
+        return ProblemBQP(F, c, A, b, self.problem_name, optimize_input=self.optimize_input)
 
 
 class BQPToJson(ToFile):

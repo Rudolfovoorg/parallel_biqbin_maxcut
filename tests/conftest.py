@@ -10,7 +10,7 @@ def pytest_addoption(parser):
     """
     parser.addoption(
         "--behavior-report",
-        default="test-results/behavior/output.txt",
+        default="artifacts/tests/behavior/output.txt",
         help="Write expected-versus-actual solver behavior diagnostics to this file.",
     )
     parser.addoption(

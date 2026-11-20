@@ -145,22 +145,19 @@ jobs:
 
               echo "=== Tests ==="
 
-              mkdir -p test-results
-
               case "$TEST_SUITE" in
                 coverage)
                   make coverage
                   ;;
 
                 unit)
-                  make test-unit JUNIT_DIR=test-results
+                  make test-unit
                   ;;
 
                 smoke)
                   make test-logging \
                     test-maxcut \
-                    test-expected-failure \
-                    JUNIT_DIR=test-results
+                    test-expected-failure
                   ;;
 
                 *)

@@ -131,7 +131,7 @@ class ArgParserBase(ArgumentParser):
             hours, minutes = map(int, parts)
             seconds = 0
         elif len(parts) == 1:
-            if days:
+            if "-" in s:
                 hours = int(parts[0])
                 minutes = seconds = 0
             else:

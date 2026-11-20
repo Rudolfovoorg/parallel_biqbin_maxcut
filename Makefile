@@ -176,7 +176,7 @@ junit-output-dir:
 	mkdir -p $(JUNIT_DIR) $(TEST_RESULTS_DIR)/behavior
 
 test-harness:
-	$(PYTHON) -m pytest tests/test_native_harness.py tests/test_solution_checks.py tests/test_behavior_report.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_native_harness.xml) -v --no-header
+	$(PYTHON) -m pytest tests/test_native_harness.py tests/test_solution_checks.py tests/test_behavior_report.py tests/test_makefile.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_native_harness.xml) -v --no-header
 
 test-logging:
 	$(RUN_ENVS) $(PYTHON) -m pytest tests/test_logging.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_logging.xml) -v --no-header
@@ -267,6 +267,7 @@ test-coverage-gaps:
 		tests/test_bqp_initial_estimate.py \
 		tests/test_time_limit_parsing.py \
 		tests/test_utils_extra.py \
+		tests/test_cli_output.py \
 		$(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@.xml) \
 		-v --no-header
 

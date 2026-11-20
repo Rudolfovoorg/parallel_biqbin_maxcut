@@ -291,18 +291,19 @@ Vendored third-party Python code is excluded from the project's Ruff checks.
 ### Solver behavior diagnostics
 
 Output comparisons retain strict correctness checks and also write readable
-expected-versus-actual reports to `test-results/behavior/<test-target>.txt`.
+expected-versus-actual reports to `artifacts/tests/behavior/<test-target>.txt`.
 Each instance lists changed fields, expected and actual values, numeric deltas
 (actual minus expected), and changed vector positions (1-based). Matching fields
 are listed separately. Reports include solution vectors, root bounds and heuristic
 values, node/call counts, runtimes, and custom-callback counters. Behavioral
 differences alone do not fail tests; existing correctness assertions still apply.
 
-The CI diagnostic artifact includes these reports under `test-results/behavior/`.
+The CI diagnostic artifact includes these reports under `tests/behavior/`
+(the workflow copies the contents of the local `artifacts/` directory).
 There is a separate report for each test target, so repeated instances in different
 suites are retained. Reports are written before correctness checks and replaced
 on the next run of that target. A direct pytest invocation defaults to
-`test-results/behavior/output.txt`; use `--behavior-report=PATH` to choose another file.
+`artifacts/tests/behavior/output.txt`; use `--behavior-report=PATH` to choose another file.
 
 ### Python coverage
 
@@ -316,20 +317,24 @@ This generates:
 
 | Output | Description |
 |---|---|
-| `.coverage` | Raw coverage database |
-| `coverage.xml` | XML report for automated tooling |
-| `htmlcov/index.html` | Annotated HTML coverage report |
-| `test-results/` | JUnit XML reports for pytest groups |
+| `artifacts/coverage/.coverage` | Raw coverage database |
+| `artifacts/coverage/coverage.xml` | XML report for automated tooling |
+| `artifacts/coverage/htmlcov/index.html` | Annotated HTML coverage report |
+| `artifacts/tests/junit/` | JUnit XML reports for pytest groups |
 
 Open the HTML report locally:
 
 ```bash
-xdg-open htmlcov/index.html
+xdg-open artifacts/coverage/htmlcov/index.html
 ```
 
 Coverage includes Python statements and branches, excluding vendored code.
 
-Native C/C++ execution is not measured by pytest-cov. Python code running in separate MPI processes is also not automatically included.
+The Makefile instruments its MPI solver commands with `coverage run --parallel-mode`
+and combines their per-process data with pytest coverage. Native C/C++ execution
+is not measured. Other subprocesses launched directly by tests are not automatically
+instrumented.
+Coverage adds runtime overhead; use `make test` without coverage for timing comparisons.
 
 Coverage is currently informational; the CI pipeline does not enforce a minimum percentage.
 

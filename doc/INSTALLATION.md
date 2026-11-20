@@ -295,7 +295,7 @@ make lint
 make format-check
 ```
 
-Coverage output is written to `.coverage`, `coverage.xml` and `htmlcov/`. JUnit XML reports are produced in `test-results/`.
+Coverage output is written to `artifacts/coverage/.coverage`, `artifacts/coverage/coverage.xml` and `artifacts/coverage/htmlcov/`. JUnit XML reports are produced in `artifacts/tests/junit/`.
 
 Some MPI integration tests generate output files used by later validation tests. Run the complete suite through the Makefile rather than invoking all pytest files indiscriminately.
 

@@ -1,6 +1,7 @@
 __version__ = "2.0.5"
 
 from logging import INFO
+from os import PathLike
 from typing import ClassVar
 
 import numpy as np
@@ -16,12 +17,15 @@ from biqbin.biqbin_module import (
     goemans_williamson_heuristic,
     reduce_sum_mpi,
     run,
+    parameter_schema,
+    validate_parameters,
     sdp_bound,
     set_heuristic,
     set_node_evaluation,
     set_primal_solution,
     update_mc_lower_bound_solution,
 )
+from biqbin.configuration import Option, load_legacy_parameters
 from biqbin.logging import logger
 from biqbin.problem import ProblemBQP, ProblemMaxCut, ProblemQubo
 from biqbin.solution import SolutionBQP, SolutionMaxCut, SolutionQubo
@@ -39,18 +43,21 @@ class MaxCutSolver(PrettyPrint):
     def __init__(
         self,
         problem: ProblemMaxCut,
-        params: str = "params",
-        time_limit: int = 0,
+        params: str | dict | None = None,
+        time_limit: int | None = None,
         initial_estimate: np.ndarray | None = None,
         collect_heuristic_root_data: bool = False,
         collect_sdp_bound_root_data: bool = False,
+        *,
+        parameters: dict | None = None,
     ):
         """Initialize the solver
 
         Args:
             problem (ProblemMaxCut): Problem instance to be solved
-            params (str): path to parameters file
-            time_limit (int): time limit in seconds
+            params: Legacy parameter-file path or parameter mapping.
+            parameters: Native solver settings; omitted values use built-in defaults.
+            time_limit: Explicit legacy override in seconds; None preserves parameters.
             initial_estimate (np.ndarray or None): Optional initial estimate solution binary vector
             collect_heuristic_root_data (bool): Collect heuristic runtimes and objective
                 values on the root rank.
@@ -58,8 +65,17 @@ class MaxCutSolver(PrettyPrint):
                 on the root rank.
         """
         self.__problem: ProblemMaxCut = problem
-        self.params: str = params
-        self.time_limit: int = time_limit
+        if params is not None and parameters is not None:
+            raise ValueError("Use parameters or legacy params, not both")
+        values = parameters if parameters is not None else params
+        if isinstance(values, (str, PathLike)):
+            values = load_legacy_parameters(values)
+        values = dict(values) if values is not None else {}
+        if time_limit is not None:
+            values["time_limit"] = time_limit
+        self.parameters = validate_parameters(values)
+        self.params = self.parameters  # Compatibility attribute; now resolved values.
+        self.time_limit = self.parameters["time_limit"]
         self.initial_estimate_solution: np.ndarray | None = None
 
         self.rank: int = get_rank()
@@ -124,6 +140,18 @@ class MaxCutSolver(PrettyPrint):
                     f"on the subproblem optimal value. A bound that is too low will cause incorrect "
                     f"branch pruning and an invalid optimal solution. "
                 )
+
+    @classmethod
+    def config_options(cls):
+        """Native settings shared by config files, CLI overrides and the solver."""
+        return {
+            name: Option(
+                type=int if spec["type"] == "int" else float,
+                default=spec["default"],
+                help=f"Native solver parameter {name}",
+            )
+            for name, spec in parameter_schema().items()
+        }
 
     @property
     def problem(self) -> ProblemMaxCut:
@@ -419,7 +447,7 @@ class MaxCutSolver(PrettyPrint):
             input_matrix = None
 
         raw_results = run(
-            self.solver_name, self.problem.problem_name, input_matrix, self.params, self.time_limit
+            self.solver_name, self.problem.problem_name, input_matrix, self.parameters
         )
 
         result = self._update_result_dict(raw_results)
@@ -487,7 +515,7 @@ class MaxCutSolver(PrettyPrint):
         return (
             f"{super().__str__()}"
             f"    Problem = {self.problem.problem_name}\n"
-            f"Params path = {self.params}\n"
+            f"Parameters = {self.parameters}\n"
             f" Time limit = {self.time_limit}\n"
         )
 
@@ -505,11 +533,13 @@ class QUBOSolver(MaxCutSolver):
     def __init__(
         self,
         problem: ProblemQubo,
-        params: str = "params",
-        time_limit: int = 0,
+        params: str | dict | None = None,
+        time_limit: int | None = None,
         initial_estimate: np.ndarray | None = None,
         collect_heuristic_root_data: bool = False,
         collect_sdp_bound_root_data: bool = False,
+        *,
+        parameters: dict | None = None,
     ):
 
         mc_initial_solution = None
@@ -525,6 +555,7 @@ class QUBOSolver(MaxCutSolver):
             mc_initial_solution,
             collect_heuristic_root_data,
             collect_sdp_bound_root_data,
+            parameters=parameters,
         )
 
         self.__problem: ProblemQubo = problem
@@ -560,11 +591,13 @@ class BQPSolver(MaxCutSolver):
     def __init__(
         self,
         problem: ProblemBQP,
-        params: str,
-        time_limit: int = 0,
+        params: str | dict | None = None,
+        time_limit: int | None = None,
         initial_estimate=None,
         collect_heuristic_root_data=False,
         collect_sdp_bound_root_data=False,
+        *,
+        parameters: dict | None = None,
     ):
         self.__problem: ProblemBQP = problem
 
@@ -579,6 +612,7 @@ class BQPSolver(MaxCutSolver):
             initial_estimate=initial_estimate,
             collect_heuristic_root_data=collect_heuristic_root_data,
             collect_sdp_bound_root_data=collect_sdp_bound_root_data,
+            parameters=parameters,
         )
 
     @property

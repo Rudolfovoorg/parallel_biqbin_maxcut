@@ -12,6 +12,7 @@ nav:
   - Guides:
       - Installation: INSTALLATION.md
       - HPC: HPC_EXAMPLE.md
+      - Runtime pipeline: RUNTIME.md
       - Input formats: PROBLEM_INSTANCE_FORMATS.md
       - BQP input example: BQP_INPUT_EXAMPLE.md
       - Custom solvers: CUSTOM_SOLVER.md

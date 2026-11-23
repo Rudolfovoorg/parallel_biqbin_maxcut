@@ -23,6 +23,18 @@ log files for each rank.
 
 ::: biqbin.logging.configure_rank_logging
 
+## Shared runtime
+
+The [runtime pipeline](../RUNTIME.md) provides a common CLI and Python runner
+for reading a problem, solving it and writing the result. The runner handles
+MPI initialization; direct solver construction still requires `init()` first.
+
+```bash
+mpiexec -n 3 python -m biqbin qubo tests/qubos/40/kcluster40_025_10_1.json
+```
+
+::: biqbin.runtime.run
+
 ## Command-line programs
 
 Run these scripts from the repository root:

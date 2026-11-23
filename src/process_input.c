@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
+#include <ctype.h>
 #include <sys/stat.h> // for numbering of output files
 #include <mpi.h>
 
@@ -45,6 +48,7 @@ int processCommandLineArguments(int argc, char **argv, int rank)
 
     int read_error = 0;
 
+#ifdef PURE_C
     if (argc != 3)
     {
         if (rank == 0)
@@ -52,6 +56,11 @@ int processCommandLineArguments(int argc, char **argv, int rank)
         read_error = 1;
         return read_error;
     }
+
+#else
+    (void)argc;
+    (void)argv;
+#endif
 
     /***** only master process creates output file and reads the whole graph *****/
 
@@ -137,20 +146,22 @@ int processCommandLineArguments(int argc, char **argv, int rank)
         dcopy_(&N2, SP->L, &incx, PP->L, &incy);
     }
 
-    // Read the parameters from a user file
-    read_error = readParameters(argv[2], rank);
+#ifdef PURE_C
+    // Resolve once on rank 0, then use identical values on every rank.
+    if (rank == 0)
+        read_error = readParameters(argv[2], rank);
+    MPI_Bcast(&read_error, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if (read_error)
         return read_error;
+    broadcastParameters(&params);
+#endif
 
     /* adjust parameters */
     // change number of added cutting planes per iteration to n*10
     if (params.adjust_TriIneq)
         params.TriIneq = SP->n * 10;
 
-#ifndef PURE_C
-    // BZ: Putting handling of all parameters on the TODO list
-    params.time_limit = get_time_limit();
-#else
+#ifdef PURE_C
 
     if (rank == 0)
     {
@@ -165,49 +176,108 @@ int processCommandLineArguments(int argc, char **argv, int rank)
     return read_error;
 }
 
-/* Read parameters contained in the file given by the argument */
-int readParameters(const char *path, int rank)
+void defaultParameters(BiqBinParameters *values)
 {
-
-    FILE *paramfile;
-    char s[128]; // read line
-    char param_name[50];
-
-    // Initialize every parameter with its default value
-#define P(type, name, format, def_value) \
-    params.name = def_value;
+#define P(type, name, format, def_value) values->name = def_value;
     PARAM_FIELDS
 #undef P
+}
 
-    // open parameter file
-    if ((paramfile = fopen(path, "r")) == NULL)
+const char *validateParameters(const BiqBinParameters *values)
+{
+#define P(type, name, format, def_value) \
+    if (!isfinite((double)values->name) || values->name < 0) \
+        return #name " must be finite and nonnegative";
+    PARAM_FIELDS
+#undef P
+    if (values->init_bundle_iter < 1 || values->max_bundle_iter < 1)
+        return "bundle iteration counts must be positive";
+    if (values->init_bundle_iter > values->max_bundle_iter)
+        return "init_bundle_iter must not exceed max_bundle_iter";
+    if (values->max_outer_iter < 1)
+        return "max_outer_iter must be positive";
+    if (values->max_outer_iter > INT_MAX - values->extra_iter ||
+        values->triag_iter > INT_MAX - values->pent_iter ||
+        values->triag_iter + values->pent_iter > INT_MAX - values->hept_iter)
+        return "iteration count sums exceed the native integer range";
+    if (values->TriIneq < 1 || values->TriIneq > MaxTriIneqAdded ||
+        values->PentIneq < 1 || values->PentIneq > MaxPentIneqAdded ||
+        values->HeptaIneq < 1 || values->HeptaIneq > MaxHeptaIneqAdded)
+        return "cut counts must be positive and not exceed the compiled capacity";
+    if (values->adjust_TriIneq > 1 || values->include_Pent > 1 ||
+        values->include_Hepta > 1 || values->root > 1 || values->use_diff > 1)
+        return "boolean solver parameters must be 0 or 1";
+    if (values->branchingStrategy != LEAST_FRACTIONAL && values->branchingStrategy != MOST_FRACTIONAL)
+        return "branchingStrategy must be 0 or 1";
+    return NULL;
+}
+
+void broadcastParameters(BiqBinParameters *values)
+{
+#define MPI_PARAM_int MPI_INT
+#define MPI_PARAM_double MPI_DOUBLE
+#define P(type, name, format, def_value) MPI_Bcast(&values->name, 1, MPI_PARAM_##type, 0, MPI_COMM_WORLD);
+    PARAM_FIELDS
+#undef P
+#undef MPI_PARAM_int
+#undef MPI_PARAM_double
+}
+
+/* Legacy parameter-file input for the standalone native executable. */
+int readParameters(const char *path, int rank)
+{
+    FILE *paramfile = fopen(path, "r");
+    char line[512];
+    int line_number = 0;
+    defaultParameters(&params);
+    if (!paramfile)
     {
         if (rank == 0)
             fprintf(stderr, "Error: parameter file %s not found.\n", path);
         return 1;
     }
-
-    while (!feof(paramfile))
+    while (fgets(line, sizeof(line), paramfile))
     {
-        if (fgets(s, 120, paramfile) != NULL)
-        {
-
-            // read parameter name
-            sscanf(s, "%[^=^ ]", param_name);
-
-// read parameter value
-#define P(type, name, format, def_value)            \
-    if (strcmp(#name, param_name) == 0)             \
-    {                                               \
-        sscanf(s, "%*[^=]= " format, &params.name); \
-    }
-            PARAM_FIELDS
-#undef P
+        ++line_number;
+        char *comment = strchr(line, '#');
+        if (comment) *comment = '\0';
+        char *key = line;
+        while (isspace((unsigned char)*key)) ++key;
+        if (!*key) continue;
+        char *end_key = key;
+        while (*end_key && !isspace((unsigned char)*end_key) && *end_key != '=') ++end_key;
+        char *value = end_key;
+        while (isspace((unsigned char)*value)) ++value;
+        if (*value != '=') goto invalid;
+        *end_key = '\0';
+        ++value;
+        while (isspace((unsigned char)*value)) ++value;
+        char *end_value;
+        errno = 0;
+        double number = strtod(value, &end_value);
+        if (value == end_value || errno || !isfinite(number)) goto invalid;
+        while (isspace((unsigned char)*end_value)) ++end_value;
+        if (*end_value) goto invalid;
+        int matched = 0;
+#define P(type, name, format, def_value) \
+        if (strcmp(key, #name) == 0) { \
+            if (strcmp(#type, "int") == 0 && (number < INT_MIN || number > INT_MAX || number != trunc(number))) goto invalid; \
+            params.name = (type)number; matched = 1; \
         }
+        PARAM_FIELDS
+#undef P
+        if (!matched) goto invalid;
+        continue;
+invalid:
+        fprintf(stderr, "Error: invalid parameter at %s:%d\n", path, line_number);
+        fclose(paramfile);
+        return 1;
     }
+    int failed = ferror(paramfile);
     fclose(paramfile);
-
-    return 0;
+    const char *error = validateParameters(&params);
+    if (error) fprintf(stderr, "Error: %s\n", error);
+    return failed || error != NULL;
 }
 
 /*** read graph file ***/

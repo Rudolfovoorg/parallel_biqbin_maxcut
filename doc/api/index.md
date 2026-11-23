@@ -26,7 +26,9 @@ mpiexec -n 3 python -m doc.examples.qubo_setup_example
 ```
 
 Use module invocation (`-m`) so Python can find the local `biqbin` package.
-The default `params` file is also resolved from the repository root.
+Solver defaults are built in; no parameter file is required.
+See the [runtime pipeline](../RUNTIME.md) for configuration files, CLI overrides
+and running the same pipeline from Python.
 
 The example minimizes `x.T @ Q @ x + 10` for binary `x`:
 
@@ -41,7 +43,7 @@ problem = ProblemQubo(
     problem_name="example_qubo",
     is_minimization=True,
 )
-result = QUBOSolver(problem, params="params").compute()
+result = QUBOSolver(problem).compute()
 if result is not None:
     print("Objective:", result.solution["computed_val"])
     print("Binary solution:", result.solution["x"])

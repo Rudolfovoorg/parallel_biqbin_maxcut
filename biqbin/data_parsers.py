@@ -1,12 +1,13 @@
 import json
 from abc import ABC, abstractmethod
-from glob import glob
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import scipy as sp
 
 import biqbin.external.pyqplib as pyqplib
+from biqbin.configuration import Option
 from biqbin.problem import ProblemBQP, ProblemMaxCut, ProblemQubo
 from biqbin.solution import SolutionBQP, SolutionMaxCut, SolutionQubo
 from biqbin.utils import convert_numpy_to_json_serializable, from_sparse
@@ -16,6 +17,11 @@ class FromFile(ABC):
     """Interface for all file loader classes, subclasses must implement a `read` method,
     that takes a filename and returns a ProblemMaxCut or it's subclass (i.e. ProblemQubo)
     """
+
+    @classmethod
+    def config_options(cls) -> dict[str, Option]:
+        """Options consumed by the reader; preprocessing belongs to the problem."""
+        return {"path": Option(str, required=True, help="Problem instance file")}
 
     def __init__(
         self, filename: str, problem_name: str | None = None, optimize_input: bool = False
@@ -271,12 +277,27 @@ class QuboFromQPLIB(FromFile):
 
 
 class ToFile(ABC):
-    """Base abstract class for saving the solution to disk. All subclasses must implenent the
-    `write` method that takes a solution and saves it as file.
+    """Base interface for writers constructed with a solution.
+
+    ``write()`` saves the solution and returns the actual output filename.
     """
 
+    @classmethod
+    def config_options(cls) -> dict[str, Option]:
+        """Options consumed when writing a solution."""
+        return {
+            "path": Option(str, help="Output filename", aliases=("-o", "--output")),
+            "overwrite": Option(
+                bool,
+                default=False,
+                help="Replace an existing output",
+                aliases=("-w", "--overwrite"),
+            ),
+            "with_metadata": Option(bool, default=True, help="Include run metadata"),
+        }
+
     @abstractmethod
-    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None: ...
+    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> str: ...
 
     @classmethod
     def get_output_path(cls, out_file: str, overwrite: bool) -> str:
@@ -291,14 +312,14 @@ class ToFile(ABC):
         Returns:
             str: output file path
         """
-        out_file = out_file[:-5] if out_file.endswith(".json") else out_file
-        if overwrite:
-            return out_file + ".json"
-
-        file_count = len(glob(f"{out_file}*.json"))
-        if file_count > 0:
-            out_file += f"_{file_count}"
-        return out_file + ".json"
+        out_file = str(out_file)
+        stem = out_file[:-5] if out_file.endswith(".json") else out_file
+        candidate = stem + ".json"
+        suffix = 0
+        while not overwrite and Path(candidate).exists():
+            suffix += 1
+            candidate = f"{stem}_{suffix}.json"
+        return candidate
 
 
 class MaxCutSolutionToJson(ToFile):
@@ -307,7 +328,7 @@ class MaxCutSolutionToJson(ToFile):
     def __init__(self, solution: SolutionMaxCut) -> None:
         self.solution: SolutionMaxCut = solution
 
-    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
+    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> str:
         """Save the solution as JSON file.
 
         Args:
@@ -315,6 +336,9 @@ class MaxCutSolutionToJson(ToFile):
             overwrite (bool): Replace an existing file when True; otherwise choose
                 an unused filename.
             with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
+
+        Returns:
+            str: Actual output path, including any numbered suffix.
         """
 
         # Check if output filename exists if we are not overriding and replace with filename_N.json
@@ -326,10 +350,20 @@ class MaxCutSolutionToJson(ToFile):
 
         with open(output_path, "w") as f:
             json.dump(save_output, f, default=convert_numpy_to_json_serializable)
+        return output_path
 
 
 class QuboSolutionToJson(ToFile):
     """Helper class to save QUBO solution as json file."""
+
+    @classmethod
+    def config_options(cls) -> dict[str, Option]:
+        return {
+            **super().config_options(),
+            "with_maxcut_solution": Option(
+                bool, default=True, help="Include the transformed Max-Cut solution"
+            ),
+        }
 
     def __init__(self, solution: SolutionQubo) -> None:
         self.solution: SolutionQubo = solution
@@ -340,7 +374,7 @@ class QuboSolutionToJson(ToFile):
         overwrite: bool = False,
         with_metadata: bool = True,
         with_maxcut_solution: bool = False,
-    ) -> None:
+    ) -> str:
         """Save qubo solution to a json file.
 
         Args:
@@ -349,6 +383,9 @@ class QuboSolutionToJson(ToFile):
                 an unused filename.
             with_metadata (bool, optional): Add meta_data to output. Defaults to True.
             with_maxcut_solution (bool, optional): Add MaxCut solution to save output. Defaults to False.
+
+        Returns:
+            str: Actual output path, including any numbered suffix.
         """
 
         # Check if output filename exists if we are not overriding and replace with filename_N.json
@@ -363,6 +400,7 @@ class QuboSolutionToJson(ToFile):
 
         with open(output_path, "w") as f:
             json.dump(save_output, f, default=convert_numpy_to_json_serializable)
+        return output_path
 
 
 FileDataSection = Literal["F", "c", "A", "b"]
@@ -579,6 +617,15 @@ class BQPFromJson(FromFile):
 
 
 class BQPToJson(ToFile):
+    @classmethod
+    def config_options(cls) -> dict[str, Option]:
+        return {
+            **super().config_options(),
+            "with_maxcut_solution": Option(
+                bool, default=True, help="Include the transformed Max-Cut solution"
+            ),
+        }
+
     def __init__(self, solution: SolutionBQP) -> None:
         self.solution: SolutionBQP = solution
 
@@ -588,7 +635,7 @@ class BQPToJson(ToFile):
         overwrite: bool = False,
         with_metadata: bool = True,
         with_maxcut_solution: bool = False,
-    ) -> None:
+    ) -> str:
         """Save the bqp solution as JSON file.
 
         Args:
@@ -596,6 +643,9 @@ class BQPToJson(ToFile):
             overwrite (bool): Replace an existing file when True; otherwise choose
                 an unused filename.
             with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
+
+        Returns:
+            str: Actual output path, including any numbered suffix.
         """
 
         # Check if output filename exists if we are not overriding and replace with filename_N.json
@@ -611,3 +661,4 @@ class BQPToJson(ToFile):
 
         with open(output_path, "w") as f:
             json.dump(save_output, f, default=convert_numpy_to_json_serializable)
+        return output_path

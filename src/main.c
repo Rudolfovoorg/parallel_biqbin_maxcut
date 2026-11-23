@@ -84,7 +84,11 @@ int wrapped_main(int argc, char **argv)
     int read_error = Bab_Init(argc, argv, rank);
 
     if (read_error)
-        goto FINISH;
+    {
+        // Initialization may be incomplete; do not format a solution or enter collectives.
+        MPI_Abort(MPI_COMM_WORLD, read_error);
+        return read_error;
+    }
 
     /******************** MASTER PROCESS ********************/
     if (rank == 0)

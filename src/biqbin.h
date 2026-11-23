@@ -45,17 +45,17 @@ typedef enum Tags
 #define LEAST_FRACTIONAL 0
 #define MOST_FRACTIONAL 1
 
-// BiqBin parameters and default values
+// Canonical defaults match the shipped params file.
 #ifndef PARAM_FIELDS
 #define PARAM_FIELDS                         \
-    P(int, init_bundle_iter, "%d", 3)        \
+    P(int, init_bundle_iter, "%d", 5)        \
     P(int, max_bundle_iter, "%d", 15)        \
     P(int, triag_iter, "%d", 5)              \
     P(int, pent_iter, "%d", 5)               \
     P(int, hept_iter, "%d", 5)               \
     P(int, max_outer_iter, "%d", 20)         \
     P(int, extra_iter, "%d", 10)             \
-    P(double, violated_TriIneq, "%lf", 1e-3) \
+    P(double, violated_TriIneq, "%lf", 0.05) \
     P(int, TriIneq, "%d", 5000)              \
     P(int, adjust_TriIneq, "%d", 1)          \
     P(int, PentIneq, "%d", 5000)             \
@@ -176,6 +176,9 @@ void op_Bt(const Problem *P, double *X, const double *tt);
 void print_symmetric_matrix(double *Mat, int N);
 int processCommandLineArguments(int argc, char **argv, int rank);
 int readParameters(const char *path, int rank);
+EXTERN_C void defaultParameters(BiqBinParameters *values);
+EXTERN_C const char *validateParameters(const BiqBinParameters *values);
+EXTERN_C void broadcastParameters(BiqBinParameters *values);
 double *readData(const char *instance, int *adj_N);
 
 /* qap_simuted_annealing.c */

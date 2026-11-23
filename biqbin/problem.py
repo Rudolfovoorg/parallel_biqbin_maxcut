@@ -4,6 +4,7 @@ import numpy as np
 import numpy.typing as npt
 
 from biqbin.biqbin_module import interior_point_method_maxcut
+from biqbin.configuration import Option
 from biqbin.logging import logger
 from biqbin.utils import PrettyPrint, check_matrix_validity_setter_wrap, divide_matrix_by_gcd
 
@@ -17,6 +18,18 @@ class ProblemMaxCut(PrettyPrint):
         optimize_mc_adj_matrix: Divide weights by their greatest common divisor.
             This may modify the supplied matrix; pass a copy to preserve it.
     """
+
+    @classmethod
+    def config_options(cls) -> dict[str, Option]:
+        """Configuration owned by problem preprocessing, shared by all problem types."""
+        return {
+            "optimize": Option(
+                bool,
+                default=False,
+                help="Divide transformed Max-Cut weights by their greatest common divisor",
+                aliases=("-O", "--optimize"),
+            ),
+        }
 
     def __init__(
         self,

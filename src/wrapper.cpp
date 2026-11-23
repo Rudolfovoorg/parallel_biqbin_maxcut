@@ -3,6 +3,9 @@
 #include <cstdio>
 #include <iostream>
 #include <vector>
+#include <limits>
+#include <type_traits>
+#include <string>
 
 #include <mpi.h>
 #include <pybind11/pybind11.h>
@@ -10,6 +13,7 @@
 #include <pybind11/stl.h> // for std::vector
 
 #include "biqbin_cpp_api.h"
+#include "biqbin.h"
 #include "blas_laplack.h"
 
 #include "wrapper.h"
@@ -84,7 +88,7 @@ extern int rank;
 extern int num_workers;
 
 static double running_time;
-static int time_limit;
+extern BiqBinParameters params;
 
 // Python received problem, memory is owned by Python
 static double *adj_matrix;
@@ -102,31 +106,135 @@ int get_rank()
     }
     return rank;
 }
-int get_time_limit() { return time_limit; }
 double get_root_sdp_bound() { return root_upper_bound; }
+
+static void require_mpi()
+{
+    int initialized = 0, finalized = 0;
+    MPI_Initialized(&initialized);
+    MPI_Finalized(&finalized);
+    if (!initialized || finalized)
+        throw std::runtime_error("MPI is not initialized. Call biqbin.init() first.");
+}
+
+static std::string broadcast_string(std::string value)
+{
+    require_mpi();
+    // The root broadcasts the length first so workers can allocate their buffer.
+    if (rank == 0 && value.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
+        fatal_error("Configuration is too large to broadcast");
+    int size = rank == 0 ? static_cast<int>(value.size()) : 0;
+    MPI_Bcast(&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    value.resize(size);
+    MPI_Bcast(value.data(), size, MPI_CHAR, 0, MPI_COMM_WORLD);
+    return value;
+}
+
+static std::string broadcast_config(py::object value)
+{
+    require_mpi();
+    // Catch root conversion errors so workers never wait for a missing broadcast.
+    std::string text, error;
+    if (rank == 0)
+    {
+        try { text = value.cast<std::string>(); }
+        catch (const std::exception &e) { error = e.what(); }
+    }
+    error = broadcast_string(error);
+    if (!error.empty()) throw py::value_error(error);
+    return broadcast_string(text);
+}
+
+static bool all_ranks_ok(bool ok)
+{
+    require_mpi();
+    int local = ok ? 1 : 0, combined;
+    MPI_Allreduce(&local, &combined, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    return combined != 0;
+}
+
+static py::dict parameters_to_dict(const BiqBinParameters &values)
+{
+    py::dict result;
+#define P(type, name, format, def_value) result[#name] = values.name;
+    PARAM_FIELDS
+#undef P
+    return result;
+}
+
+static py::dict parameter_schema()
+{
+    py::dict result;
+#define P(type, name, format, def_value) { \
+    py::dict field; \
+    field["default"] = static_cast<type>(def_value); \
+    field["type"] = std::is_same<type, int>::value ? "int" : "float"; \
+    result[#name] = field; \
+}
+    PARAM_FIELDS
+#undef P
+    return result;
+}
+
+template <typename T>
+static T parameter_number(py::handle value, const char *name)
+{
+    if (PyBool_Check(value.ptr()) ||
+        (std::is_same<T, int>::value ? !PyLong_Check(value.ptr()) :
+         (!PyFloat_Check(value.ptr()) && !PyLong_Check(value.ptr()))))
+        throw py::value_error(std::string(name) + (std::is_same<T, int>::value ? " must be an integer" : " must be a number"));
+    try { return value.cast<T>(); }
+    catch (const py::cast_error &) { throw py::value_error(std::string(name) + " is outside its native numeric range"); }
+}
+
+static BiqBinParameters parameters_from_dict(const py::dict &settings)
+{
+    BiqBinParameters values;
+    defaultParameters(&values);
+    for (auto item : settings)
+    {
+        if (!py::isinstance<py::str>(item.first))
+            throw py::value_error("Parameter names must be strings");
+        const std::string key = item.first.cast<std::string>();
+        bool matched = false;
+#define P(type, name, format, def_value) \
+        if (key == #name) { values.name = parameter_number<type>(item.second, #name); matched = true; }
+        PARAM_FIELDS
+#undef P
+        if (!matched) throw py::value_error("Unknown solver parameter: " + key);
+    }
+    const char *error = validateParameters(&values);
+    if (error) throw py::value_error(error);
+    return values;
+}
+
+static py::dict validate_parameters(const py::dict &settings)
+{
+    return parameters_to_dict(parameters_from_dict(settings));
+}
 
 /// @brief Run the solver, retrieve the solution
 /// @param prog_name argv[0] "biqbin_*.py"
 /// @param problem_instance_name argv[1] "problem_path_to_file"
-/// @param params_file_name argv[2] "path_to_params_file"
-/// @param time_limit_in solving time limit in seconds, 0 if none
+/// @param settings resolved native solver parameters; rank 0 is authoritative
 /// @return biqbin maxcut result
-py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, char *params_file_name, int time_limit_in)
+py::dict run_py(const std::string &prog_name, const std::string &problem_instance_name, py::array_t<double> &adj_matrix_in, const py::dict &settings)
 {
     // heuristic guard to clean Python references on exit
     PythonReferencesGuard heuristic_guard;
 
-    // Check if MPI was initialized before running
-    int initialized;
-    MPI_Initialized(&initialized);
-    if (!initialized)
+    require_mpi();
+    (void)prog_name;
+    (void)problem_instance_name;
+    std::string error;
+    if (rank == 0)
     {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "MPI is not initialized. Call biqbin.init() before using any solver.");
-        return py::dict();
+        try { params = parameters_from_dict(settings); }
+        catch (const std::exception &e) { error = e.what(); }
     }
-
-    time_limit = time_limit_in;
+    error = broadcast_string(error);
+    if (!error.empty()) throw py::value_error(error);
+    broadcastParameters(&params);
 
     if (rank == 0)
     {
@@ -137,8 +245,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
         adj_matrix = static_cast<double *>(adj_matrix_in.mutable_data());
     }
 
-    char *argv[3] = {prog_name, problem_instance_name, params_file_name};
-    wrapped_main(3, argv);
+    wrapped_main(0, nullptr);
 
     // Save results
     py::dict result_dict;
@@ -146,6 +253,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     py::dict meta_data;
     py::dict root_node_dict;
 
+    meta_data["solver_parameters"] = parameters_to_dict(params);
     meta_data["time"] = running_time;
     meta_data["time_limit_reached"] = (time_limit_reached) ? true : false;
     meta_data["eval_bab_nodes"] = Bab_numEvalNodes();
@@ -307,6 +415,11 @@ PYBIND11_MODULE(biqbin_module, m, "Biqbin solver")
     m.def("get_rank", &get_rank, "Get MPI rank of this process");
     m.def("reduce_sum_mpi", py::overload_cast<int>(&reduce_sum_mpi_python));
     m.def("reduce_sum_mpi", py::overload_cast<double>(&reduce_sum_mpi_python));
+
+    m.def("broadcast_config", &broadcast_config, "Broadcast a root-rank configuration string");
+    m.def("all_ranks_ok", &all_ranks_ok, "True only when every rank reports success");
+    m.def("parameter_schema", &parameter_schema, "Native parameter names, types and defaults");
+    m.def("validate_parameters", &validate_parameters, "Validate overrides and fill native defaults");
 
     // Heuristic functions
     m.def("set_heuristic", &set_heuristic_override, "Override the heuristic function");

@@ -12,10 +12,25 @@ def run(
     solver_name: str,
     problem_instance_path: str,
     maxcut_adj_matrix: npt.NDArray[np.float64] | None,
-    params_path: str,
-    time_limit: int,
+    parameters: dict[str, int | float],
 ) -> dict:
     """Runs the solver, returns a solution dictionary on mpi rank 0"""
+    ...
+
+def parameter_schema() -> dict[str, dict]:
+    """Native parameter definitions, with default and type keys."""
+    ...
+
+def validate_parameters(parameters: dict[str, int | float]) -> dict[str, int | float]:
+    """Validate overrides and return the complete native parameter mapping."""
+    ...
+
+def broadcast_config(value: str | None) -> str:
+    """Collectively broadcast a string supplied by rank 0."""
+    ...
+
+def all_ranks_ok(ok: bool) -> bool:
+    """Collectively return whether every rank reports success."""
     ...
 
 def set_heuristic(heuristic_function: Callable[[BabNode, Problem, Problem], float]) -> None:

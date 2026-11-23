@@ -74,8 +74,6 @@ class MaxCutSolver(PrettyPrint):
         if time_limit is not None:
             values["time_limit"] = time_limit
         self.parameters = validate_parameters(values)
-        self.params = self.parameters  # Compatibility attribute; now resolved values.
-        self.time_limit = self.parameters["time_limit"]
         self.initial_estimate_solution: np.ndarray | None = None
 
         self.rank: int = get_rank()
@@ -140,6 +138,26 @@ class MaxCutSolver(PrettyPrint):
                     f"on the subproblem optimal value. A bound that is too low will cause incorrect "
                     f"branch pruning and an invalid optimal solution. "
                 )
+
+    @property
+    def params(self) -> dict:
+        """Compatibility alias for the authoritative native parameter mapping."""
+        return self.parameters
+
+    @params.setter
+    def params(self, values: str | dict | None) -> None:
+        if isinstance(values, (str, PathLike)):
+            values = load_legacy_parameters(values)
+        self.parameters = validate_parameters(values if values is not None else {})
+
+    @property
+    def time_limit(self) -> int:
+        """Time limit in seconds, always read from the current parameters."""
+        return self.parameters["time_limit"]
+
+    @time_limit.setter
+    def time_limit(self, value: int) -> None:
+        self.parameters = validate_parameters({**self.parameters, "time_limit": value})
 
     @classmethod
     def config_options(cls):

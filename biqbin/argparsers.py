@@ -53,14 +53,14 @@ class ArgParserBase(ArgumentParser):
 
 
 class ArgParserMaxCut(ArgParserBase):
-    FORMAT_CHOICES = COMPONENTS["maxcut"][3]
+    FORMAT_CHOICES = COMPONENTS["maxcut"].readers
 
     def __init__(self):
         super().__init__("biqbin_maxcut.py", "BiqBin Max-Cut solver", kind="maxcut")
 
 
 class ArgParserQubo(ArgParserBase):
-    FORMAT_CHOICES = COMPONENTS["qubo"][3]
+    FORMAT_CHOICES = COMPONENTS["qubo"].readers
 
     def __init__(self, prog="biqbin_qubo.py", description="BiqBin QUBO solver"):
         super().__init__(prog, description, kind="qubo")
@@ -72,7 +72,7 @@ class ArgParserDWaveHeuristic(ArgParserQubo):
 
 
 class ArgParserBQP(ArgParserBase):
-    FORMAT_CHOICES = COMPONENTS["bqp"][3]
+    FORMAT_CHOICES = COMPONENTS["bqp"].readers
 
     def __init__(self):
         super().__init__("biqbin_bqp.py", "BiqBin BQP solver", kind="bqp")

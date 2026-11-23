@@ -7,7 +7,7 @@ import pytest
 
 from biqbin.biqbin_module import parameter_schema, validate_parameters
 from biqbin.configuration import load_legacy_parameters
-from tests.test_runtime_pipeline import ROOT, run_mpi
+from tests.mpi_helpers import ROOT, run_mpi
 
 
 def test_native_defaults_match_shipped_profile():

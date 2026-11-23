@@ -56,12 +56,20 @@ def configure_parser(parser, kind, solver_factory=None):
     """Build the CLI from the selected classes' option definitions."""
     specs = component_options(kind, solver_factory=solver_factory)
     parser.add_argument(
-        "problem_instance", nargs="?", default=argparse.SUPPRESS, help=specs["reader"]["path"].help
+        "problem_instance",
+        nargs="?",
+        default=argparse.SUPPRESS,
+        help=specs["reader"]["path"].help,
+        metavar="FILE",
     )
     files = parser.add_mutually_exclusive_group()
-    files.add_argument("--config", help="TOML run configuration")
-    files.add_argument("-p", "--params", help="Legacy key=value solver parameter file")
-    parser.add_argument("--format", choices=tuple(COMPONENTS[kind][3]), default=argparse.SUPPRESS)
+    files.add_argument("--config", metavar="FILE", help="TOML run configuration")
+    files.add_argument(
+        "-p", "--params", metavar="FILE", help="Legacy key=value solver parameter file"
+    )
+    parser.add_argument(
+        "--format", choices=tuple(COMPONENTS[kind].readers), default=argparse.SUPPRESS
+    )
     parser.add_argument(
         "--param",
         action=SolverValueAction,
@@ -73,11 +81,14 @@ def configure_parser(parser, kind, solver_factory=None):
         for name, option in options.items():
             if section == "reader" and name == "path":
                 continue
+            # Native/advanced options use --param. Keep the old generated flags
+            # accepted for compatibility, but do not duplicate them in help.
+            advanced = section == "solver" and not option.aliases
             flags = option.aliases or [f"--{section}-{name.replace('_', '-')}"]
             kwargs = {
                 "dest": f"{section}.{name}",
                 "default": argparse.SUPPRESS,
-                "help": option.help,
+                "help": argparse.SUPPRESS if advanced else option.help,
             }
             if option.type is bool:
                 kwargs["action"] = (
@@ -87,6 +98,14 @@ def configure_parser(parser, kind, solver_factory=None):
                 kwargs["action"] = "count"
             elif (section, name) == ("run", "log_dir"):
                 kwargs.update(nargs="?", const="")
+            if "action" not in kwargs:
+                kwargs["metavar"] = (
+                    "DIR"
+                    if name == "log_dir"
+                    else "FILE"
+                    if name in {"path", "initial_solution"}
+                    else "VALUE"
+                )
             if section == "solver" and option.type is not bool:
                 kwargs["action"] = SolverValueAction
             parser.add_argument(*flags, **kwargs)
@@ -94,6 +113,7 @@ def configure_parser(parser, kind, solver_factory=None):
         "-t",
         "--time",
         dest="solver.time_limit",
+        metavar="TIME",
         default=argparse.SUPPRESS,
         type=parse_time_limit,
         action=SolverValueAction,

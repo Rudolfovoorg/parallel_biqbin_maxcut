@@ -148,7 +148,7 @@ $(C_BUILD_DIR)/%.o: src/%.c src/logging.h | $(C_BUILD_DIR)
 	$(CC) $(CFLAGS) $(LOG_DEFINES) -DPURE_C $(INCLUDES) -MMD -MP -c -o $@ $<
 
 # Input validation must retain IEEE NaN/Inf checks despite optimized solver kernels.
-$(C_BUILD_DIR)/process_input.o $(WRAPPER_BUILD_DIR)/process_input.o: CFLAGS += -fno-fast-math
+$(C_BUILD_DIR)/process_input.o $(WRAPPER_BUILD_DIR)/process_input.o: override CFLAGS += -fno-fast-math
 
 # BiqBin code rules
 $(WRAPPER_BUILD_DIR)/%.o: src/%.c src/logging.h | $(WRAPPER_BUILD_DIR)

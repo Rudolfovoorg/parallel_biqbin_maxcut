@@ -157,7 +157,8 @@ jobs:
                 smoke)
                   make test-logging \
                     test-maxcut \
-                    test-expected-failure
+                    test-expected-failure \
+                    test-runtime
                   ;;
 
                 *)

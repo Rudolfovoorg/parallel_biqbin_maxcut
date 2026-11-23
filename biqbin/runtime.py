@@ -1,7 +1,6 @@
 """Shared reader -> problem -> solver -> solution -> writer execution."""
 
 import json
-import logging
 import sys
 from pathlib import Path
 
@@ -10,27 +9,51 @@ import numpy as np
 from biqbin import data_parsers as readers
 from biqbin.biqbin_base import BQPSolver, MaxCutSolver, QUBOSolver
 from biqbin.biqbin_module import (
-    abort_mpi, all_ranks_ok, broadcast_config, get_rank, parameter_schema,
+    abort_mpi,
+    all_ranks_ok,
+    broadcast_config,
+    get_rank,
+    parameter_schema,
     validate_parameters,
 )
 from biqbin.configuration import Option, load_config, load_legacy_parameters, resolve_options
-from biqbin.logging import configure_logging, configure_rank_logging
+from biqbin.logging import configure_rank_logging, configure_verbosity
 from biqbin.problem import ProblemBQP, ProblemMaxCut, ProblemQubo
 
 # Explicit selection keeps configuration serializable and avoids importing arbitrary code.
 COMPONENTS = {
-    "maxcut": (ProblemMaxCut, MaxCutSolver, readers.MaxCutSolutionToJson, {
-        "json": readers.MaxCutFromJson, "mm": readers.MaxCutFromMatrixMarket,
-        "ew": readers.MaxCutFromEdgeWeights,
-    }),
-    "qubo": (ProblemQubo, QUBOSolver, readers.QuboSolutionToJson, {
-        "json": readers.QuboFromJson, "mm": readers.QuboFromMatrixMarket,
-        "ew": readers.QuboFromEdgeWeights, "qplib": readers.QuboFromQPLIB,
-    }),
-    "bqp": (ProblemBQP, BQPSolver, readers.BQPToJson, {
-        "bqp": readers.BQPFromBQPFile, "json": readers.BQPFromJson,
-        "dense": readers.BQPFromQBODense, "sparse": readers.BQPFromQBOSparse,
-    }),
+    "maxcut": (
+        ProblemMaxCut,
+        MaxCutSolver,
+        readers.MaxCutSolutionToJson,
+        {
+            "json": readers.MaxCutFromJson,
+            "mm": readers.MaxCutFromMatrixMarket,
+            "ew": readers.MaxCutFromEdgeWeights,
+        },
+    ),
+    "qubo": (
+        ProblemQubo,
+        QUBOSolver,
+        readers.QuboSolutionToJson,
+        {
+            "json": readers.QuboFromJson,
+            "mm": readers.QuboFromMatrixMarket,
+            "ew": readers.QuboFromEdgeWeights,
+            "qplib": readers.QuboFromQPLIB,
+        },
+    ),
+    "bqp": (
+        ProblemBQP,
+        BQPSolver,
+        readers.BQPToJson,
+        {
+            "bqp": readers.BQPFromBQPFile,
+            "json": readers.BQPFromJson,
+            "dense": readers.BQPFromQBODense,
+            "sparse": readers.BQPFromQBOSparse,
+        },
+    ),
 }
 
 
@@ -40,10 +63,25 @@ class Runtime:
     @classmethod
     def config_options(cls):
         return {
-            "initial_solution": Option(str, help="Initial binary solution JSON file"),
-            "collect_root_data": Option(bool, default=False, help="Collect root callback data"),
-            "verbose": Option(int, default=0, minimum=0, help="Verbosity: 0 warning, 1 info, 2 debug"),
-            "log_dir": Option(str, help="Additional per-rank log directory"),
+            "initial_solution": Option(
+                str, help="Initial binary solution JSON file", aliases=("-s", "--solution")
+            ),
+            "collect_root_data": Option(
+                bool,
+                default=False,
+                help="Collect root callback data",
+                aliases=("-c", "--collect-root-data"),
+            ),
+            "verbose": Option(
+                int,
+                default=0,
+                minimum=0,
+                help="Verbosity: 0 warning, 1 info, 2 debug",
+                aliases=("-v", "--verbose"),
+            ),
+            "log_dir": Option(
+                str, help="Additional per-rank log directory", aliases=("--log-dir",)
+            ),
         }
 
 
@@ -64,15 +102,21 @@ def component_options(kind, fmt=None, solver_factory=None):
     }
 
 
-def resolve_config(config=None, *, config_file=None, params_file=None, overrides=None, solver_factory=None):
+def resolve_config(
+    config=None, *, config_file=None, params_file=None, overrides=None, solver_factory=None
+):
     """Resolve defaults < TOML/API config < explicit overrides, without side effects."""
     if config_file is not None and params_file is not None:
         raise ValueError("Use --config or --params, not both")
     values = load_config(config_file) if config_file is not None else dict(config or {})
     if config_file is not None:
         base = Path(config_file).resolve().parent
-        for section, key in [("reader", "path"), ("writer", "path"),
-                             ("run", "initial_solution"), ("run", "log_dir")]:
+        for section, key in [
+            ("reader", "path"),
+            ("writer", "path"),
+            ("run", "initial_solution"),
+            ("run", "log_dir"),
+        ]:
             entries = values.get(section, {})
             if isinstance(entries, dict) and isinstance(entries.get(key), str) and entries[key]:
                 entries[key] = str(base / entries[key])
@@ -93,7 +137,9 @@ def resolve_config(config=None, *, config_file=None, params_file=None, overrides
     for section, options in definitions.items():
         result[section] = resolve_options(options, values.get(section), overrides.get(section))
     native_keys = parameter_schema().keys()
-    native = validate_parameters({key: value for key, value in result["solver"].items() if key in native_keys})
+    native = validate_parameters(
+        {key: value for key, value in result["solver"].items() if key in native_keys}
+    )
     result["solver"].update(native)
     if result["run"]["log_dir"] == "":
         result["run"]["log_dir"] = Path(result["reader"]["path"]).stem + ".logs"
@@ -128,8 +174,13 @@ def run(config=None, *, solver_factory=None, config_file=None, params_file=None,
     message = None
     if rank == 0:
         try:
-            resolved = resolve_config(config, config_file=config_file, params_file=params_file,
-                                      overrides=overrides, solver_factory=solver_factory)
+            resolved = resolve_config(
+                config,
+                config_file=config_file,
+                params_file=params_file,
+                overrides=overrides,
+                solver_factory=solver_factory,
+            )
             message = json.dumps({"config": resolved})
         except Exception as exc:
             message = json.dumps({"error": str(exc)})
@@ -139,7 +190,7 @@ def run(config=None, *, solver_factory=None, config_file=None, params_file=None,
     config = envelope["config"]
     run_options = config["run"]
     verbosity = run_options["verbose"]
-    configure_logging(logging.WARNING if verbosity == 0 else logging.INFO if verbosity == 1 else logging.DEBUG)
+    configure_verbosity(verbosity)
     configure_rank_logging(run_options["log_dir"], rank)
     _, solver_type, writer_type, formats = COMPONENTS[config["kind"]]
     reader_type = formats[config["format"]]
@@ -147,7 +198,9 @@ def run(config=None, *, solver_factory=None, config_file=None, params_file=None,
     def prepare():
         reader_options = dict(config["reader"])
         path = reader_options.pop("path")
-        problem = reader_type(path, optimize_input=config["problem"]["optimize"], **reader_options).read()
+        problem = reader_type(
+            path, optimize_input=config["problem"]["optimize"], **reader_options
+        ).read()
         estimate = None
         if rank == 0 and run_options["initial_solution"]:
             with open(run_options["initial_solution"]) as stream:
@@ -156,9 +209,12 @@ def run(config=None, *, solver_factory=None, config_file=None, params_file=None,
         native = {key: value for key, value in config["solver"].items() if key in native_keys}
         extra = {key: value for key, value in config["solver"].items() if key not in native_keys}
         return (solver_factory or solver_type)(
-            problem, parameters=native, initial_estimate=estimate,
+            problem,
+            parameters=native,
+            initial_estimate=estimate,
             collect_heuristic_root_data=run_options["collect_root_data"],
-            collect_sdp_bound_root_data=run_options["collect_root_data"], **extra,
+            collect_sdp_bound_root_data=run_options["collect_root_data"],
+            **extra,
         )
 
     solver = _stage(prepare, "Input/solver setup")

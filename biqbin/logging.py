@@ -107,3 +107,10 @@ def configure_rank_logging(directory: str | PathLike[str] | None, rank: int) -> 
             )
         finally:
             abort_mpi(10)
+
+
+def configure_verbosity(verbosity: int) -> None:
+    """Apply the CLI verbosity convention to application logging."""
+    configure_logging(
+        logging.WARNING if verbosity == 0 else logging.INFO if verbosity == 1 else logging.DEBUG
+    )

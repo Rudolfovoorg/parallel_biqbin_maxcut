@@ -95,7 +95,7 @@ CFLAGS = $(OPTI) -Wall -W -pedantic
 CXXFLAGS = $(CPPOPTI) -Wall -W -pedantic
 
 # Build rules
-.PHONY: all rebuild clean clean-output clean-artifacts test tests test-unit test-harness \
+.PHONY: all rebuild clean clean-output clean-artifacts test tests test-unit test-harness test-runtime \
         test-logging test-summaries \
         test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib \
         test-qubo-python-heuristic test-bqp-python test-input-solution \
@@ -147,6 +147,9 @@ $(BINS): $(C_OBJS)
 $(C_BUILD_DIR)/%.o: src/%.c src/logging.h | $(C_BUILD_DIR)
 	$(CC) $(CFLAGS) $(LOG_DEFINES) -DPURE_C $(INCLUDES) -MMD -MP -c -o $@ $<
 
+# Input validation must retain IEEE NaN/Inf checks despite optimized solver kernels.
+$(C_BUILD_DIR)/process_input.o $(WRAPPER_BUILD_DIR)/process_input.o: CFLAGS += -fno-fast-math
+
 # BiqBin code rules
 $(WRAPPER_BUILD_DIR)/%.o: src/%.c src/logging.h | $(WRAPPER_BUILD_DIR)
 	$(CC) $(CFLAGS) $(LOG_DEFINES) $(INCLUDES) -MMD -MP -c -o $@ $<
@@ -162,7 +165,7 @@ $(PYMOD_OUT): $(OBJS)
 -include $(C_OBJS:.o=.d) $(OBJS:.o=.d)
 
 # Every standalone test target requires a usable native build.
-TEST_TARGETS := test-harness test-logging test-summaries test-maxcut \
+TEST_TARGETS := test-harness test-runtime test-logging test-summaries test-maxcut \
     test-maxcut-python test-qubo-python test-qubo-qplib \
     test-qubo-python-heuristic test-bqp-python test-input-solution \
     test-parsers test-modular-combos test-expected-failure test-coverage-gaps
@@ -177,6 +180,9 @@ junit-output-dir:
 
 test-harness:
 	$(PYTHON) -m pytest tests/test_native_harness.py tests/test_solution_checks.py tests/test_behavior_report.py tests/test_makefile.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_native_harness.xml) -v --no-header
+
+test-runtime:
+	$(RUN_ENVS) $(PYTHON) -m pytest tests/test_configuration.py tests/test_cli_config.py tests/test_native_parameters.py tests/test_runtime_pipeline.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@.xml) -v --no-header
 
 test-logging:
 	$(RUN_ENVS) $(PYTHON) -m pytest tests/test_logging.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-test_logging.xml) -v --no-header
@@ -320,7 +326,7 @@ format:
 format-check:
 	$(RUFF) format --check .
 
-test-unit: all test-logging test-summaries test-parsers test-coverage-gaps
+test-unit: all test-runtime test-logging test-summaries test-parsers test-coverage-gaps
 	$(RUN_ENVS) $(PYTHON) -m pytest tests/test_maxcut.py tests/test_qubo.py tests/test_bqp.py $(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@-solvers.xml) -v --no-header
 
 # All pytest and MPI ranks inherit this database path.

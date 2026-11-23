@@ -1,271 +1,78 @@
-import logging
-import warnings
-from argparse import SUPPRESS, ArgumentParser, ArgumentTypeError
-from pathlib import Path
+"""Compatibility namespaces backed by the shared CLI and configuration resolver.
 
-from biqbin.data_parsers import (
-    BQPFromBQPFile,
-    BQPFromJson,
-    BQPFromQBODense,
-    BQPFromQBOSparse,
-    FromFile,
-    MaxCutFromEdgeWeights,
-    MaxCutFromJson,
-    MaxCutFromMatrixMarket,
-    QuboFromEdgeWeights,
-    QuboFromJson,
-    QuboFromMatrixMarket,
-    QuboFromQPLIB,
-)
-from biqbin.logging import configure_logging
+New applications should call ``biqbin.cli.main`` or ``biqbin.runtime.run``.
+These adapters preserve the old attribute names and logging side effect.
+"""
+
+from argparse import ArgumentParser, ArgumentTypeError
+
+from biqbin.cli import cli_overrides, configure_parser, parse_time_limit
+from biqbin.logging import configure_verbosity
+from biqbin.runtime import COMPONENTS, resolve_config
 
 
 class ArgParserBase(ArgumentParser):
-    def __init__(self, prog: str, description: str):
-        super().__init__(
-            prog=prog,
-            description=description,
-            usage=f"mpirun [-n N] python3 {prog} problem_instance [-p PARAMS] [-w] [-o OUTPUT] [--log-dir [LOG_DIR]]",
-            epilog="For more information please visit https://github.com/Rudolfovoorg/parallel_biqbin_maxcut",
-        )
-        self.add_argument("problem_instance", help="Path to the problem instance file")
+    parse_time_limit = staticmethod(parse_time_limit)
 
-        # Optional arguments
-        self.add_argument("-s", "--solution", help="file path to an initial solution")
+    def __init__(self, prog, description, *, kind):
+        super().__init__(prog=prog, description=description)
+        self.kind = kind
+        configure_parser(self, kind)
 
-        self.add_argument(
-            "-c",
-            "--collect-root-data",
-            action="store_true",
-            help="collect heuristic and sdp data on root node (time taken and value returned)",
-        )
-
-        self.add_argument("--collect-heur-data", action="store_true", help=SUPPRESS)
-
-        self.add_argument(
-            "-p",
-            "--params",
-            default="params",
-            help='custom parameters file path (default: "params")',
-        )
-
-        self.add_argument(
-            "-w",
-            "--overwrite",
-            action="store_true",
-            help="overwrite output.json instead of labeling with _NUMBER",
-        )
-        self.add_argument(
-            "-O",
-            "--optimize",
-            action="store_true",
-            help="Divides the final input matrix values by their GCD",
-        )
-        self.add_argument("-o", "--output", help="set custom output file path")
-        self.add_argument(
-            "--log-dir",
-            nargs="?",
-            const="",
-            metavar="LOG_DIR",
-            help="also log to one file per MPI rank; optional directory defaults to <input stem>.logs in the current directory",
-        )
-        # time limit format taken from SLURM docs https://slurm.schedmd.com/sbatch.html
-        self.add_argument(
-            "-t",
-            "--time",
-            default="0",
-            type=self.parse_time_limit,
-            help='set running time limit; acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"',
-        )
-
-        self.add_argument(
-            "-v",
-            "--verbose",
-            action="count",
-            default=0,
-            help="Increases logging level from WARNING to -v for INFO or -vv for DEBUG",
-        )
+    def parse_format(self, value):
+        try:
+            return self.FORMAT_CHOICES[value.lower()]
+        except KeyError:
+            raise ArgumentTypeError(
+                f"Invalid format {value!r}; choose from {tuple(self.FORMAT_CHOICES)}"
+            ) from None
 
     def parse_args(self, *args, **kwargs):
-        ns = super().parse_args(*args, **kwargs)
-
-        if ns.log_dir == "":
-            ns.log_dir = Path(ns.problem_instance).stem + ".logs"
-
-        configure_logging(
-            logging.DEBUG
-            if ns.verbose > 1
-            else logging.INFO
-            if ns.verbose == 1
-            else logging.WARNING,
-        )
-
-        if ns.collect_heur_data:
-            warnings.warn(
-                "[DEPRECATED] `--collect-heur-data` is deprecated, use `--collect-root-data` instead",
-                UserWarning,
+        namespace = super().parse_args(*args, **kwargs)
+        try:
+            config = resolve_config(
+                config_file=namespace.config,
+                params_file=namespace.params,
+                overrides=cli_overrides(namespace, self.kind),
             )
-            ns.collect_root_data = ns.collect_heur_data
-        return ns
-
-    def parse_time_limit(self, s: str) -> int:
-        """
-        Parse Slurm-style time limits:
-        - "MM" (minutes only)
-        - "HH:MM:SS"
-        - "D-HH:MM:SS"
-        Returns:
-            int: total seconds
-        """
-        # If format includes days
-        if "-" in s:
-            days_str, rest = s.split("-", 1)
-            days = int(days_str)
-        else:
-            days, rest = 0, s
-
-        parts = rest.split(":")
-        if len(parts) == 3:
-            hours, minutes, seconds = map(int, parts)
-        elif len(parts) == 2:
-            hours, minutes = map(int, parts)
-            seconds = 0
-        elif len(parts) == 1:
-            if "-" in s:
-                hours = int(parts[0])
-                minutes = seconds = 0
-            else:
-                hours = seconds = 0
-                minutes = int(parts[0])
-        else:
-            raise ArgumentTypeError(f"Invalid time format: {s}")
-
-        total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
-        return int(total_seconds)
+        except (ValueError, OSError, TypeError) as error:
+            self.error(str(error))
+        namespace.problem_instance = config["reader"]["path"]
+        namespace.format = self.FORMAT_CHOICES[config["format"]]
+        namespace.params = config["solver"]
+        namespace.time = config["solver"]["time_limit"]
+        namespace.optimize = config["problem"]["optimize"]
+        namespace.output = config["writer"]["path"]
+        namespace.overwrite = config["writer"]["overwrite"]
+        namespace.solution = config["run"]["initial_solution"]
+        namespace.collect_root_data = config["run"]["collect_root_data"]
+        namespace.verbose = config["run"]["verbose"]
+        namespace.log_dir = config["run"]["log_dir"]
+        configure_verbosity(namespace.verbose)
+        return namespace
 
 
 class ArgParserMaxCut(ArgParserBase):
-    FORMAT_CHOICES = {
-        "json": MaxCutFromJson,
-        "mm": MaxCutFromMatrixMarket,
-        "ew": MaxCutFromEdgeWeights,
-    }
+    FORMAT_CHOICES = COMPONENTS["maxcut"][3]
 
     def __init__(self):
-        super().__init__(prog="biqbin_maxcut.py", description="Biqbin Maxcut solver")
-        self.add_argument(
-            "--format",
-            default=self.FORMAT_CHOICES["json"],
-            type=self.parse_format,
-            help="Max-Cut problem instance file format. mm is MatrixMarket, ew is edge-weight Stanford GSet style",
-        )
-
-    def parse_format(self, fmt: str) -> FromFile:
-        fmt = fmt.lower()
-        if fmt not in self.FORMAT_CHOICES:
-            raise ArgumentTypeError(
-                f"invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}"
-            )
-
-        return self.FORMAT_CHOICES[fmt]
+        super().__init__("biqbin_maxcut.py", "BiqBin Max-Cut solver", kind="maxcut")
 
 
 class ArgParserQubo(ArgParserBase):
-    FORMAT_CHOICES = {
-        "json": QuboFromJson,
-        "mm": QuboFromMatrixMarket,
-        "ew": QuboFromEdgeWeights,
-        "qplib": QuboFromQPLIB,
-    }
+    FORMAT_CHOICES = COMPONENTS["qubo"][3]
 
-    def __init__(self, prog="biqbin_qubo.py", description="Biqbin QUBO solver"):
-        super().__init__(prog=prog, description=description)
-        self.add_argument(
-            "--format",
-            default=self.FORMAT_CHOICES["json"],
-            type=self.parse_format,
-            help=f"QUBO problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}",
-        )
-
-    def parse_format(self, fmt: str) -> FromFile:
-        fmt = fmt.lower()
-        if fmt not in self.FORMAT_CHOICES:
-            raise ArgumentTypeError(
-                f"invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}"
-            )
-
-        return self.FORMAT_CHOICES[fmt]
+    def __init__(self, prog="biqbin_qubo.py", description="BiqBin QUBO solver"):
+        super().__init__(prog, description, kind="qubo")
 
 
 class ArgParserDWaveHeuristic(ArgParserQubo):
     def __init__(self):
-        super().__init__(
-            prog="biqbin_heuristic.py", description="Biqbin QUBO solver with DWave heuristic"
-        )
-
-        # Deprecated flags
-        self.add_argument(
-            "-d",
-            "--debug",
-            action="store_true",
-            help=SUPPRESS,  # hide from help
-        )
-
-        self.add_argument("-i", "--info", action="store_true", help=SUPPRESS)
-
-    def parse_args(self, *args, **kwargs):
-        ns = super().parse_args(*args, **kwargs)
-
-        if ns.debug:
-            warnings.warn("[DEPRECATED] `-d/--debug` is deprecated, use `-vv` instead", UserWarning)
-            ns.verbose = max(ns.verbose, 2)
-
-        if ns.info:
-            warnings.warn("[DEPRECATED] `-i/--info` is deprecated, use `-v` instead", UserWarning)
-            ns.verbose = max(ns.verbose, 1)
-
-        configure_logging(
-            logging.DEBUG
-            if ns.verbose > 1
-            else logging.INFO
-            if ns.verbose == 1
-            else logging.WARNING,
-        )
-        return ns
+        super().__init__("biqbin_heuristic.py", "BiqBin QUBO solver with custom heuristic")
 
 
 class ArgParserBQP(ArgParserBase):
-    FORMAT_CHOICES = {
-        "json": BQPFromJson,
-        "bqp": BQPFromBQPFile,
-        "sparse": BQPFromQBOSparse,
-        "dense": BQPFromQBODense,
-    }
+    FORMAT_CHOICES = COMPONENTS["bqp"][3]
 
     def __init__(self):
-        super().__init__(prog="biqbin_bqp.py", description="Biqbin BQP solver")
-        self.add_argument("-j", "--json", action="store_true", help=SUPPRESS)
-        self.add_argument(
-            "--format",
-            default=self.FORMAT_CHOICES["bqp"],
-            type=self.parse_format,
-            help=f"BQP problem instance file format. Valid formats are {tuple(self.FORMAT_CHOICES.keys())}; Defaults to 'bqp'",
-        )
-
-    def parse_args(self, *args, **kwargs):
-        ns = super().parse_args(*args, **kwargs)
-        if ns.json:
-            warnings.warn(
-                "[DEPRECATED] `-j`, `--json` is deprecated, please use --format json", UserWarning
-            )
-            ns.format = BQPFromJson
-        return ns
-
-    def parse_format(self, fmt: str) -> FromFile:
-        fmt = fmt.lower()
-        if fmt not in self.FORMAT_CHOICES:
-            raise ArgumentTypeError(
-                f"invalid format: {fmt}, choose from {tuple(i for i in self.FORMAT_CHOICES.keys())}"
-            )
-
-        return self.FORMAT_CHOICES[fmt]
+        super().__init__("biqbin_bqp.py", "BiqBin BQP solver", kind="bqp")

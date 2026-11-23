@@ -117,8 +117,6 @@ def test_config_relative_paths_and_explicit_overrides(tmp_path):
         '[writer]\npath = "result.json"\noverwrite = true\nwith_maxcut_solution = true\n'
         "[run]\ncollect_root_data = true\n"
     )
-    legacy = tmp_path / "legacy.params"
-    legacy.write_text("time_limit = 120\nmax_bundle_iter = 40\n")
     sentinel = config_dir / "result.json"
     sentinel.write_text("keep existing result")
     run_mpi(
@@ -128,8 +126,6 @@ def test_config_relative_paths_and_explicit_overrides(tmp_path):
         "qubo",
         "--config",
         str(config),
-        "-p",
-        str(legacy),
         "--param",
         "max_bundle_iter=45",
         "-t",
@@ -166,7 +162,7 @@ def test_missing_input_fails_without_hanging(tmp_path):
 def test_unknown_config_section_fails_without_hanging(tmp_path):
     instance = qubo_input(tmp_path)
     config = tmp_path / "bad.toml"
-    config.write_text('[solvre]\ntime_limit = 120\n')
+    config.write_text("[solvre]\ntime_limit = 120\n")
     diagnostics = run_mpi(
         tmp_path, "-m", "biqbin", "qubo", str(instance), "--config", str(config), success=False
     )
@@ -195,3 +191,66 @@ def test_worker_factory_failure_is_collective(tmp_path):
     )
     diagnostics = run_mpi(tmp_path, str(script), success=False)
     assert "worker factory failure" in diagnostics
+
+
+def test_output_failure_is_collective(tmp_path):
+    instance = qubo_input(tmp_path)
+    blocked = tmp_path / "blocked"
+    blocked.write_text("not a directory")
+    diagnostics = run_mpi(
+        tmp_path,
+        "-m",
+        "biqbin",
+        "qubo",
+        str(instance),
+        "-o",
+        str(blocked / "result.json"),
+        success=False,
+    )
+    assert "Output" in diagnostics
+    assert blocked.read_text() == "not a directory"
+
+
+def test_api_example_uses_built_in_defaults(tmp_path):
+    run_mpi(tmp_path, "-m", "doc.examples.qubo_setup_example")
+    assert json.loads((tmp_path / "example_qubo.json").read_text())["offset"] == 10
+    assert "Objective: 9" in (tmp_path / "stdout.log").read_text()
+
+
+def test_custom_heuristic_uses_shared_cli_and_config(tmp_path):
+    qubo_input(tmp_path)
+    config = tmp_path / "run.toml"
+    config.write_text(
+        'kind="qubo"\n[reader]\npath="input.json"\n'
+        '[solver]\nnum_reads=4\ntime_limit=120\n[writer]\npath="result.json"\n'
+    )
+    run_mpi(
+        tmp_path, str(ROOT / "biqbin_heuristic.py"), "--config", str(config), "--num-reads", "7"
+    )
+    result = json.loads((tmp_path / "result.json").read_text())
+    assert result["qubo"]["computed_val"] == 9
+    assert result["meta_data"]["runtime_config"]["solver"]["num_reads"] == 7
+    assert result["meta_data"]["solver_parameters"]["time_limit"] == 120
+
+
+def test_custom_option_reaches_constructor_and_sampler(tmp_path):
+    instance = qubo_input(tmp_path)
+    script = tmp_path / "custom.py"
+    script.write_text(
+        "from types import SimpleNamespace\n"
+        "from biqbin.runtime import run\n"
+        "from biqbin_heuristic import QuboDwaveSampler\n"
+        "class Sampler:\n"
+        "    def sample_qubo(self, Q, **kwargs):\n"
+        "        assert kwargs['num_reads'] == 17\n"
+        "        return SimpleNamespace(first=SimpleNamespace(sample={0:1,1:0}))\n"
+        "class Custom(QuboDwaveSampler):\n"
+        "    def __init__(self, problem, **kwargs):\n"
+        "        assert kwargs['num_reads'] == 17\n"
+        "        super().__init__(problem, sampler=Sampler(), **kwargs)\n"
+        f"run({{'kind':'qubo','reader':{{'path':{str(instance)!r}}},'solver':{{'num_reads':17}}}},solver_factory=Custom)\n"
+    )
+    run_mpi(tmp_path, str(script))
+    assert (
+        json.loads((tmp_path / "input.json.output.json").read_text())["qubo"]["computed_val"] == 9
+    )

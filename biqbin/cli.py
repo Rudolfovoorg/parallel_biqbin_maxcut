@@ -26,44 +26,86 @@ def parse_time_limit(value):
         raise argparse.ArgumentTypeError(f"Invalid time format: {value}") from None
 
 
+class SolverValueAction(argparse.Action):
+    """Reject duplicate solver settings, including different aliases for one key."""
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        destination = self.dest
+        if destination == "param":
+            key, separator, value = value.partition("=")
+            if not separator or not key.strip():
+                parser.error("--param expects NAME=VALUE")
+            destination = "solver." + key.strip()
+        if hasattr(namespace, destination):
+            parser.error(
+                f"Solver option {destination.removeprefix('solver.')} supplied more than once"
+            )
+        setattr(namespace, destination, value)
+
+
+class SolverBooleanAction(argparse.BooleanOptionalAction):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if hasattr(namespace, self.dest):
+            parser.error(
+                f"Solver option {self.dest.removeprefix('solver.')} supplied more than once"
+            )
+        super().__call__(parser, namespace, values, option_string)
+
+
 def configure_parser(parser, kind, solver_factory=None):
     """Build the CLI from the selected classes' option definitions."""
     specs = component_options(kind, solver_factory=solver_factory)
-    parser.add_argument("problem_instance", nargs="?", default=argparse.SUPPRESS,
-                        help=specs["reader"]["path"].help)
-    parser.add_argument("--config", help="TOML run configuration")
-    parser.add_argument("-p", "--params", help="Legacy key=value solver parameter file")
+    parser.add_argument(
+        "problem_instance", nargs="?", default=argparse.SUPPRESS, help=specs["reader"]["path"].help
+    )
+    files = parser.add_mutually_exclusive_group()
+    files.add_argument("--config", help="TOML run configuration")
+    files.add_argument("-p", "--params", help="Legacy key=value solver parameter file")
     parser.add_argument("--format", choices=tuple(COMPONENTS[kind][3]), default=argparse.SUPPRESS)
-    parser.add_argument("--param", action="append", default=[], metavar="NAME=VALUE",
-                        help="Override a class-defined solver parameter")
-    aliases = {
-        ("problem", "optimize"): ["-O", "--optimize"],
-        ("writer", "path"): ["-o", "--output"],
-        ("writer", "overwrite"): ["-w", "--overwrite"],
-        ("writer", "with_metadata"): ["--metadata"],
-        ("writer", "with_maxcut_solution"): ["--maxcut-solution"],
-        ("run", "initial_solution"): ["-s", "--solution"],
-        ("run", "collect_root_data"): ["-c", "--collect-root-data"],
-        ("run", "verbose"): ["-v", "--verbose"],
-        ("run", "log_dir"): ["--log-dir"],
-    }
+    parser.add_argument(
+        "--param",
+        action=SolverValueAction,
+        default=argparse.SUPPRESS,
+        metavar="NAME=VALUE",
+        help="Override a class-defined solver parameter",
+    )
     for section, options in specs.items():
         for name, option in options.items():
             if section == "reader" and name == "path":
                 continue
-            flags = option.aliases or aliases.get((section, name), [f"--{section}-{name.replace('_', '-')}" ])
-            kwargs = {"dest": f"{section}.{name}", "default": argparse.SUPPRESS, "help": option.help}
+            flags = option.aliases or [f"--{section}-{name.replace('_', '-')}"]
+            kwargs = {
+                "dest": f"{section}.{name}",
+                "default": argparse.SUPPRESS,
+                "help": option.help,
+            }
             if option.type is bool:
-                kwargs["action"] = argparse.BooleanOptionalAction
+                kwargs["action"] = (
+                    SolverBooleanAction if section == "solver" else argparse.BooleanOptionalAction
+                )
             elif (section, name) == ("run", "verbose"):
                 kwargs["action"] = "count"
             elif (section, name) == ("run", "log_dir"):
                 kwargs.update(nargs="?", const="")
+            if section == "solver" and option.type is not bool:
+                kwargs["action"] = SolverValueAction
             parser.add_argument(*flags, **kwargs)
-    parser.add_argument("-t", "--time", dest="solver.time_limit", default=argparse.SUPPRESS,
-                        type=parse_time_limit, help=parse_time_limit.__doc__)
-    parser.add_argument("--collect-heur-data", dest="run.collect_root_data", action="store_true",
-                        default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "-t",
+        "--time",
+        dest="solver.time_limit",
+        default=argparse.SUPPRESS,
+        type=parse_time_limit,
+        action=SolverValueAction,
+        help=parse_time_limit.__doc__,
+    )
+    parser.add_argument(
+        "--collect-heur-data",
+        dest="run.collect_root_data",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("-j", "--json", action="store_true", default=False, help=argparse.SUPPRESS)
     parser.add_argument("-d", "--debug", action="store_true", default=False, help=argparse.SUPPRESS)
     parser.add_argument("-i", "--info", action="store_true", default=False, help=argparse.SUPPRESS)
@@ -86,18 +128,15 @@ def cli_overrides(args, kind):
     if args.debug or args.info:
         options = result.setdefault("run", {})
         options["verbose"] = max(options.get("verbose", 0), 2 if args.debug else 1)
-    for setting in args.param:
-        key, separator, value = setting.partition("=")
-        if not separator or not key:
-            raise ValueError("--param expects NAME=VALUE")
-        result.setdefault("solver", {})[key] = value
     return result
 
 
 def main(argv=None, *, kind=None, solver_factory=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if kind is None:
-        selector = argparse.ArgumentParser(prog="biqbin", description="BiqBin MPI runtime pipeline", add_help=False)
+        selector = argparse.ArgumentParser(
+            prog="biqbin", description="BiqBin MPI runtime pipeline", add_help=False
+        )
         selector.add_argument("kind", choices=tuple(COMPONENTS))
         if not argv or argv[0] in {"-h", "--help"}:
             selector.print_help()
@@ -108,10 +147,15 @@ def main(argv=None, *, kind=None, solver_factory=None):
     args = parser.parse_args(argv)
     try:
         overrides = cli_overrides(args, kind)
-        run(config_file=args.config, params_file=args.params, overrides=overrides,
-            solver_factory=solver_factory)
+        run(
+            config_file=args.config,
+            params_file=args.params,
+            overrides=overrides,
+            solver_factory=solver_factory,
+        )
     except (ValueError, OSError, TypeError) as exc:
         from biqbin import _initialized, get_rank
+
         if not _initialized or get_rank() == 0:
             print(f"BiqBin: {exc}", file=sys.stderr)
         return 2

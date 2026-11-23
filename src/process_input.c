@@ -229,6 +229,7 @@ int readParameters(const char *path, int rank)
     FILE *paramfile = fopen(path, "r");
     char line[512];
     int line_number = 0;
+    BiqBinParameters seen = {0};
     defaultParameters(&params);
     if (!paramfile)
     {
@@ -239,6 +240,7 @@ int readParameters(const char *path, int rank)
     while (fgets(line, sizeof(line), paramfile))
     {
         ++line_number;
+        if (!strchr(line, '\n') && !feof(paramfile)) goto invalid;
         char *comment = strchr(line, '#');
         if (comment) *comment = '\0';
         char *key = line;
@@ -261,8 +263,16 @@ int readParameters(const char *path, int rank)
         int matched = 0;
 #define P(type, name, format, def_value) \
         if (strcmp(key, #name) == 0) { \
-            if (strcmp(#type, "int") == 0 && (number < INT_MIN || number > INT_MAX || number != trunc(number))) goto invalid; \
-            params.name = (type)number; matched = 1; \
+            if (seen.name) goto invalid; \
+            if (strcmp(#type, "int") == 0) { \
+                char *integer_end; \
+                errno = 0; \
+                long integer = strtol(value, &integer_end, 10); \
+                if (integer_end == value || errno || integer < INT_MIN || integer > INT_MAX) goto invalid; \
+                while (isspace((unsigned char)*integer_end)) ++integer_end; \
+                if (*integer_end) goto invalid; \
+            } \
+            params.name = (type)number; seen.name = 1; matched = 1; \
         }
         PARAM_FIELDS
 #undef P

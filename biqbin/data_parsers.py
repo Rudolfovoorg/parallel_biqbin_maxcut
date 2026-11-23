@@ -293,7 +293,9 @@ class ToFile(ABC):
                 help="Replace an existing output",
                 aliases=("-w", "--overwrite"),
             ),
-            "with_metadata": Option(bool, default=True, help="Include run metadata"),
+            "with_metadata": Option(
+                bool, default=True, help="Include run metadata", aliases=("--metadata",)
+            ),
         }
 
     @abstractmethod
@@ -361,7 +363,10 @@ class QuboSolutionToJson(ToFile):
         return {
             **super().config_options(),
             "with_maxcut_solution": Option(
-                bool, default=True, help="Include the transformed Max-Cut solution"
+                bool,
+                default=True,
+                help="Include the transformed Max-Cut solution",
+                aliases=("--maxcut-solution",),
             ),
         }
 
@@ -622,7 +627,10 @@ class BQPToJson(ToFile):
         return {
             **super().config_options(),
             "with_maxcut_solution": Option(
-                bool, default=True, help="Include the transformed Max-Cut solution"
+                bool,
+                default=True,
+                help="Include the transformed Max-Cut solution",
+                aliases=("--maxcut-solution",),
             ),
         }
 

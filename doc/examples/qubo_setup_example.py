@@ -18,7 +18,7 @@ def main():
         problem_name="example_qubo",
         is_minimization=True,
     )
-    result = QUBOSolver(problem, params="params").compute()
+    result = QUBOSolver(problem).compute()
 
     # Only rank 0 receives a result. Workers receive None.
     if result is not None:

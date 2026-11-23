@@ -1,26 +1,43 @@
-import json
+"""Custom QUBO heuristic using the shared runtime and class-owned options."""
 
 import numpy as np
-from dwave.samplers import SimulatedAnnealingSampler
 from numpy import typing as npt
 
-from biqbin import QuboSolutionToJson, QUBOSolver, get_rank, init
-from biqbin.argparsers import ArgParserDWaveHeuristic
-from biqbin.logging import configure_rank_logging
+from biqbin import QUBOSolver
+from biqbin.cli import main
+from biqbin.configuration import Option
 
 
 class QuboDwaveSampler(QUBOSolver):
+    @classmethod
+    def config_options(cls):
+        return {
+            **super().config_options(),
+            "num_reads": Option(
+                int,
+                default=10,
+                minimum=1,
+                help="Number of simulated-annealing reads",
+                aliases=("--num-reads",),
+            ),
+        }
+
     def __init__(
         self,
         problem,
-        params: str,
-        time_limit: int,
-        initial_estimate: np.ndarray | None,
-        collect_heuristic_root_data: bool,
-        collect_sdp_bound_root_data: bool,
-        sampler,
+        params=None,
+        time_limit=None,
+        initial_estimate=None,
+        collect_heuristic_root_data=False,
+        collect_sdp_bound_root_data=False,
+        sampler=None,
+        *,
+        parameters=None,
+        num_reads=None,
         **sampler_kwargs,
     ):
+        option = self.config_options()["num_reads"]
+        num_reads = option.convert(option.default if num_reads is None else num_reads, "num_reads")
         super().__init__(
             problem,
             params,
@@ -28,9 +45,14 @@ class QuboDwaveSampler(QUBOSolver):
             initial_estimate,
             collect_heuristic_root_data,
             collect_sdp_bound_root_data,
+            parameters=parameters,
         )
+        if sampler is None:
+            from dwave.samplers import SimulatedAnnealingSampler
+
+            sampler = SimulatedAnnealingSampler()
         self.sampler = sampler
-        self.sampler_kwargs = sampler_kwargs
+        self.sampler_kwargs = {"num_reads": num_reads, **sampler_kwargs}
 
     def heuristic(self, L: np.ndarray, **kwargs) -> npt.ArrayLike:
         """Heuristc with D-Waves simulated annealing sampler
@@ -51,43 +73,4 @@ class QuboDwaveSampler(QUBOSolver):
 
 
 if __name__ == "__main__":
-    parser = ArgParserDWaveHeuristic()
-    args = parser.parse_args()
-
-    init()  # initialize MPI
-    configure_rank_logging(args.log_dir, get_rank())
-    reader = args.format(args.problem_instance, optimize_input=args.optimize)
-    problem = reader.read()
-    if get_rank() == 0 and args.solution:
-        with open(args.solution, "r") as f:
-            initial_solution = np.array(json.load(f)["initial_estimate"])
-    else:
-        initial_solution = None
-
-    solver = QuboDwaveSampler(
-        problem=problem,
-        params=args.params,
-        time_limit=args.time,
-        initial_estimate=initial_solution,
-        collect_heuristic_root_data=args.collect_root_data,
-        collect_sdp_bound_root_data=args.collect_root_data,
-        sampler=SimulatedAnnealingSampler(),
-        num_reads=10,
-    )
-
-    solution = solver.compute()
-    rank = get_rank()
-
-    if rank == 0:
-        # Master rank prints the results
-        if solution is None:
-            raise ValueError(f"Solution to problem {problem} not found!")
-
-        solution.print_computed_solution(args.verbose)
-        solution_writer = QuboSolutionToJson(solution)
-        if isinstance(args.output, str):
-            output_path = args.output
-        else:
-            output_path = args.problem_instance + ".output"
-
-        solution_writer.write(output_path, overwrite=args.overwrite, with_maxcut_solution=True)
+    raise SystemExit(main(kind="qubo", solver_factory=QuboDwaveSampler))

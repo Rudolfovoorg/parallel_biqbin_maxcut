@@ -70,9 +70,12 @@ sharing a run configuration between directories or HPC jobs.
 Precedence, from lowest to highest, is:
 
 1. Component defaults.
-2. The TOML configuration.
-3. An explicitly selected legacy `-p/--params` file, for native solver parameters.
-4. Explicit command-line overrides.
+2. A TOML configuration **or** a legacy `-p/--params` file.
+3. Explicit command-line overrides.
+
+`--config` and `--params` are mutually exclusive. Duplicate CLI settings for
+the same solver option (including different aliases) are rejected rather than
+silently choosing one.
 
 Omitted command-line flags do not reset configured values. For example:
 
@@ -102,12 +105,14 @@ the CLI:
 ```python
 from biqbin.runtime import run
 
-solution = run({
-    "kind": "qubo",
-    "reader": {"path": "instance.json"},
-    "solver": {"time_limit": 600},
-    "writer": {"path": "result.json"},
-})
+solution = run(
+    {
+        "kind": "qubo",
+        "reader": {"path": "instance.json"},
+        "solver": {"time_limit": 600},
+        "writer": {"path": "result.json"},
+    }
+)
 if solution is not None:
     print(solution.solution["computed_val"])
 ```
@@ -152,12 +157,24 @@ native parameters, an initial estimate when applicable, and root-data collection
 settings. Configuration files select built-in components by name; they do not
 import arbitrary Python code.
 
+The simulated-annealing example uses this same runner and declares `num_reads`:
+
+```bash
+mpiexec -n 3 python biqbin_heuristic.py --config run.toml --num-reads 20
+```
+
+It requires `dwave-samplers` (included in the development requirements).
+Custom classes can extend `config_options()` with `Option` definitions;
+resolved custom settings are passed to their constructors as keyword arguments.
+
 ## Component-owned options
 
 Readers, problems, solvers and writers declare their configuration through the
 `config_options()` class method. The shared resolver uses those definitions
 for defaults and value validation. A component receives only its own settings;
-CLI parsing and MPI lifecycle handling stay in the runtime layer.
+CLI parsing and MPI lifecycle handling stay in the runtime layer. The legacy
+`ArgParser*` classes adapt these same definitions to the old namespace attributes;
+new entry points should call `biqbin.cli.main`.
 
 Subclass definitions can extend inherited options. Native solver options are
 based on the native parameter definitions, so the Python layer does not maintain
@@ -177,3 +194,11 @@ that depend on problem size, such as `adjust_TriIneq`.
 On HPC systems, load the same compatible Python, MPI and BLAS environment used
 for the native build, and launch inside a scheduler allocation using the site's
 supported MPI launcher. See the [HPC guide](HPC_EXAMPLE.md).
+
+## Regression checks
+
+Run `make test-runtime` for configuration, native parameter validation, CLI
+compatibility, and MPI pipeline tests. These checks are also included in
+`make test`, `make test-unit`, coverage, and the OpenMPI CI smoke job.
+The native input-handling source is compiled without fast-math assumptions so
+NaN and infinity checks remain effective; solver kernels keep their optimized flags.

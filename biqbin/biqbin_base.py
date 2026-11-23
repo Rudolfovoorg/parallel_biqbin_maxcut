@@ -15,15 +15,15 @@ from biqbin.biqbin_module import (
     get_rank,
     get_root_sdp_bound,
     goemans_williamson_heuristic,
+    parameter_schema,
     reduce_sum_mpi,
     run,
-    parameter_schema,
-    validate_parameters,
     sdp_bound,
     set_heuristic,
     set_node_evaluation,
     set_primal_solution,
     update_mc_lower_bound_solution,
+    validate_parameters,
 )
 from biqbin.configuration import Option, load_legacy_parameters
 from biqbin.logging import logger

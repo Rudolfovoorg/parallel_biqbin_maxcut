@@ -140,6 +140,31 @@ def test_mpi_failure_case(case: str, marker: str, tmp_path: Path) -> None:
     assert markers, diagnostics
 
 
+@pytest.mark.parametrize(
+    "case",
+    [
+        "repeat_same_solver",
+        "repeat_new_solver",
+        "repeat_maxcut_solver",
+        "repeat_bqp_solver",
+        "repeat_native_run",
+        "repeat_rank0_only",
+    ],
+)
+def test_second_solve_aborts_with_clear_error(case, tmp_path):
+    cp, log_dir = run_case(case, tmp_path, timeout=30)
+    diagnostics = f"returncode: {cp.returncode}\nstdout:\n{cp.stdout}\nstderr:\n{cp.stderr}"
+
+    assert len(marker_files(log_dir, "BIQBIN_TEST_FIRST_SOLVE_COMPLETED")) == 3, diagnostics
+    assert cp.returncode != 0, diagnostics
+    assert cp.returncode not in (-signal.SIGSEGV, 128 + signal.SIGSEGV), diagnostics
+    assert (
+        "Fatal error: BiqBin currently supports only one solve per process. "
+        "Start a new MPI job to solve another problem."
+    ) in cp.stderr, diagnostics
+    assert "UNEXPECTED_SUCCESS" not in cp.stdout, diagnostics
+
+
 def test_timeout_is_failure_and_stops_process_group(tmp_path, monkeypatch):
     """A hanging launcher and child must be killed, not accepted as an MPI abort."""
     launcher = tmp_path / "hanging-mpi"

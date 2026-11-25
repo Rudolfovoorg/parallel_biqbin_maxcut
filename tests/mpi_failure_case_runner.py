@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from pathlib import Path
 
 import numpy as np
@@ -483,6 +484,59 @@ def solver_class_for(case: str, log_dir: Path):
     raise ValueError(f"unknown failure case: {case}")
 
 
+def run_repeated_solve_case(case: str, log_dir: Path) -> None:
+    from biqbin import (
+        BQPFromBQPFile,
+        BQPSolver,
+        MaxCutSolver,
+        ProblemQubo,
+        QUBOSolver,
+        get_rank,
+    )
+    from biqbin.biqbin_module import reduce_sum_mpi, run
+
+    problem = ProblemQubo(np.diag([-2, 3]), 0, "first_solve", True)
+    solver = QUBOSolver(problem)
+    result = solver.compute()
+    rank = get_rank()
+    if rank == 0:
+        assert result.solution["computed_val"] == -2
+        assert result.solution["x"] == [1, 0]
+    else:
+        assert result is None
+
+    write_marker(log_dir, case, rank, "BIQBIN_TEST_FIRST_SOLVE_COMPLETED")
+    # These tests launch all ranks locally. A reduction is not a barrier, so
+    # wait for the shared markers before any rank can abort the job.
+    deadline = time.monotonic() + 10
+    while len(list(log_dir.glob("*.BIQBIN_TEST_FIRST_SOLVE_COMPLETED.marker"))) != 3:
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Not all ranks completed the first solve")
+        time.sleep(0.01)
+
+    if case == "repeat_same_solver":
+        solver.compute()
+    elif case == "repeat_new_solver":
+        second = ProblemQubo(np.diag([3, -2]), 0, "second_solve", True)
+        QUBOSolver(second).compute()
+    elif case == "repeat_maxcut_solver":
+        MaxCutSolver(make_problem()).compute()
+    elif case == "repeat_bqp_solver":
+        second = BQPFromBQPFile("tests/bqp/test_bqp.data").read()
+        BQPSolver(second, params="params").compute()
+    elif case == "repeat_native_run":
+        run("repeat_native", "second_solve", problem.maxcut_adjacency_matrix, "params", 0)
+    elif case == "repeat_rank0_only":
+        if rank == 0:
+            solver.compute()
+        else:
+            # Rejection on one rank must terminate workers waiting in MPI.
+            while True:
+                reduce_sum_mpi(1)
+    else:
+        raise ValueError(f"unknown repeated-solve case: {case}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--case", required=True)
@@ -495,11 +549,14 @@ def main() -> int:
 
     biqbin.init()
 
-    problem = make_problem()
-    Solver = solver_class_for(args.case, log_dir)
+    if args.case.startswith("repeat_"):
+        run_repeated_solve_case(args.case, log_dir)
+    else:
+        problem = make_problem()
+        Solver = solver_class_for(args.case, log_dir)
 
-    solver = Solver(problem=problem)
-    solver.compute()
+        solver = Solver(problem=problem)
+        solver.compute()
 
     print(f"UNEXPECTED_SUCCESS:{args.case}", flush=True)
     return 0

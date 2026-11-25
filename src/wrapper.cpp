@@ -113,6 +113,9 @@ double get_root_sdp_bound() { return root_upper_bound; }
 /// @return biqbin maxcut result
 py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double> &adj_matrix_in, char *params_file_name, int time_limit_in)
 {
+    // Native solver state is currently usable for only one solve per process.
+    static bool solve_started = false;
+
     // heuristic guard to clean Python references on exit
     PythonReferencesGuard heuristic_guard;
 
@@ -124,6 +127,12 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
         PyErr_SetString(PyExc_RuntimeError,
                         "MPI is not initialized. Call biqbin.init() before using any solver.");
         return py::dict();
+    }
+
+    if (solve_started)
+    {
+        fatal_error("BiqBin currently supports only one solve per process. "
+                    "Start a new MPI job to solve another problem.");
     }
 
     time_limit = time_limit_in;
@@ -138,6 +147,7 @@ py::dict run_py(char *prog_name, char *problem_instance_name, py::array_t<double
     }
 
     char *argv[3] = {prog_name, problem_instance_name, params_file_name};
+    solve_started = true;
     wrapped_main(3, argv);
 
     // Save results

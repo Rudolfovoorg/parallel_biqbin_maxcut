@@ -159,6 +159,10 @@ make docker
 
 The `runtime` target is the default Docker build target.
 
+It runs as the nonroot user `biqbin`, with UID and GID `1000` by default.
+The working directory is `/solver`; the bundled files, `/data`, and the user's
+home directory `/home/biqbin` are writable by that account.
+
 Open an interactive shell:
 
 ```bash
@@ -218,7 +222,9 @@ docker build \
 
 Supported `MPI_IMPL` values are `mpich` and `openmpi`.
 
-The CI image permits OpenMPI execution as root and allows MPI oversubscription for tests running on resource-limited containers. The standard runtime image does not enable these settings.
+The CI image permits OpenMPI execution as root and allows MPI oversubscription
+for tests running on resource-limited containers. The standard runtime image
+runs as a nonroot user and does not enable either setting.
 
 When running actual performance benchmarks, allocate sufficient CPU resources rather than relying on oversubscription.
 
@@ -227,12 +233,20 @@ When running actual performance benchmarks, allocate sufficient CPU resources ra
 You can mount a local directory into the container:
 
 ```bash
+mkdir -p instances
 docker run --rm -it \
   -v "$PWD/instances:/data" \
   parallel-biqbin:1.0.0 bash
 ```
 
 Problem files can then be accessed at `/data` from within the container.
+
+A bind mount uses the host directory's ownership and permissions. On Linux,
+you can set the runtime user's UID and GID at build time to match your account;
+see [runtime user and host permissions](doc/INSTALLATION.md#runtime-user-and-host-permissions).
+Write results and logs under the mounted `/data` directory to retain them after
+the container exits. The native executable writes output beside its input file,
+so that directory must be writable.
 
 ---
 
@@ -361,7 +375,13 @@ Coverage is currently informational; the CI pipeline does not enforce a minimum 
 
 ### Continuous integration
 
-GitHub Actions runs automated checks for pushes and pull requests.
+GitHub Actions runs automated checks when a pull request targeting any branch
+is opened, reopened, or updated with new commits. Pushes to branches without an
+open pull request do not run CI. Manual runs are also supported through
+`workflow_dispatch`.
+
+These checks provide results before merging. Merging or closing a pull request
+does not start another run.
 
 The workflow includes:
 

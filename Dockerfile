@@ -1,4 +1,3 @@
-
 # ============================================================
 # BiqBin - Multi-stage Dockerfile
 #
@@ -96,5 +95,26 @@ CMD ["/bin/bash"]
 # ============================================================
 
 FROM build AS runtime
+
+ARG BIQBIN_UID=1000
+ARG BIQBIN_GID=1000
+
+# Use a regular account for MPI and keep bundled examples writable.
+# A bind mount at /data retains the host directory's permissions.
+RUN set -eux; \
+    test "${BIQBIN_UID}" -gt 0; \
+    test "${BIQBIN_GID}" -gt 0; \
+    if ! getent group "${BIQBIN_GID}" >/dev/null; then \
+      groupadd --gid "${BIQBIN_GID}" biqbin; \
+    fi; \
+    useradd --create-home --no-log-init \
+      --uid "${BIQBIN_UID}" \
+      --gid "${BIQBIN_GID}" \
+      --shell /bin/bash \
+      biqbin; \
+    mkdir -p /data; \
+    chown -R "${BIQBIN_UID}:${BIQBIN_GID}" /solver /data
+
+USER biqbin
 
 CMD ["/bin/bash"]

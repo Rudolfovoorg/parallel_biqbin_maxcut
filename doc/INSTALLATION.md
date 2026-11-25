@@ -163,6 +163,10 @@ The root [Dockerfile](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blo
 
 Docker uses Python 3.12, Debian Bookworm and MPICH by default.
 
+The runtime image runs as the nonroot user `biqbin`, with UID and GID `1000` by
+default. Its working directory is `/solver`. The bundled source and examples,
+`/data`, and the user's home directory `/home/biqbin` are writable by that user.
+
 ### Build the runtime image
 
 ```bash
@@ -254,11 +258,36 @@ docker build \
 
 This build argument determines the compiled native log threshold, independently of runtime CLI verbosity.
 
+### Runtime user and host permissions
+
+The `BIQBIN_UID` and `BIQBIN_GID` build arguments select the runtime account's
+numeric user and group IDs. Both default to `1000` and must be greater than zero.
+The UID must be unused in the base image; an existing group with the requested
+GID is reused.
+
+On Linux, bind-mounted directories retain their host ownership and permissions.
+The image's ownership settings for `/data` do not change a directory mounted
+over it. To build the default runtime image with your own IDs, run this from your
+regular Linux account:
+
+```bash
+docker build \
+  --target runtime \
+  --build-arg BIQBIN_UID="$(id -u)" \
+  --build-arg BIQBIN_GID="$(id -g)" \
+  -t parallel-biqbin:1.0.0 .
+```
+
+These arguments can also be combined with `MPI_IMPL`, `PYTHON_VERSION`, and
+`LOG_LEVEL`. Matching IDs allows the container user to write files that your
+host account can write, subject to the mount's permissions.
+
 ### Running with local input files
 
 Mount a directory containing problem instances:
 
 ```bash
+mkdir -p instances
 docker run --rm -it \
   -v "$PWD/instances:/data" \
   parallel-biqbin:1.0.0 bash
@@ -266,11 +295,30 @@ docker run --rm -it \
 
 Inside the container, the host files are available under `/data`.
 
+For a Max-Cut JSON file named `instance.json` in that directory, write the result
+and per-rank logs back to the mounted directory:
+
+```bash
+mpiexec -n 3 python biqbin_maxcut.py \
+  /data/instance.json \
+  -o /data/instance.result.json \
+  --log-dir /data/instance.logs
+```
+
+The native executable writes its output beside the input file, so the input
+directory must be writable. Files written only inside the container, outside
+the mounted directory, are removed when the container is deleted with `--rm`.
+
 ### OpenMPI in containers
 
 The `ci` image permits root-based OpenMPI execution and enables oversubscription so small MPI tests can run on CPU-constrained CI environments.
 
-These settings are not enabled in the regular runtime target.
+The regular runtime target uses the nonroot `biqbin` user, so OpenMPI can launch
+without root-execution overrides. Oversubscription is not enabled by default.
+
+For a small local test on a machine with fewer than three available MPI slots,
+add `--oversubscribe` to the `mpiexec` command. This changes CPU-slot allocation;
+it does not change the container user.
 
 For production or benchmarking runs, use an appropriate MPI process count and CPU allocation.
 

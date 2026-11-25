@@ -531,6 +531,9 @@ Runtime Python logging configuration can filter messages that remain compiled in
 
 BiqBin requires at least three MPI processes.
 
+The Python API currently supports one solve per process. Start a fresh MPI job
+for each problem; see [MPI lifecycle](doc/api/entrypoints.md#mpi-lifecycle).
+
 For numerical libraries, prevent thread oversubscription:
 
 ```bash

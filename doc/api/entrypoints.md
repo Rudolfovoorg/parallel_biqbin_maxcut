@@ -7,6 +7,11 @@ each rank before creating a solver, and use `get_rank()` to restrict result
 handling to rank 0. The package registers `finalize()` at interpreter exit;
 normal applications do not need to call it explicitly.
 
+The Python API currently supports **one solve per process**. Call `compute()`
+once on every rank. A second attempt, including through a new solver object or
+a different solver class, prints a fatal error and aborts the MPI job with
+error code 10. Start a fresh MPI job to solve another problem.
+
 ::: biqbin.init
 
 ::: biqbin.get_rank

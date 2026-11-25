@@ -1,4 +1,3 @@
-
 site_name: BiqBin
 site_description: Parallel Max-Cut and binary quadratic optimization solver
 repo_url: https://github.com/Rudolfovoorg/parallel_biqbin_maxcut
@@ -29,7 +28,8 @@ watch:
   - biqbin
 
 theme:
-  name: material
+  name: mkdocs
+  variant: classic
   features:
     - navigation.sections
     - navigation.indexes
@@ -50,19 +50,29 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [.]  # Python sources live at the repository root, outside doc/.
+          # Python sources live at the repository root, outside doc/.
+          paths: [.]
           options:
-            allow_inspection: false  # Read .py/.pyi files; never import the MPI extension.
+            # Read .py/.pyi files without importing the native MPI extension.
+            allow_inspection: false
+
             docstring_style: google
             docstring_options:
-              returns_named_value: false  # Existing Returns/Yields sections use "type: description".
+              # Existing Returns/Yields sections use "type: description".
+              returns_named_value: false
+
             show_if_no_docstring: true
             show_root_heading: true
             show_source: false
+
             members_order: source
-            members: false  # API pages explicitly select public classes and methods.
+            # API pages explicitly select public classes and methods.
+            members: false
             inherited_members: true
-            show_bases: false  # Keep implementation helpers such as PrettyPrint out of the reference.
+
+            # Keep implementation helpers out of the public reference.
+            show_bases: false
+
             merge_init_into_class: true
             show_signature_annotations: true
 

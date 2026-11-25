@@ -1,3 +1,4 @@
+from biqbin.logging import configure_rank_logging
 from biqbin import QUBOSolver, get_rank, QuboSolutionToJson, init
 from biqbin.argparsers import ArgParserQubo
 import numpy as np
@@ -14,6 +15,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     init() # initialize MPI
+    configure_rank_logging(args.log_dir, get_rank())
     parser_class = args.format
     file_reader = parser_class(
         args.problem_instance, optimize_input=args.optimize)

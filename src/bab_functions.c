@@ -54,7 +54,7 @@ int Init_PQ(void)
     // Evaluate root node: compute upper and lower bound
     root_upper_bound = Evaluate(BabRoot, SP, PP);
     root_eval_time = MPI_Wtime() - t0;
-    printf("Root node bound: %.2f\n", root_upper_bound);
+    BIQBIN_LOG_INFO("Root node bound: %.2f", root_upper_bound);
 
     // save upper bound
     BabRoot->upper_bound = root_upper_bound;
@@ -182,7 +182,7 @@ void master_Bab_Main(Message message, int source, int *busyWorkers, int num_work
 
         if (Bab_LBUpd(g_lowerBound, &solx))
         {
-            printf("Feasible solution %.0lf\n", Bab_LBGet());
+            BIQBIN_LOG_INFO("Feasible solution %.0lf", Bab_LBGet());
         }
 
         // send update information back to worker

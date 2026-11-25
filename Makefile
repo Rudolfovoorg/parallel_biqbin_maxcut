@@ -20,6 +20,24 @@ LINALG 	 = -lopenblas -lm
 OPTI     = -O3 -ffast-math -fexceptions -fPIC -fno-common
 CPPOPTI  = -O3 -ffast-math -fexceptions -fPIC -fno-common
 
+# Minimum native log severity (Python logging levels); rebuild after changing it.
+LOG_LEVEL ?= 20
+LOG_LEVEL_DEBUG = 10
+LOG_LEVEL_INFO = 20
+LOG_LEVEL_WARNING = 30
+LOG_LEVEL_WARN = 30
+LOG_LEVEL_ERROR = 40
+LOG_LEVEL_CRITICAL = 50
+LOG_LEVEL_FATAL = 50
+
+# Accept case-insensitive names or decimal thresholds; leading zeros are rejected.
+LOG_LEVEL_NAME := $(shell printf '%s' '$(subst ','"'"',$(strip $(LOG_LEVEL)))' | tr '[:lower:]' '[:upper:]')
+LOG_LEVEL_VALUE := $(or $(LOG_LEVEL_$(LOG_LEVEL_NAME)),$(shell printf '%s\n' '$(subst ','"'"',$(LOG_LEVEL_NAME))' | sed -n -e '/^0$$/p' -e '/^[1-9][0-9]*$$/p'))
+ifeq ($(LOG_LEVEL_VALUE),)
+$(error Invalid LOG_LEVEL '$(LOG_LEVEL)'; use DEBUG, INFO, WARNING, ERROR, CRITICAL, WARN, FATAL, or a nonnegative decimal integer without leading zeros)
+endif
+LOG_DEFINES = -DBIQBIN_LOG_MIN_LEVEL=$(LOG_LEVEL_VALUE)
+
 PYTHON_VERSION := $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PYTHON_INCLUDE := $(shell python3-config --includes)
 PYBIND11_INCLUDES := $(shell python3 -m pybind11 --includes)
@@ -63,7 +81,10 @@ CPPFLAGS = $(CPPOPTI) -Wall -W -pedantic
 
 #### Rules ####
 
-.PHONY : all clean test tests
+.PHONY : all clean clean-output test tests test-logging test-summaries \
+         test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib \
+         test-qubo-python-heuristic test-bqp-python test-input-solution \
+         test-parsers test-modular-combos test-expected-failure
 
 # Default rule is to create all binaries #
 all: clean $(BINS) $(PYMOD_OUT)
@@ -93,21 +114,27 @@ $(WRAPPER_BUILD_DIR) $(C_BUILD_DIR):
 $(BINS): $(C_OBJS)
 	$(CC) -o $@ $^ $(INCLUDES) $(LIB) $(CFLAGS) -DPURE_C $(LINALG)
 
-$(C_BUILD_DIR)/%.o: src/%.c  | $(C_BUILD_DIR)
-	$(CC) $(CFLAGS) -DPURE_C $(INCLUDES) -c -o $@ $<
+$(C_BUILD_DIR)/%.o: src/%.c src/logging.h | $(C_BUILD_DIR)
+	$(CC) $(CFLAGS) $(LOG_DEFINES) -DPURE_C $(INCLUDES) -c -o $@ $<
 
 # BiqBin code rules
-$(WRAPPER_BUILD_DIR)/%.o: src/%.c  | $(WRAPPER_BUILD_DIR)
-	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
+$(WRAPPER_BUILD_DIR)/%.o: src/%.c src/logging.h | $(WRAPPER_BUILD_DIR)
+	$(CC) $(CFLAGS) $(LOG_DEFINES) $(INCLUDES) -c -o $@ $<
 
-$(WRAPPER_BUILD_DIR)/%.o: src/%.cpp  | $(WRAPPER_BUILD_DIR)
-	$(CPP) $(CPPFLAGS) $(INCLUDES) -c -o $@ $<
+$(WRAPPER_BUILD_DIR)/%.o: src/%.cpp src/logging.h | $(WRAPPER_BUILD_DIR)
+	$(CPP) $(CPPFLAGS) $(LOG_DEFINES) $(INCLUDES) -c -o $@ $<
 
 # Python module rule
 $(PYMOD_OUT): $(OBJS)
 	$(CPP) -o $@ $^ -shared -fPIC $(INCLUDES) $(LIB) $(LINALG) -Wl,--no-undefined
 
 # Tests
+test-logging:
+	$(RUN_ENVS) python -m pytest tests/test_logging.py -v --no-header
+
+test-summaries:
+	$(RUN_ENVS) python -m pytest tests/test_solution_summary.py -v --no-header
+
 test-maxcut: clean-output
 	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_60.0 tests/rudy/g05_60.0-expected_output params
 	$(RUN_ENVS) tests/test.sh "mpiexec -n 3 ./$(BINS)" tests/rudy/g05_80.0 tests/rudy/g05_80.0-expected_output params
@@ -164,7 +191,7 @@ test-bqp-python: clean-output
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_dense.json --format dense -c > /dev/null 2>&1
 	$(RUN_ENVS) mpiexec -n 3 python biqbin_bqp.py tests/bqp/kcluster40_025_10_1_QBO_sparse.json --format sparse -c > /dev/null 2>&1
 
-	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
+	python -m pytest tests/test_biqbin_output.py -v -s --no-header --instances tests/bqp/test_bqp.data tests/bqp/test_bqp.json tests/bqp/kcluster40_025_10_1_QBO_dense.json tests/bqp/kcluster40_025_10_1_QBO_sparse.json
 	python -m pytest tests/test_bqp.py -v -s --no-header
 
 test-modular-combos: clean-output
@@ -206,7 +233,9 @@ test-parsers:
 test-expected-failure:
 	python3 -m pytest tests/test_mpi_failure_cases.py -v -s
 
-test: test-maxcut test-maxcut-python test-qubo-python test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers test-modular-combos test-expected-failure
+test: test-logging test-summaries test-maxcut test-maxcut-python test-qubo-python test-qubo-qplib test-qubo-python-heuristic test-bqp-python test-input-solution test-parsers test-modular-combos test-expected-failure
+
+tests: test
 
 docker: 
 	docker build $(DOCKER_BUILD_PARAMS) --progress=plain -t $(IMAGE):$(TAG)  . 

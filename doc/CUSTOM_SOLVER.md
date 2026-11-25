@@ -84,3 +84,30 @@ class CustomSolver(QUBOSolver):
         x = custom_heuristic(L)
         return x
 ```
+
+## Logging in custom solvers
+
+Use `biqbin.logger` to report values already computed by callbacks. Enabling DEBUG
+must not trigger additional solver or heuristic evaluations. Native diagnostics
+use the same logger; compile with `make LOG_LEVEL=DEBUG` to retain DEBUG calls.
+
+For an entry point using a BiqBin argument parser, configure rank files after
+argument parsing and MPI initialization, before reading or solving the problem:
+
+```python
+from biqbin import init, get_rank
+from biqbin.argparsers import ArgParserQubo
+from biqbin.logging import configure_rank_logging
+
+args = ArgParserQubo().parse_args()
+init()
+configure_rank_logging(args.log_dir, get_rank())
+```
+
+Without `--log-dir`, logs go only to stderr. Bare `--log-dir` selects
+`<input stem>.logs` in the current directory; `--log-dir PATH` selects a custom
+directory. Each rank appends to its own `rank-NNNNN.log`. Use separate directories
+for concurrent jobs. A directory-creation or file-opening failure reports to
+stderr and calls `MPI_Abort(10)` so other ranks cannot hang in MPI communication.
+See [the README logging section](../README.md#native-logging) for application
+configuration and compile-time severity levels.

@@ -1,10 +1,11 @@
+from biqbin.logging import logger, configure_logging
+
 from biqbin.biqbin_base import (ProblemMaxCut,
                                 SolutionMaxCut,
                                 MaxCutSolver,
                                 ProblemQubo,
                                 SolutionQubo,
                                 QUBOSolver,
-                                logger,
                                 get_rank)
 
 from biqbin.data_parsers import (MaxCutSolutionToJson,
@@ -26,6 +27,7 @@ __all__ = [
     'SolutionQubo',
     'QUBOSolver',
     'logger',
+    'configure_logging',
     'get_rank',
     'init',
     'MaxCutSolutionToJson',
@@ -47,9 +49,11 @@ _initialized = False
 def init():
     """Initialize the MPI environment. Must be called before creating any solver."""
     from biqbin.biqbin_module import init_mpi
+    from biqbin.logging import _set_mpi_rank
     global _initialized
     if not _initialized:
-        init_mpi()
+        _, rank = init_mpi()
+        _set_mpi_rank(rank)
         _initialized = True
 
 

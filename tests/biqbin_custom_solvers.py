@@ -1,3 +1,4 @@
+from biqbin.logging import configure_rank_logging
 import json
 import numpy.typing as npt
 import numpy as np
@@ -144,6 +145,7 @@ if __name__ == '__main__':
     init()
     parser = ArgParserCustom()
     args = parser.parse_args()
+    configure_rank_logging(args.log_dir, get_rank())
 
     parser_class = args.format
     file_reader = parser_class(

@@ -1,12 +1,13 @@
 #ifndef BIQBIN_CPP_API_H
 #define BIQBIN_CPP_API_H
 
+#include "logging.h"
+
 #ifdef __cplusplus
 #define EXTERN_C extern "C"
 #else
 #define EXTERN_C
 #endif
-
 /* macros for allocating vectors and matrices */
 #define alloc_vector(var, size, type)                                                       \
     var = (type *)calloc((size), sizeof(type));                                             \
@@ -72,7 +73,7 @@ EXTERN_C double evaluateSolution(const int *sol);
 EXTERN_C void abort_alloc_fail(int abort_code);
 EXTERN_C int process_adj_matrix(const double *Adj, int Adj_N);
 EXTERN_C int Bab_numEvalNodes(void); // returns number of evaluated nodes
-EXTERN_C void ipm_mc_pk(const double *L, int n, double *X, double *phi, int print);
+EXTERN_C void ipm_mc_pk(const double *L, int n, double *X, double *phi);
 EXTERN_C double getFixedValue(const BabNode *node, const Problem *SP);
 EXTERN_C void update_fractional_solution(BabNode *node, Problem *PP, double *X);
 #endif

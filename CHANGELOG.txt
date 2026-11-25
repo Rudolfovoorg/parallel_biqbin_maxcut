@@ -91,3 +91,8 @@
 - updated README and problem-format documentation for BQP, parser formats, callback API,
   input restrictions and MPI process requirements
 - fixed QPLIB linear-objective parsing and multiple parser/input-validation edge cases
+- Added shared Python/native logging with compile-time native severity filtering and explicit console/file configuration.
+- Added optional `--log-dir` support for per-rank MPI log files, with MPI abort on logging setup failure.
+- Routed native solver and IPM diagnostics through INFO/DEBUG logging and removed verbosity-dependent extra heuristic evaluation.
+- Unified Max-Cut, QUBO, and BQP problem/solution summaries, with transformation details available in verbose output.
+- Added logging and summary tests and integrated them, along with the QPLIB integration target, into `make test`.

@@ -274,7 +274,7 @@ double fct_eval(const Problem *PP, double *dual_gamma, double *X, double *g)
         op_Bt(PP, L0, dual_gamma);
 
     /* solve basic SDP relaxation */
-    ipm_mc_pk(L0, n, X, &f, 0);
+    ipm_mc_pk(L0, n, X, &f);
 
     if (m > 0)
     {

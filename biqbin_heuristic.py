@@ -1,3 +1,4 @@
+from biqbin.logging import configure_rank_logging
 import numpy as np
 from numpy import typing as npt
 from dwave.samplers import SimulatedAnnealingSampler
@@ -41,6 +42,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     init() # initialize MPI
+    configure_rank_logging(args.log_dir, get_rank())
     reader = args.format(args.problem_instance, optimize_input=args.optimize)
     problem = reader.read()
     if get_rank() == 0 and args.solution:

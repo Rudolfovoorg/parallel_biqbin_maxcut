@@ -1,14 +1,14 @@
 __version__ = '2.0.5'
 
+from logging import INFO
 from typing import ClassVar
 
 import numpy.typing as npt
 import numpy as np
-import logging
+from biqbin.logging import logger
 
 
 from biqbin.utils import (check_matrix_validity_setter_wrap,
-                          check_matrix_validity_wrap,
                           divide_matrix_by_gcd,
                           data_collector)
 from biqbin.biqbin_module import (BabNode, Problem,
@@ -18,14 +18,39 @@ from biqbin.biqbin_module import (BabNode, Problem,
                                   set_primal_solution, set_node_evaluation, sdp_bound,
                                   get_fixed_value, get_root_sdp_bound)
 
-# https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
-logging.basicConfig()
-logger = logging.getLogger(__name__)
-
 
 class PrettyPrint:
+    """Render a class heading, aligned fields, and type-specific sections."""
+
+    @staticmethod
+    def _format_fields(fields: list[tuple[str, object]]) -> str:
+        return "\n".join(f"{label:<21} = {value}" for label, value in fields)
+
+    @staticmethod
+    def _format_array(name: str, array: np.ndarray) -> str:
+        return f"{name} = {array.shape}\n{array}"
+
+    def _summary_fields(self) -> list[tuple[str, object]]:
+        return []
+
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        return []
+
+    def format_summary(self, verbose: bool = False) -> str:
+        """Return a class heading and summary; verbose adds conversion details.
+
+        The heading shares the first line with a logging handler's prefix when
+        an object is logged with ``logger.info("%s", object)``.
+        """
+        parts = [type(self).__name__]
+        fields = self._summary_fields()
+        if fields:
+            parts.append(self._format_fields(fields))
+        parts.extend(self._summary_sections(verbose))
+        return "\n".join(parts)
+
     def __str__(self) -> str:
-        return (f'class: {type(self).__name__}')
+        return self.format_summary()
 
     def __repr__(self) -> str:
         return str(self)
@@ -66,11 +91,24 @@ class ProblemMaxCut(PrettyPrint):
             self.gcd = divide_matrix_by_gcd(value)
         self._maxcut_adjacency_matrix = value
 
-    def __str__(self) -> str:
-        return (f'{super().__str__()}\n'
-                f'Problem name = {self.problem_name}\n'
-                f'MaxCut adjacency matrix {self.maxcut_adjacency_matrix.shape} =\n'
-                f'{self.maxcut_adjacency_matrix}\n')
+    def _summary_fields(self) -> list[tuple[str, object]]:
+        return [
+            ("Problem name", self.problem_name),
+            ("Optimized input", self.optimize_mc_adj_matrix),
+            ("GCD", self.gcd),
+        ]
+
+    def _format_maxcut_problem(self, title: str = "Max-Cut") -> str:
+        return "\n".join([
+            f"--- {title} ---",
+            self._format_fields(
+                [("Vertices", self.maxcut_adjacency_matrix.shape[0])]),
+            self._format_array("Adjacency matrix",
+                               self.maxcut_adjacency_matrix),
+        ])
+
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        return [self._format_maxcut_problem()]
 
 
 class ProblemQubo(ProblemMaxCut):
@@ -123,12 +161,19 @@ class ProblemQubo(ProblemMaxCut):
             [Qe_plus_c, np.zeros((1, 1))]
         ])
 
-    def __str__(self) -> str:
-        return (f'{super().__str__()}\n'
-                f'Problem name = {self.problem_name}\n'
-                f'Offset = {self.offset}\n'
-                f'Minimizing = {self.is_minimization}\n'
-                f'Qubo {self.Q.shape} =\n{self.Q}\n')
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        sections = ["\n".join([
+            "--- QUBO ---",
+            self._format_fields([
+                ("Variables", self.Q.shape[0]),
+                ("Minimization", self.is_minimization),
+                ("Offset", self.offset),
+            ]),
+            self._format_array("Q", self.Q),
+        ])]
+        if verbose:
+            sections.append(self._format_maxcut_problem("Underlying Max-Cut"))
+        return sections
 
 
 class SolutionMaxCut(PrettyPrint):
@@ -148,35 +193,33 @@ class SolutionMaxCut(PrettyPrint):
     def problem(self) -> ProblemMaxCut:
         return self.__problem
 
+    def _summary_fields(self) -> list[tuple[str, object]]:
+        """Common run statistics are visible at every verbosity."""
+        metadata = self.meta_data
+        return [
+            ("Problem name", metadata['instance']),
+            ("Compute time", f"{metadata['time']:.2f} seconds"),
+            ("Time limit reached", metadata['time_limit_reached']),
+            ("B&B nodes evaluated", metadata['eval_bab_nodes']),
+            ("Heuristic calls", metadata['heuristic_call_count']),
+            ("Worker processes used", metadata['num_workers_used']),
+            ("Optimized input", metadata['parameters']['optimized']),
+            ("GCD", metadata['parameters']['gcd']),
+        ]
+
+    def _format_maxcut_section(self, title: str = "Max-Cut") -> str:
+        return f"--- {title} ---\n" + self._format_fields([
+            ("Computed value", self.__solution['computed_val']),
+            ("Solution", self.__solution['solution']),
+            ("x", self.__solution['x']),
+        ])
+
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        return [self._format_maxcut_section()]
+
     def print_computed_solution(self, verbose: bool = False) -> None:
-        print(f'{super().__str__()}\n'
-              f'Problem name          = {self.meta_data['instance']}\n'
-              f'Compute time          = {self.meta_data['time']:.2f} seconds\n'
-              f'Time limit reached    = {self.meta_data['time_limit_reached']}\n'
-              f'{self._get_verbose_metadata_string(verbose)}'
-              f'--- Max-Cut ---\n'
-              f' Computed value = {self.__solution['computed_val']}\n'
-              f'Solution MaxCut = {self.__solution['solution']}\n'
-              f'              x = {self.__solution['x']}\n')
-
-    def _get_verbose_metadata_string(self, verbose: bool) -> str:
-        if verbose:
-            return (f'B&B nodes evaluated   = {self.meta_data['eval_bab_nodes']}\n'
-                    f'Heurist run count     = {self.meta_data['heuristic_call_count']}\n'
-                    f'Optimized input       = {self.meta_data['parameters']['optimized']}\n'
-                    f'gcd = {self.meta_data['parameters']['gcd']}\n'
-                    f'Worker processes used = {self.meta_data['num_workers_used']}\n')
-        else:
-            return ''
-
-    def __str__(self) -> str:
-        return (
-            f'{super().__str__()}\n'
-            f'   Problem name = {self.problem.problem_name}\n'
-            f' Computed value = {self.__solution['computed_val']}\n'
-            f'       Solution = {self.__solution['solution']}\n'
-            f'              x = {self.__solution['x']}'
-        )
+        """Print the shared summary, optionally including transformation details."""
+        print(self.format_summary(verbose))
 
 
 class SolutionQubo(SolutionMaxCut):
@@ -238,30 +281,16 @@ class SolutionQubo(SolutionMaxCut):
 
         return qubo_solution.tolist(), y.astype(int).tolist()
 
-    def print_computed_solution(self, verbose: bool = False) -> None:
+    def _summary_sections(self, verbose: bool) -> list[str]:
+        sections = ["--- QUBO ---\n" + self._format_fields([
+            ("Computed value", self.__solution['computed_val']),
+            ("Minimization", self.__problem.is_minimization),
+            ("Solution", self.__solution['solution']),
+            ("x", self.__solution['x']),
+        ])]
         if verbose:
-            super().print_computed_solution()
-        else:
-            print(f'class: {type(self).__name__}\n'
-                  f'   Problem name = {self.meta_data['instance']}\n'
-                  f'   Compute time = {self.meta_data['time']:.2} seconds\n')
-        print(
-            f'--- QUBO ---\n'
-            f' Computed value = {self.__solution['computed_val']}\n'
-            f'       Solution = {self.__solution['solution']}\n'
-            f'              x = {self.__solution['x']}\n'
-            f'is_minimization = {self.__problem.is_minimization}'
-        )
-
-    def __str__(self):
-        return (
-            f'{super().__str__()}\n'
-            f'   Problem name = {self.problem.problem_name}\n'
-            f' Computed value = {self.__solution['computed_val']}\n'
-            f'       Solution = {self.__solution['solution']}\n'
-            f'              x = {self.__solution['x']}\n'
-            f'is_minimization = {self.__problem.is_minimization}'
-        )
+            sections.append(self._format_maxcut_section("Underlying Max-Cut"))
+        return sections
 
 
 class MaxCutSolver(PrettyPrint):
@@ -540,7 +569,8 @@ class MaxCutSolver(PrettyPrint):
         if not np.isfinite(sdp_bound_value):
             logger.fatal("sdp_bound must return a finite float")
             abort_mpi(10)
-
+        logger.debug(
+            f'SDP bound value = {sdp_bound_value}; B&B node level = {node.level}; B&B parent SDP bound value {node.upper_bound}')
         return sdp_bound_value
 
     @data_collector(enabled_flag='collect_heuristic_root_data', data_box='heuristic_root_data')
@@ -576,14 +606,7 @@ class MaxCutSolver(PrettyPrint):
         self._latest_heuristic_value = self._evaluate_solution(P0.L, x)
         update_mc_lower_bound_solution(x)
 
-        if logger.isEnabledFor(logging.DEBUG):
-            if self._primal_solution_set:
-                default_gw_value = goemans_williamson_heuristic(
-                    P0.L, P.L, node.xfixed, node.sol.x, np.zeros(P0.n - 1)
-                )
-                logger.debug(
-                    f'Custom heuristic: {self._latest_heuristic_value}; default gw heuristic: {default_gw_value}'
-                )
+        logger.debug("Heuristic value: %s", self._latest_heuristic_value)
 
         return self._latest_heuristic_value
 
@@ -636,7 +659,8 @@ class MaxCutSolver(PrettyPrint):
         if self.rank == 0:
             input_matrix = self.problem.maxcut_adjacency_matrix.astype(
                 np.float64)
-            logger.info(f'Solving {self.problem}')
+            if logger.isEnabledFor(INFO):  # lazy evaluating
+                logger.info("%s", self.problem.format_summary(verbose=True))
         else:
             input_matrix = None
 

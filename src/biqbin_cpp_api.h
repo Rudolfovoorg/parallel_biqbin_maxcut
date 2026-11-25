@@ -1,12 +1,13 @@
 #ifndef BIQBIN_CPP_API_H
 #define BIQBIN_CPP_API_H
 
+#include "logging.h"
+
 #ifdef __cplusplus
 #define EXTERN_C extern "C"
 #else
 #define EXTERN_C
 #endif
-
 /* macros for allocating vectors and matrices */
 #define alloc_vector(var, size, type)                                                       \
     var = (type *)calloc((size), sizeof(type));                                             \
@@ -61,14 +62,18 @@ typedef struct BabNode
                           // Used for determining the next node in priority queue.
 } BabNode;
 
-EXTERN_C double runHeuristic_unpacked(double *P0_L, int P0_N, double *P_L, int P_N, int *node_xfixed, int *node_sol_X, int *x);
+EXTERN_C double runHeuristic_unpacked(const double *P0_L, int P0_N, const double *P_L, int P_N, // SP and PP Problems
+                                      const int *node_xfixed, const int *node_sol_X, int *x);   // BabNode and solution x
+EXTERN_C double SDPbound(BabNode *node, const Problem *SP, Problem *PP);
 EXTERN_C int wrapped_main(int argc, char **argv);
-EXTERN_C double *readData(const char *instance, int *adj_N);
 EXTERN_C double Bab_LBGet(void); // returns global lower bound
-EXTERN_C int update_best(int *xbest, int *xnew, double *best, int P0_N);
-EXTERN_C double evaluateSolution(int *sol);
+EXTERN_C int update_best(int *xbest, const int *xnew, double *best, int P0_N);
+EXTERN_C int updateSolution(const int *x);
+EXTERN_C double evaluateSolution(const int *sol);
 EXTERN_C void abort_alloc_fail(int abort_code);
-EXTERN_C int process_adj_matrix(double *Adj, int Adj_N);
+EXTERN_C int process_adj_matrix(const double *Adj, int Adj_N);
 EXTERN_C int Bab_numEvalNodes(void); // returns number of evaluated nodes
-EXTERN_C void ipm_mc_pk(double *L, int n, double *X, double *phi, int print);
+EXTERN_C void ipm_mc_pk(const double *L, int n, double *X, double *phi);
+EXTERN_C double getFixedValue(const BabNode *node, const Problem *SP);
+EXTERN_C void update_fractional_solution(BabNode *node, Problem *PP, double *X);
 #endif

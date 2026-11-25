@@ -4,3 +4,4 @@
 biqbin_executable
 .vscode
 build
+tests/bqp/QBO_rescaled

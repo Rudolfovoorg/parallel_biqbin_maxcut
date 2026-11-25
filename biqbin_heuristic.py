@@ -1,3 +1,4 @@
+from biqbin.logging import configure_rank_logging
 import numpy as np
 from numpy import typing as npt
 from dwave.samplers import SimulatedAnnealingSampler
@@ -11,10 +12,11 @@ class QuboDwaveSampler(QUBOSolver):
                  params: str,
                  time_limit: int,
                  initial_estimate: np.ndarray | None,
-                 collect_heuristic_data: bool,
+                 collect_heuristic_root_data: bool,
+                 collect_sdp_bound_root_data: bool,
                  sampler, **sampler_kwargs):
         super().__init__(problem, params, time_limit,
-                         initial_estimate, collect_heuristic_data)
+                         initial_estimate, collect_heuristic_root_data, collect_sdp_bound_root_data)
         self.sampler = sampler
         self.sampler_kwargs = sampler_kwargs
 
@@ -36,10 +38,11 @@ class QuboDwaveSampler(QUBOSolver):
 
 
 if __name__ == '__main__':
-    init()
     parser = ArgParserDWaveHeuristic()
     args = parser.parse_args()
 
+    init() # initialize MPI
+    configure_rank_logging(args.log_dir, get_rank())
     reader = args.format(args.problem_instance, optimize_input=args.optimize)
     problem = reader.read()
     if get_rank() == 0 and args.solution:
@@ -52,7 +55,8 @@ if __name__ == '__main__':
                               params=args.params,
                               time_limit=args.time,
                               initial_estimate=initial_solution,
-                              collect_heuristic_data=args.collect_heur_data,
+                              collect_heuristic_root_data=args.collect_root_data,
+                              collect_sdp_bound_root_data=args.collect_root_data,
                               sampler=SimulatedAnnealingSampler(),
                               num_reads=10)
 

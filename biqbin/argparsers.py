@@ -1,6 +1,8 @@
 import warnings
+from pathlib import Path
 from argparse import ArgumentParser, ArgumentTypeError, SUPPRESS
-from biqbin.biqbin_base import logging, logger
+import logging
+from biqbin.logging import configure_logging
 from biqbin.data_parsers import (FromFile,
                                  MaxCutFromJson,
                                  MaxCutFromMatrixMarket,
@@ -14,7 +16,7 @@ from biqbin.data_parsers import (FromFile,
 class ArgParserBase(ArgumentParser):
     def __init__(self, prog: str, description: str):
         super().__init__(prog=prog, description=description,
-                         usage=f'mpirun [-n N] python3 {prog} problem_instance [-p PARAMS] [-w] [-o OUTPUT]',
+                         usage=f'mpirun [-n N] python3 {prog} problem_instance [-p PARAMS] [-w] [-o OUTPUT] [--log-dir [LOG_DIR]]',
                          epilog='For more information please visit https://github.com/Rudolfovoorg/parallel_biqbin_maxcut',
                          )
         self.add_argument('problem_instance',
@@ -24,8 +26,11 @@ class ArgParserBase(ArgumentParser):
         self.add_argument('-s', '--solution',
                           help='file path to an initial solution')
 
-        self.add_argument('-c', '--collect-heur-data', action='store_true',
-                          help='collect heuristic data on root node (time taken and value)')
+        self.add_argument('-c', '--collect-root-data', action='store_true',
+                          help='collect heuristic and sdp data on root node (time taken and value returned)')
+
+        self.add_argument('--collect-heur-data',
+                          action='store_true', help=SUPPRESS)
 
         self.add_argument('-p', '--params', default='params',
                           help='custom parameters file path (default: "params")')
@@ -37,6 +42,8 @@ class ArgParserBase(ArgumentParser):
         self.add_argument('-O', '--optimize', action='store_true',
                           help='Divides the final input matrix values by their GCD')
         self.add_argument('-o', '--output', help='set custom output file path')
+        self.add_argument('--log-dir', nargs='?', const='', metavar='LOG_DIR',
+                          help='also log to one file per MPI rank; optional directory defaults to <input stem>.logs in the current directory')
         # time limit format taken from SLURM docs https://slurm.schedmd.com/sbatch.html
         self.add_argument('-t', '--time', default='0', type=self.parse_time_limit,
                           help='set running time limit; acceptable time formats include "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"')
@@ -47,10 +54,20 @@ class ArgParserBase(ArgumentParser):
     def parse_args(self, *args, **kwargs):
         ns = super().parse_args(*args, **kwargs)
 
-        if ns.verbose == 1:
-            logger.setLevel(logging.INFO)
-        elif ns.verbose > 1:
-            logger.setLevel(logging.DEBUG)
+        if ns.log_dir == '':
+            ns.log_dir = Path(ns.problem_instance).stem + '.logs'
+
+        configure_logging(
+            logging.DEBUG if ns.verbose > 1 else
+            logging.INFO if ns.verbose == 1 else logging.WARNING,
+        )
+
+        if ns.collect_heur_data:
+            warnings.warn(
+                "[DEPRECATED] `--collect-heur-data` is deprecated, use `--collect-root-data` instead",
+                UserWarning
+            )
+            ns.collect_root_data = ns.collect_heur_data
         return ns
 
     def parse_time_limit(self, s: str) -> int:
@@ -171,8 +188,8 @@ class ArgParserDWaveHeuristic(ArgParserQubo):
             )
             ns.verbose = max(ns.verbose, 1)
 
-        if ns.verbose == 1:
-            logger.setLevel(logging.INFO)
-        elif ns.verbose > 1:
-            logger.setLevel(logging.DEBUG)
+        configure_logging(
+            logging.DEBUG if ns.verbose > 1 else
+            logging.INFO if ns.verbose == 1 else logging.WARNING,
+        )
         return ns

@@ -97,10 +97,6 @@ class MaxCutSolver(PrettyPrint):
         )
         self.sdp_bound_root_data: list[dict] = []
 
-        # Set the functions in C++ source to be called
-        set_node_evaluation(self._bab_node_evaluation)
-        set_heuristic(self._call_heuristic)
-
         # biqbin_module.sdp_bound needs to be called before goemans_williams_heuristic is called
         self._primal_solution_set: bool = False
         # SDPBound calls heuristic by itself, if that is overwritten, we need to call it manually
@@ -152,7 +148,7 @@ class MaxCutSolver(PrettyPrint):
 
     def initial_sdp_bound(self, node: BabNode, P0: Problem, P: Problem, *args, **kwargs) -> float:
         """Compute the SDP bound on the root node.
-        By default it will call ``self.upper_bound``, same as the leaf B&B nodes.
+        By default it will call ``self.sdp_bound``, same as the leaf B&B nodes.
 
         Override in subclasses to use a custom bounding strategy.
         """
@@ -278,7 +274,7 @@ class MaxCutSolver(PrettyPrint):
             if self._latest_heuristic_value > upper_bound_value + fixed_value:
                 logger.fatal(
                     (
-                        f"[rank {self.rank}] SDP bound is greater than heuristic bound, "
+                        f"[rank {self.rank}] SDP bound is below the feasible heuristic value, "
                         f"custom SDP bound confirmed to not give a true bound!\n"
                         f"Heuristic value = {self._latest_heuristic_value}; SDP bound {upper_bound_value + fixed_value}"
                     )
@@ -289,7 +285,7 @@ class MaxCutSolver(PrettyPrint):
             if self.rank != 0 and self._latest_heuristic_value > initial_sdp_bound:
                 logger.fatal(
                     (
-                        f"[rank {self.rank}] Initial SDP bound is greater than heuristic bound, "
+                        f"[rank {self.rank}] Initial SDP bound is below the feasible heuristic value, "
                         f"custom SDP bound confirmed to not give a true bound!\n"
                         f"Heuristic value = {self._latest_heuristic_value}; initial SDP bound {initial_sdp_bound}"
                     )
@@ -317,7 +313,7 @@ class MaxCutSolver(PrettyPrint):
         if not self._primal_solution_set:
             logger.fatal(
                 "SDP primal solution was not set before leaving `self.sdp_bound`!\n"
-                "Please set the primal solution with `self.set_primal_solution` method!"
+                "Please set the primal solution with `self.set_sdp_primal_solution` method!"
             )
             abort_mpi(10)
         if not np.isfinite(sdp_bound_value):
@@ -418,6 +414,10 @@ class MaxCutSolver(PrettyPrint):
         else:
             input_matrix = None
 
+        # Native callbacks are process-global. Bind the solver being executed,
+        # rather than whichever solver object happened to be constructed last.
+        set_node_evaluation(self._bab_node_evaluation)
+        set_heuristic(self._call_heuristic)
         raw_results = run(
             self.solver_name, self.problem.problem_name, input_matrix, self.params, self.time_limit
         )

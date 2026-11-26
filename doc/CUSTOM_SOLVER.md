@@ -6,10 +6,14 @@
 
 | Method | When it runs | Purpose |
 |---|---|---|
-| `initial_sdp_bound` | Root node only | Lower bound (SDP relaxation) |
-| `initial_heuristic` | Root node only | Upper bound (feasible solution) |
-| `sdp_bound` | All non-root nodes | Lower bound (SDP relaxation) |
-| `heuristic` | All non-root nodes | Upper bound (feasible solution) |
+| `initial_sdp_bound` | Root node only | Upper bound (SDP relaxation) |
+| `initial_heuristic` | Root node only | Lower bound (feasible solution) |
+| `sdp_bound` | All non-root nodes | Upper bound (SDP relaxation) |
+| `heuristic` | All non-root nodes | Lower bound (feasible solution) |
+
+Callbacks operate on the internal Max-Cut maximization problem, including when
+using QUBO or BQP solvers. An SDP callback must return a valid upper bound;
+a feasible cut supplies a lower bound.
 
 If `initial_sdp_bound` is not overridden, `sdp_bound` is used on the root node too. Same applies to `initial_heuristic` / `heuristic`.
 

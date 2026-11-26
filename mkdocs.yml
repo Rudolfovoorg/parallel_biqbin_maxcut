@@ -28,7 +28,6 @@ watch:
   - biqbin
 
 theme:
-  name: mkdocs
   variant: classic
   features:
     - navigation.sections

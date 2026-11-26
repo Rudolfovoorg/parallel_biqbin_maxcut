@@ -125,6 +125,27 @@ jobs:
       # ------------------------------------------------------
       # Test
       # ------------------------------------------------------
+      - name: Validate runtime image
+        if: matrix.python == '3.12'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker build --progress=plain \
+            --target runtime \
+            --build-arg PYTHON_VERSION=${{ matrix.python }} \
+            --build-arg MPI_IMPL=${{ matrix.mpi }} \
+            -t biqbin-runtime . \
+            2>&1 | tee ci-artifacts/runtime-build.log
+
+          # Permit extra local slots, without enabling root execution.
+          docker run --rm --init \
+            -e OMPI_MCA_rmaps_base_oversubscribe=1 \
+            biqbin-runtime \
+            timeout --kill-after=5s 60s mpiexec -n 3 \
+            python -m tests.runtime_smoke \
+            2>&1 | tee ci-artifacts/runtime-smoke.log
+
       - name: Run regression suite
         shell: bash
         run: |

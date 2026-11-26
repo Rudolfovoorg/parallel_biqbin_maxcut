@@ -388,10 +388,11 @@ The workflow includes:
 | Job | Environment | Checks |
 |---|---|---|
 | Ruff | Python 3.12 | Linting and formatting |
-| Documentation | Python 3.12 | Strict MkDocs build |
+| Documentation | Python 3.12 | Strict Zensical build |
 | Full regression suite | Python 3.12 + MPICH | Complete tests, Python coverage and JUnit |
 | Python compatibility | Python 3.13 + MPICH | Focused unit tests |
 | MPI compatibility | Python 3.12 + OpenMPI | Logging, Max-Cut and failure-handling smoke tests |
+| Runtime images | Python 3.12 + MPICH/OpenMPI | Nonroot MPI solve and writable output paths |
 
 The test environments are built from the Dockerfile's `ci` stage.
 
@@ -422,7 +423,7 @@ make docker-test
 
 Documentation is maintained in `doc/` using Markdown.
 
-[MkDocs](https://www.mkdocs.org/) with the Material theme generates the HTML website. Python API documentation uses `mkdocstrings`.
+[Zensical](https://zensical.org/) generates the HTML website using the existing `mkdocs.yml` configuration. Python API documentation uses `mkdocstrings`.
 
 Install the documentation requirements:
 
@@ -631,6 +632,10 @@ See [BQP input example](doc/BQP_INPUT_EXAMPLE.md) for supported representations.
 | `-h`, `--help` | Display CLI help |
 
 Run the relevant Python entry point with `--help` for its exact supported options.
+
+Time limits follow Slurm-style syntax: `MM`, `MM:SS`, `HH:MM:SS`,
+`D-HH`, `D-HH:MM` or `D-HH:MM:SS`. For example, `-t 01:30` means
+90 seconds; use `-t 01:30:00` for one hour and thirty minutes.
 
 ### Problem and solution summaries
 

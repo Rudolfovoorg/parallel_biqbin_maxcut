@@ -268,6 +268,7 @@ test-coverage-gaps:
 		tests/test_time_limit_parsing.py \
 		tests/test_utils_extra.py \
 		tests/test_cli_output.py \
+		tests/test_output_paths.py \
 		$(if $(JUNIT_DIR),--junitxml=$(JUNIT_DIR)/$@.xml) \
 		-v --no-header
 
@@ -349,7 +350,7 @@ coverage:
 
 
 docs:
-	$(PYTHON) -m mkdocs build --strict
+	$(PYTHON) -m zensical build --strict
 
 docs-serve:
-	$(PYTHON) -m mkdocs serve
+	$(PYTHON) -m zensical serve

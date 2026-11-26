@@ -537,6 +537,29 @@ def run_repeated_solve_case(case: str, log_dir: Path) -> None:
         raise ValueError(f"unknown repeated-solve case: {case}")
 
 
+def run_callback_ownership_case(case: str, log_dir: Path) -> None:
+    from biqbin import MaxCutSolver, ProblemMaxCut, get_rank
+    from biqbin.biqbin_module import reduce_sum_mpi
+
+    active = MaxCutSolver(make_problem())
+    # A differently sized unused solver must not supply callbacks to active.
+    unused = MaxCutSolver(ProblemMaxCut(np.ones((3, 3)) - np.eye(3), "unused"))
+    result = active.compute()
+    assert unused.bab_node_evaluation_call_count == 0
+    assert unused.sdp_bound_call_count == 0
+    assert unused.heuristic_call_count == 0
+    calls = reduce_sum_mpi(active.bab_node_evaluation_call_count)
+    if get_rank() == 0:
+        assert calls > 0
+        x = np.asarray(result.solution["x"])
+        adjacency = active.problem.maxcut_adjacency_matrix
+        assert x.shape == (adjacency.shape[0],)
+        assert np.all((x == 0) | (x == 1))
+        cut = np.triu(adjacency, 1)[x[:, None] != x[None, :]].sum()
+        assert result.solution["computed_val"] == cut == 6
+    write_marker(log_dir, case, get_rank(), "BIQBIN_TEST_CALLBACK_OWNER_PASSED")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--case", required=True)
@@ -549,6 +572,9 @@ def main() -> int:
 
     biqbin.init()
 
+    if args.case == "callback_ownership":
+        run_callback_ownership_case(args.case, log_dir)
+        return 0
     if args.case.startswith("repeat_"):
         run_repeated_solve_case(args.case, log_dir)
     else:

@@ -12,7 +12,9 @@ from biqbin.argparsers import ArgParserMaxCut
     [
         ("0", 0),
         ("30", 30 * 60),
-        ("01:30", 1 * 3600 + 30 * 60),
+        ("01:30", 90),
+        ("00:05", 5),
+        ("90:00", 5400),
         ("01:02:03", 1 * 3600 + 2 * 60 + 3),
         ("0-02", 2 * 3600),
         ("0-02:03", 2 * 3600 + 3 * 60),
@@ -29,3 +31,9 @@ def test_parse_time_limit(value, seconds):
 def test_parse_time_limit_rejects_too_many_components():
     with pytest.raises(ArgumentTypeError, match="Invalid time format"):
         ArgParserMaxCut().parse_time_limit("1:2:3:4")
+
+
+@pytest.mark.parametrize("value", ["", "-1", "1:-1", "1-2-3", "1::2", "1:", "abc", "1.5", "1-"])
+def test_parse_time_limit_rejects_malformed_or_negative_values(value):
+    with pytest.raises(ArgumentTypeError, match="Invalid time format"):
+        ArgParserMaxCut().parse_time_limit(value)

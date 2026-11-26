@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
-from glob import glob
+from contextlib import contextmanager
+from os.path import lexists
 from typing import Literal
 
 import numpy as np
@@ -295,10 +296,29 @@ class ToFile(ABC):
         if overwrite:
             return out_file + ".json"
 
-        file_count = len(glob(f"{out_file}*.json"))
-        if file_count > 0:
-            out_file += f"_{file_count}"
-        return out_file + ".json"
+        candidate = out_file + ".json"
+        suffix = 0
+        while lexists(candidate):
+            suffix += 1
+            candidate = f"{out_file}_{suffix}.json"
+        return candidate
+
+    @classmethod
+    @contextmanager
+    def open_output(cls, filename: str, overwrite: bool):
+        """Open an output file without replacing an existing result by default."""
+        while True:
+            output_path = cls.get_output_path(filename, overwrite)
+            try:
+                output = open(output_path, "w" if overwrite else "x")
+            except FileExistsError:
+                # Another process may claim the name between selection and open.
+                if overwrite:
+                    raise
+                continue
+            break
+        with output:
+            yield output
 
 
 class MaxCutSolutionToJson(ToFile):
@@ -317,14 +337,11 @@ class MaxCutSolutionToJson(ToFile):
             with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
         """
 
-        # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(filename, overwrite)
-
         save_output = {"maxcut": self.solution.solution}
         if with_metadata:
             save_output["meta_data"] = self.solution.meta_data
 
-        with open(output_path, "w") as f:
+        with self.open_output(filename, overwrite) as f:
             json.dump(save_output, f, default=convert_numpy_to_json_serializable)
 
 
@@ -351,9 +368,6 @@ class QuboSolutionToJson(ToFile):
             with_maxcut_solution (bool, optional): Add MaxCut solution to save output. Defaults to False.
         """
 
-        # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(filename, overwrite)
-
         save_output = {"qubo": self.solution.solution}
 
         if with_maxcut_solution:
@@ -361,7 +375,7 @@ class QuboSolutionToJson(ToFile):
         if with_metadata:
             save_output["meta_data"] = self.solution.meta_data
 
-        with open(output_path, "w") as f:
+        with self.open_output(filename, overwrite) as f:
             json.dump(save_output, f, default=convert_numpy_to_json_serializable)
 
 
@@ -384,8 +398,21 @@ class BQPFromQBODense(FromFile):
 
 
 class BQPFromQBOSparse(FromFile):
+    """Read sparse QBO input with one block of linear equality constraints.
+
+    Quadratic constraints and additional linear blocks are rejected rather than
+    silently omitted. Combine all equality rows into one block before loading.
+    """
+
     def read(self):
         data, Q, lin, quad = self._load_qbo_new_format(self.filename)
+        if quad:
+            raise ValueError("BiqBin does not support quadratic constraints!")
+        if len(lin) != 1:
+            raise ValueError(
+                "Sparse QBO input requires exactly one linear constraint block; "
+                "combine all equality rows into one block."
+            )
 
         Q_dense = Q.toarray() * 2
 
@@ -598,9 +625,6 @@ class BQPToJson(ToFile):
             with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
         """
 
-        # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(filename, overwrite)
-
         save_output = {
             "bqp": self.solution.solution,
         }
@@ -609,5 +633,5 @@ class BQPToJson(ToFile):
         if with_metadata:
             save_output["meta_data"] = self.solution.meta_data
 
-        with open(output_path, "w") as f:
+        with self.open_output(filename, overwrite) as f:
             json.dump(save_output, f, default=convert_numpy_to_json_serializable)

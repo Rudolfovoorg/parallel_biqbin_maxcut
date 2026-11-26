@@ -194,3 +194,10 @@ def test_timeout_is_failure_and_stops_process_group(tmp_path, monkeypatch):
         except FileNotFoundError:
             continue
         assert state == "Z", f"Process {pid} still running after timeout: {state}"
+
+
+def test_compute_uses_its_own_callbacks(tmp_path):
+    cp, log_dir = run_case("callback_ownership", tmp_path, timeout=30)
+    diagnostics = f"returncode: {cp.returncode}\nstdout:\n{cp.stdout}\nstderr:\n{cp.stderr}"
+    assert cp.returncode == 0, diagnostics
+    assert len(marker_files(log_dir, "BIQBIN_TEST_CALLBACK_OWNER_PASSED")) == 3, diagnostics

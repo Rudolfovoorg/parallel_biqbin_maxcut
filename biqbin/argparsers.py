@@ -112,36 +112,43 @@ class ArgParserBase(ArgumentParser):
         """
         Parse Slurm-style time limits:
         - "MM" (minutes only)
+        - "MM:SS" (minutes and seconds)
         - "HH:MM:SS"
         - "D-HH:MM:SS"
         Returns:
             int: total seconds
         """
-        # If format includes days
-        if "-" in s:
-            days_str, rest = s.split("-", 1)
-            days = int(days_str)
-        else:
-            days, rest = 0, s
+        value = s.strip()
+        has_days = "-" in value
+        days = 0
+        if has_days:
+            days_text, value = value.split("-", 1)
+            if not days_text.isascii() or not days_text.isdecimal():
+                raise ArgumentTypeError(f"Invalid time format: {s}")
+            days = int(days_text)
 
-        parts = rest.split(":")
-        if len(parts) == 3:
-            hours, minutes, seconds = map(int, parts)
-        elif len(parts) == 2:
-            hours, minutes = map(int, parts)
-            seconds = 0
-        elif len(parts) == 1:
-            if "-" in s:
-                hours = int(parts[0])
-                minutes = seconds = 0
-            else:
-                hours = seconds = 0
-                minutes = int(parts[0])
-        else:
+        parts = value.split(":")
+        if not 1 <= len(parts) <= 3 or any(
+            not part.isascii() or not part.isdecimal() for part in parts
+        ):
             raise ArgumentTypeError(f"Invalid time format: {s}")
 
-        total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
-        return int(total_seconds)
+        fields = list(map(int, parts))
+        if len(fields) == 3:
+            hours, minutes, seconds = fields
+        elif len(fields) == 2:
+            if has_days:
+                hours, minutes = fields
+                seconds = 0
+            else:
+                hours = 0
+                minutes, seconds = fields
+        elif has_days:
+            hours, minutes, seconds = fields[0], 0, 0
+        else:
+            hours, minutes, seconds = 0, fields[0], 0
+
+        return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
 class ArgParserMaxCut(ArgParserBase):

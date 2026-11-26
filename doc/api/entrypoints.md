@@ -10,7 +10,9 @@ normal applications do not need to call it explicitly.
 The Python API currently supports **one solve per process**. Call `compute()`
 once on every rank. A second attempt, including through a new solver object or
 a different solver class, prints a fatal error and aborts the MPI job with
-error code 10. Start a fresh MPI job to solve another problem.
+error code 10. Start a fresh MPI job to solve another problem. You may construct
+multiple solver objects before that solve; `compute()` uses the callbacks of
+the object on which it is called.
 
 ::: biqbin.init
 
@@ -51,3 +53,9 @@ its arguments. See [input formats](../PROBLEM_INSTANCE_FORMATS.md), the
 [BQP guide](../BQP_INPUT_EXAMPLE.md), and the [heuristic guide](../HEURISTIC.md)
 for usage details. Argument parser implementation classes are deliberately
 excluded from the generated API.
+
+## BQP imports
+
+Import BQP classes such as `ProblemBQP`, `SolutionBQP` and `BQPSolver`
+from `biqbin`. Import `ArgParserBQP` from `biqbin.argparsers` when needed.
+The `biqbin_bqp.py` module is a command-line entry point, not a library import path.

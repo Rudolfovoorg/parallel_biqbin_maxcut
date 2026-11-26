@@ -155,3 +155,31 @@ def test_bqp_reader_preserves_offset_and_optimization(tmp_path, reader, filename
     )
     np.testing.assert_array_equal(problem.F, reference.F)
     np.testing.assert_array_equal(problem.c, reference.c)
+
+
+@pytest.mark.parametrize(
+    "case,message",
+    [
+        ("quadratic", "does not support quadratic constraints"),
+        ("multiple_linear", "exactly one linear constraint block"),
+        ("no_linear", "exactly one linear constraint block"),
+        ("inequality", "only solve equality constraints"),
+    ],
+)
+def test_sparse_qbo_rejects_constraints_it_cannot_represent(tmp_path, case, message):
+    from pathlib import Path
+
+    data = json.loads(Path("tests/bqp/kcluster40_025_10_1_QBO_sparse.json").read_text())
+    constraints = data["QBO"]["constraints"]
+    if case == "quadratic":
+        constraints["quadratic"] = [[data["QBO"]["Q"], 1, "=="]]
+    elif case == "multiple_linear":
+        constraints["linear"].append(constraints["linear"][0])
+    elif case == "no_linear":
+        constraints["linear"] = []
+    else:
+        constraints["linear"][0][2] = "<="
+    path = tmp_path / "unsupported.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match=message):
+        data_parsers.BQPFromQBOSparse(str(path)).read()

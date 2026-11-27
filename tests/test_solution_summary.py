@@ -4,17 +4,19 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from biqbin import ProblemMaxCut, ProblemQubo, SolutionMaxCut, SolutionQubo
-from biqbin_bqp import SolutionBQP
+from biqbin import ProblemMaxCut, ProblemQubo, SolutionBQP, SolutionMaxCut, SolutionQubo
 
 
 def make_solution(kind, time_limit):
     raw = {
         "maxcut": {"computed_val": 9, "solution": [], "x": [0, 0, 0]},
         "meta_data": {
-            "instance": "example.json", "time": 2.987,
-            "time_limit_reached": time_limit, "eval_bab_nodes": 17,
-            "heuristic_call_count": 126, "num_workers_used": 7,
+            "instance": "example.json",
+            "time": 2.987,
+            "time_limit_reached": time_limit,
+            "eval_bab_nodes": 17,
+            "heuristic_call_count": 126,
+            "num_workers_used": 7,
             "parameters": {"optimized": False, "gcd": 1},
         },
     }
@@ -26,10 +28,15 @@ def make_solution(kind, time_limit):
         solution = SolutionQubo(raw, problem)
     else:
         problem = SimpleNamespace(
-            F=np.zeros((2, 2)), c=np.zeros(2),
-            A=np.array([[1, 0]]), b=np.array([1]),
-            rho=1.0, const_value=20 if kind == "BQP infeasible" else 9,
-            penalty=3, offset=7, optimize_mc_adj_matrix=False,
+            F=np.zeros((2, 2)),
+            c=np.zeros(2),
+            A=np.array([[1, 0]]),
+            b=np.array([1]),
+            rho=1.0,
+            const_value=20 if kind == "BQP infeasible" else 9,
+            penalty=3,
+            offset=7,
+            optimize_mc_adj_matrix=False,
         )
         solution = SolutionBQP(raw, problem)
     return solution, raw
@@ -49,10 +56,14 @@ def test_shared_summary(kind, verbose, time_limit, capsys):
     fields = dict(line.split(" = ", 1) for line in header.splitlines()[1:])
     fields = {key.strip(): value for key, value in fields.items()}
     assert fields == {
-        "Problem name": "example.json", "Compute time": "2.99 seconds",
-        "Time limit reached": str(time_limit), "B&B nodes evaluated": "17",
-        "Heuristic calls": "126", "Worker processes used": "7",
-        "Optimized input": "False", "GCD": "1",
+        "Problem name": "example.json",
+        "Compute time": "2.99 seconds",
+        "Time limit reached": str(time_limit),
+        "B&B nodes evaluated": "17",
+        "Heuristic calls": "126",
+        "Worker processes used": "7",
+        "Optimized input": "False",
+        "GCD": "1",
     }
     assert text.count("Problem name") == 1
     title = "BQP" if kind.startswith("BQP") else kind
@@ -85,12 +96,17 @@ def test_problem_summary(kind, verbose, monkeypatch):
     elif kind == "QUBO":
         problem = ProblemQubo(np.array([[2, 0], [0, 4]]), 3, "example.json", False, True)
     else:
-        import biqbin_bqp
-        monkeypatch.setattr(biqbin_bqp, "get_rank", lambda: 0)
-        monkeypatch.setattr(biqbin_bqp, "interior_point_method_maxcut", lambda C: (0.0, None))
-        problem = biqbin_bqp.ProblemBQP(
-            np.zeros((2, 2)), np.zeros(2), np.array([[1, 1]]),
-            np.array([1]), "example.json", offset=3, optimize_input=True,
+        import biqbin.problem as problem_module
+
+        monkeypatch.setattr(problem_module, "interior_point_method_maxcut", lambda C: (0.0, None))
+        problem = problem_module.ProblemBQP(
+            np.zeros((2, 2)),
+            np.zeros(2),
+            np.array([[1, 1]]),
+            np.array([1]),
+            "example.json",
+            offset=3,
+            optimize_input=True,
         )
     matrix_before = problem.maxcut_adjacency_matrix.copy()
     text = problem.format_summary(verbose)

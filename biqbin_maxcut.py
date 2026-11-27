@@ -1,29 +1,27 @@
-from biqbin.logging import configure_rank_logging
-from biqbin import MaxCutSolver, get_rank, MaxCutSolutionToJson, init
-from biqbin.argparsers import ArgParserMaxCut
-import numpy as np
 import json
 
+import numpy as np
 
-if __name__ == '__main__':
-    
+from biqbin import MaxCutSolutionToJson, MaxCutSolver, get_rank, init
+from biqbin.argparsers import ArgParserMaxCut
+from biqbin.logging import configure_rank_logging
+
+if __name__ == "__main__":
     parser = ArgParserMaxCut()
     args = parser.parse_args()
 
-    init() # initialize MPI
+    init()  # initialize MPI
     configure_rank_logging(args.log_dir, get_rank())
     # Select the file reader based on the file format
     parser_class = args.format
-    file_reader = parser_class(
-        args.problem_instance,
-        optimize_input=args.optimize)
+    file_reader = parser_class(args.problem_instance, optimize_input=args.optimize)
 
     # Read the file
     problem = file_reader.read()
 
     if get_rank() == 0 and args.solution:
-        with open(args.solution, 'r') as f:
-            initial_estimate = np.array(json.load(f)['initial_estimate'])
+        with open(args.solution, "r") as f:
+            initial_estimate = np.array(json.load(f)["initial_estimate"])
     else:
         initial_estimate = None
 
@@ -34,7 +32,8 @@ if __name__ == '__main__':
         time_limit=args.time,
         initial_estimate=initial_estimate,
         collect_heuristic_root_data=args.collect_root_data,
-        collect_sdp_bound_root_data=args.collect_root_data)
+        collect_sdp_bound_root_data=args.collect_root_data,
+    )
 
     # Compute the solution for the given problem
     solution = solver.compute()
@@ -42,16 +41,14 @@ if __name__ == '__main__':
     if get_rank() == 0:
         # Print the results if master rank
         if solution is None:
-            raise ValueError(f'Solution to problem {problem} not found!')
+            raise ValueError(f"Solution to problem {problem} not found!")
 
         solution.print_computed_solution(args.verbose)
         # Save solution
         if args.output:
             output_path = args.output
         else:
-            output_path = args.problem_instance + '.output'
+            output_path = args.problem_instance + ".output"
 
         file_writer = MaxCutSolutionToJson(solution)
-        file_writer.write(output_path,
-                          overwrite=args.overwrite,
-                          with_metadata=True)
+        file_writer.write(output_path, overwrite=args.overwrite, with_metadata=True)

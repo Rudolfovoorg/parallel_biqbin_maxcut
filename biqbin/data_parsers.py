@@ -1,12 +1,16 @@
 import json
+from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from os.path import lexists
+from typing import Literal
+
 import numpy as np
 import scipy as sp
-from abc import ABC, abstractmethod
-from glob import glob
 
-from biqbin.biqbin_base import ProblemMaxCut, ProblemQubo, SolutionMaxCut, SolutionQubo
 import biqbin.external.pyqplib as pyqplib
-from biqbin.utils import from_sparse, convert_numpy_to_json_serializable
+from biqbin.problem import ProblemBQP, ProblemMaxCut, ProblemQubo
+from biqbin.solution import SolutionBQP, SolutionMaxCut, SolutionQubo
+from biqbin.utils import convert_numpy_to_json_serializable, from_sparse
 
 
 class FromFile(ABC):
@@ -14,7 +18,9 @@ class FromFile(ABC):
     that takes a filename and returns a ProblemMaxCut or it's subclass (i.e. ProblemQubo)
     """
 
-    def __init__(self, filename: str, problem_name: str | None = None, optimize_input: bool = False) -> None:
+    def __init__(
+        self, filename: str, problem_name: str | None = None, optimize_input: bool = False
+    ) -> None:
         """
         Args:
             filename (str): Path to problem instance file.
@@ -26,13 +32,11 @@ class FromFile(ABC):
         self.optimize_input = optimize_input
 
     @abstractmethod
-    def read(self) -> ProblemMaxCut:
-        ...
+    def read(self) -> ProblemMaxCut: ...
 
 
 class MaxCutFromJson(FromFile):
-    """MaxCut data parser for a JSON file containing a 'maxcut' key and scipy sparse.coo_matrix as value.
-    """
+    """MaxCut data parser for a JSON file containing a 'maxcut' key and scipy sparse.coo_matrix as value."""
 
     def read(self) -> ProblemMaxCut:
         """Read MaxCut json file that contains the adjacency matrix in scipy sparse.coo_matrix format.
@@ -44,7 +48,9 @@ class MaxCutFromJson(FromFile):
             mc_data = json.load(f)
 
         adj_matrix = from_sparse(mc_data["maxcut"])
-        return ProblemMaxCut(adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input)
+        return ProblemMaxCut(
+            adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input
+        )
 
 
 class MaxCutFromMatrixMarket(FromFile):
@@ -62,36 +68,37 @@ class MaxCutFromMatrixMarket(FromFile):
 
 
 class MaxCutFromEdgeWeights(FromFile):
-    """MaxCut edge weight data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/
-    """
+    """MaxCut edge weight data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/"""
 
     def read(self) -> ProblemMaxCut:
-        """Read MaxCut edge weight file (Stanford GSet format: https://web.stanford.edu/~yyye/yyye/Gset/) 
+        """Read MaxCut edge weight file (Stanford GSet format: https://web.stanford.edu/~yyye/yyye/Gset/)
         and return the MaxCutProblem instance.
 
         Returns:
             ProblemMaxCut: Problem instance for MaxCutSolver.
         """
-        with open(self.filename, 'r') as f:
+        with open(self.filename, "r") as f:
             # Read number of vertices and edges
             num_vertices, num_edges = map(int, f.readline().split())
-            adj_matrix = np.zeros(
-                (num_vertices, num_vertices), dtype=np.float64)
+            adj_matrix = np.zeros((num_vertices, num_vertices), dtype=np.float64)
 
             edges = np.atleast_2d(np.loadtxt(f, max_rows=num_edges))
             if edges.shape != (num_edges, 3):
                 raise ValueError(
-                    f'Expected {num_edges} edge rows with 3 columns, '
-                    f'got {edges.shape}'
+                    f"Expected {num_edges} edge rows with 3 columns, got {edges.shape}"
                 )
 
         i, j, w = self.edge_weights_checks(edges, num_vertices)
         adj_matrix[i, j] = w
         adj_matrix[j, i] = w
 
-        return ProblemMaxCut(adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input)
+        return ProblemMaxCut(
+            adj_matrix, self.problem_name, optimize_mc_adj_matrix=self.optimize_input
+        )
 
-    def edge_weights_checks(self, edges: np.ndarray, num_vertices: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def edge_weights_checks(
+        self, edges: np.ndarray, num_vertices: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Safety checks for the edges and weights
 
         Args:
@@ -116,52 +123,52 @@ class MaxCutFromEdgeWeights(FromFile):
 
         if bad_rows.size:
             raise IndexError(
-                f'Invalid vertices in rows {[int(row) + 1 for row in bad_rows]}: '
-                f'vertices must be integers between 1 and {num_vertices}'
+                f"Invalid vertices in rows {[int(row) + 1 for row in bad_rows]}: "
+                f"vertices must be integers between 1 and {num_vertices}"
             )
-        
+
         i = vertices[:, 0].astype(int) - 1
         j = vertices[:, 1].astype(int) - 1
 
         w = edges[:, 2]
-        
+
         bad_weights_mask = ~np.isfinite(w) | (w != np.round(w))
         if np.any(bad_weights_mask):
             bad_rows = np.where(bad_weights_mask)[0] + 1
             raise ValueError(
-                f'{self.filename}: Row(s) {[int(row) for row in bad_rows]} '
-                f'have invalid weight(s), all weights must be finite integers!'
+                f"{self.filename}: Row(s) {[int(row) for row in bad_rows]} "
+                f"have invalid weight(s), all weights must be finite integers!"
             )
         return i, j, w
 
 
 class QuboFromJson(FromFile):
-    """QUBO data parser for scipy sparse coo matrix in JSON format. Json must have a 'qubo' key and a scipy sparse.coo_matrix as value.
-    """
+    """QUBO data parser for scipy sparse coo matrix in JSON format. Json must have a 'qubo' key and a scipy sparse.coo_matrix as value."""
 
     def read(self) -> ProblemQubo:
         """Read from the given filename and return the ProblemQubo used by the QuboSolver.
-.
-        Returns:
-            ProblemQubo: Qubo problem instance for QuboSolver.
+        .
+                Returns:
+                    ProblemQubo: Qubo problem instance for QuboSolver.
         """
         with open(self.filename, "r") as f:
             qubo_data = json.load(f)
 
         qubo = from_sparse(qubo_data["qubo"])
-        offset = qubo_data.get('offset', 0)
-        minimization = qubo_data.get('is_minimization', True)
+        offset = qubo_data.get("offset", 0)
+        minimization = qubo_data.get("is_minimization", True)
 
-        return ProblemQubo(Q=qubo,
-                           offset=offset,
-                           problem_name=self.problem_name,
-                           is_minimization=minimization,
-                           optimize_input=self.optimize_input)
+        return ProblemQubo(
+            Q=qubo,
+            offset=offset,
+            problem_name=self.problem_name,
+            is_minimization=minimization,
+            optimize_input=self.optimize_input,
+        )
 
 
 class QuboFromMatrixMarket(FromFile):
-    """QUBO data parser for MatrixMarket file format. Supports sparse and dense matrix formats.
-    """
+    """QUBO data parser for MatrixMarket file format. Supports sparse and dense matrix formats."""
 
     def read(self) -> ProblemQubo:
         """Read a QUBO instance from MatrixMarket format.
@@ -173,12 +180,17 @@ class QuboFromMatrixMarket(FromFile):
         Q = sp.io.mmread(self.filename)
         if sp.sparse.issparse(Q):
             Q = Q.toarray()
-        return ProblemQubo(Q=Q, offset=0.0, problem_name=self.problem_name, is_minimization=True, optimize_input=self.optimize_input)
+        return ProblemQubo(
+            Q=Q,
+            offset=0.0,
+            problem_name=self.problem_name,
+            is_minimization=True,
+            optimize_input=self.optimize_input,
+        )
 
 
 class QuboFromEdgeWeights(MaxCutFromEdgeWeights):
-    """Qubo data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/
-    """
+    """Qubo data parser in Stanford Gset format style https://web.stanford.edu/~yyye/yyye/Gset/"""
 
     def read(self) -> ProblemQubo:
         """Read Qubo edge weight file (Stanford GSet format: https://web.stanford.edu/~yyye/yyye/Gset/) and return the QuboProblem instance.
@@ -186,30 +198,30 @@ class QuboFromEdgeWeights(MaxCutFromEdgeWeights):
         Returns:
             ProblemQubo: Problem instance for QUBOSolver.
         """
-        with open(self.filename, 'r') as f:
+        with open(self.filename, "r") as f:
             # Read number of vertices and edges
             num_vertices, num_edges = map(int, f.readline().split())
-            Q = np.zeros(
-                (num_vertices, num_vertices), dtype=np.float64)
+            Q = np.zeros((num_vertices, num_vertices), dtype=np.float64)
 
             edges = np.atleast_2d(np.loadtxt(f, max_rows=num_edges))
             if edges.shape != (num_edges, 3):
                 raise ValueError(
-                    f'Expected {num_edges} edge rows with 3 columns, '
-                    f'got {edges.shape}'
+                    f"Expected {num_edges} edge rows with 3 columns, got {edges.shape}"
                 )
         i, j, w = self.edge_weights_checks(edges, num_vertices)
         Q[i, j] = w
 
-        return ProblemQubo(Q=Q,
-                           offset=0.0,
-                           problem_name=self.problem_name,
-                           is_minimization=False,
-                           optimize_input=self.optimize_input)
+        return ProblemQubo(
+            Q=Q,
+            offset=0.0,
+            problem_name=self.problem_name,
+            is_minimization=False,
+            optimize_input=self.optimize_input,
+        )
 
 
 class QuboFromQPLIB(FromFile):
-    """File reader for QPLIB instances https://qplib.zib.de/, 
+    """File reader for QPLIB instances https://qplib.zib.de/,
     only unconstrained binary problems are allowed.
     """
 
@@ -238,21 +250,25 @@ class QuboFromQPLIB(FromFile):
 
         def to_coo_matrix(mat):
             return sp.sparse.coo_matrix(
-                (mat.subdiag_vals, (mat.subdiag_rows, mat.subdiag_cols)),
-                shape=mat.shape
+                (mat.subdiag_vals, (mat.subdiag_rows, mat.subdiag_cols)), shape=mat.shape
             )
 
         if obj_type in [pyqplib.ProblemObjType.CONVEX, pyqplib.ProblemObjType.GENERAL]:
-            Q: np.ndarray = to_coo_matrix(problem.obj.mat).toarray() # pyright: ignore[reportAttributeAccessIssue]
+            Q: np.ndarray = to_coo_matrix(problem.obj.mat).toarray()  # pyright: ignore[reportAttributeAccessIssue]
         else:
             Q = np.zeros((problem.description.num_vars, problem.description.num_vars))
 
         # QPLIB definition is 1/2 Quadratic + Linear + Offset
         Q /= 2
         np.fill_diagonal(Q, objective.lin)  # pyright: ignore[reportAttributeAccessIssue]
-        
-        return ProblemQubo(Q=Q, offset=objective.offset, problem_name=self.problem_name, is_minimization=sense, optimize_input=self.optimize_input)  # pyright: ignore[reportAttributeAccessIssue]
 
+        return ProblemQubo(
+            Q=Q,
+            offset=objective.offset,  # pyright: ignore[reportAttributeAccessIssue]
+            problem_name=self.problem_name,
+            is_minimization=sense,
+            optimize_input=self.optimize_input,
+        )
 
 
 class ToFile(ABC):
@@ -261,8 +277,7 @@ class ToFile(ABC):
     """
 
     @abstractmethod
-    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None:
-        ...
+    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True) -> None: ...
 
     @classmethod
     def get_output_path(cls, out_file: str, overwrite: bool) -> str:
@@ -277,19 +292,37 @@ class ToFile(ABC):
         Returns:
             str: output file path
         """
-        out_file = out_file[:-5] if out_file.endswith('.json') else out_file
+        out_file = out_file[:-5] if out_file.endswith(".json") else out_file
         if overwrite:
-            return out_file + '.json'
+            return out_file + ".json"
 
-        file_count = len(glob(f'{out_file}*.json'))
-        if file_count > 0:
-            out_file += f'_{file_count}'
-        return out_file + '.json'
+        candidate = out_file + ".json"
+        suffix = 0
+        while lexists(candidate):
+            suffix += 1
+            candidate = f"{out_file}_{suffix}.json"
+        return candidate
+
+    @classmethod
+    @contextmanager
+    def open_output(cls, filename: str, overwrite: bool):
+        """Open an output file without replacing an existing result by default."""
+        while True:
+            output_path = cls.get_output_path(filename, overwrite)
+            try:
+                output = open(output_path, "w" if overwrite else "x")
+            except FileExistsError:
+                # Another process may claim the name between selection and open.
+                if overwrite:
+                    raise
+                continue
+            break
+        with output:
+            yield output
 
 
 class MaxCutSolutionToJson(ToFile):
-    """Helper class to save the SolutionMaxCut as a json file.
-    """
+    """Helper class to save the SolutionMaxCut as a json file."""
 
     def __init__(self, solution: SolutionMaxCut) -> None:
         self.solution: SolutionMaxCut = solution
@@ -298,52 +331,307 @@ class MaxCutSolutionToJson(ToFile):
         """Save the solution as JSON file.
 
         Args:
-            solution (SolutionMaxCut): Solution class returned by Biqbin after solving the problem
+            filename (str): Destination filename.
+            overwrite (bool): Replace an existing file when True; otherwise choose
+                an unused filename.
             with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
         """
 
-        # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(filename, overwrite)
-
-        save_output = {
-            'maxcut': self.solution.solution
-        }
+        save_output = {"maxcut": self.solution.solution}
         if with_metadata:
-            save_output['meta_data'] = self.solution.meta_data
+            save_output["meta_data"] = self.solution.meta_data
 
-        with open(output_path, 'w') as f:
-            json.dump(save_output, f,
-                      default=convert_numpy_to_json_serializable)
+        with self.open_output(filename, overwrite) as f:
+            json.dump(save_output, f, default=convert_numpy_to_json_serializable)
 
 
 class QuboSolutionToJson(ToFile):
-    """Helper class to save QUBO solution as json file.
-    """
+    """Helper class to save QUBO solution as json file."""
 
     def __init__(self, solution: SolutionQubo) -> None:
         self.solution: SolutionQubo = solution
 
-    def write(self, filename: str, overwrite: bool = False, with_metadata: bool = True, with_maxcut_solution: bool = False) -> None:
+    def write(
+        self,
+        filename: str,
+        overwrite: bool = False,
+        with_metadata: bool = True,
+        with_maxcut_solution: bool = False,
+    ) -> None:
         """Save qubo solution to a json file.
 
         Args:
-            solution (SolutionQubo): Solution class returned by Biqbin after solving the problem
+            filename (str): Destination filename.
+            overwrite (bool): Replace an existing file when True; otherwise choose
+                an unused filename.
             with_metadata (bool, optional): Add meta_data to output. Defaults to True.
             with_maxcut_solution (bool, optional): Add MaxCut solution to save output. Defaults to False.
         """
 
-        # Check if output filename exists if we are not overriding and replace with filename_N.json
-        output_path = self.get_output_path(filename, overwrite)
-
-        save_output = {
-            'qubo': self.solution.solution
-        }
+        save_output = {"qubo": self.solution.solution}
 
         if with_maxcut_solution:
-            save_output['maxcut'] = self.solution.solution_maxcut
+            save_output["maxcut"] = self.solution.solution_maxcut
         if with_metadata:
-            save_output['meta_data'] = self.solution.meta_data
+            save_output["meta_data"] = self.solution.meta_data
 
-        with open(output_path, 'w') as f:
-            json.dump(save_output, f,
-                      default=convert_numpy_to_json_serializable)
+        with self.open_output(filename, overwrite) as f:
+            json.dump(save_output, f, default=convert_numpy_to_json_serializable)
+
+
+FileDataSection = Literal["F", "c", "A", "b"]
+
+
+class BQPFromQBODense(FromFile):
+    def read(self) -> ProblemBQP:
+        with open(self.filename) as f:
+            data = json.load(f)
+
+        F = np.array(data["QBO"]["Q"])
+        if not np.allclose(F, F.T):
+            F = F + F.T
+        c = F.diagonal().copy()
+        A = np.array(data["QBO"]["constraints"]["linear"][0])
+        b = np.array(data["QBO"]["constraints"]["linear"][1])
+
+        return ProblemBQP(F, c, A, b, self.problem_name, optimize_input=self.optimize_input)
+
+
+class BQPFromQBOSparse(FromFile):
+    """Read sparse QBO input with one block of linear equality constraints.
+
+    Quadratic constraints and additional linear blocks are rejected rather than
+    silently omitted. Combine all equality rows into one block before loading.
+    """
+
+    def read(self):
+        data, Q, lin, quad = self._load_qbo_new_format(self.filename)
+        if quad:
+            raise ValueError("BiqBin does not support quadratic constraints!")
+        if len(lin) != 1:
+            raise ValueError(
+                "Sparse QBO input requires exactly one linear constraint block; "
+                "combine all equality rows into one block."
+            )
+
+        Q_dense = Q.toarray() * 2
+
+        # Scale the original QBO objective by 2:
+        #   2 * x.T @ Q @ x == x.T @ F @ x + c.T @ x
+        c = np.diag(Q_dense).copy()
+        F = (Q_dense + Q_dense.T) * 0.5
+        np.fill_diagonal(F, 0)
+
+        A, b, sense = lin[0]
+
+        if sense != "==":
+            raise ValueError("BiqBin can only solve equality constraints!")
+
+        # if data['QBO']['offset'] != 0:
+        #     raise ValueError(
+        #         f"Offset == {data['QBO']['offset']}"
+        #     )
+        offset = data["QBO"]["offset"]
+        return ProblemBQP(
+            F,
+            c,
+            A.toarray(),
+            b,
+            self.problem_name,
+            offset=offset,
+            optimize_input=self.optimize_input,
+        )
+
+    def _load_qbo_new_format(self, path):
+        """
+        NOTE: function taken from https://github.com/Rudolfovoorg/A-Direct-SDP-Approach-for-QBOs/blob/main/WP1-SDP/new_format/qbo_sdp_new_format.py
+
+        Load a new-format QBO JSON instance.
+
+        New sparse matrix format:
+            ((data, (row, col)), shape)
+
+        Returns:
+            data, Q, linear_constraints, quadratic_constraints
+        where
+            Q: scipy sparse COO matrix
+            linear_constraints: [(B, c, sense), ...]
+            quadratic_constraints: [(Qi, ri, sense), ...]
+        """
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        ((Q_data, (Q_row, Q_col)), Q_shape) = data["QBO"]["Q"]
+        Q = sp.sparse.coo_matrix((Q_data, (Q_row, Q_col)), shape=Q_shape)
+
+        linear = [
+            (
+                sp.sparse.coo_matrix((Bi_data, (Bi_row, Bi_col)), shape=Bi_shape),
+                np.asarray(Ci, dtype=float),
+                sense,
+            )
+            for ((Bi_data, (Bi_row, Bi_col)), Bi_shape), Ci, sense in data["QBO"]["constraints"][
+                "linear"
+            ]
+        ]
+
+        quadratic = [
+            (
+                sp.sparse.coo_matrix((Qi_data, (Qi_row, Qi_col)), shape=Qi_shape),
+                float(ri),
+                sense,
+            )
+            for ((Qi_data, (Qi_row, Qi_col)), Qi_shape), ri, sense in data["QBO"]["constraints"][
+                "quadratic"
+            ]
+        ]
+
+        return data, Q, linear, quadratic
+
+
+class BQPFromBQPFile(FromFile):
+    """
+    Read the custom BQP file format, defined in https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/doc/BQP_INPUT_EXAMPLE.md
+    """
+
+    def read(self) -> ProblemBQP:
+        with open(self.filename, "r") as f:
+            lines = f.readlines()
+
+        if not lines:
+            raise ValueError(f"File {self.filename} is empty!")
+
+        try:
+            n, m = map(int, lines[0].split())
+        except ValueError:
+            raise ValueError(f'File {self.filename}: first line must be "n m", got: {lines[0]!r}')
+
+        F = np.zeros((n, n))
+        c = np.zeros(n)
+        A = np.zeros((m, n))
+        b = np.zeros(m)
+
+        current_section: FileDataSection | None = None
+
+        def check_index(name: str, i: int, upper: int) -> None:
+            if not (1 <= i <= upper):
+                raise IndexError(f"{name} index {i} out of range (must be 1..{upper})")
+
+        for lineno, raw_line in enumerate(lines[1:], start=2):
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line in {"F", "c", "A", "b"}:
+                current_section = line  # type: ignore
+                continue
+            if current_section is None:
+                raise ValueError(
+                    f"File {self.filename}, line {lineno}: data before any section header: {line!r}"
+                )
+            try:
+                match current_section:
+                    case "F":
+                        i, j, v = map(int, line.split())
+                        check_index("F row", i, n)
+                        check_index("F column", j, n)
+                        i, j = i - 1, j - 1
+                        F[i, j] = v
+                        if i != j:
+                            F[j, i] = v
+                    case "c":
+                        i, v = map(int, line.split())
+                        check_index("c", i, n)
+                        c[i - 1] = v
+                    case "A":
+                        i, j, v = map(int, line.split())
+                        check_index("A row", i, m)
+                        check_index("A column", j, n)
+                        A[i - 1, j - 1] = v
+                    case "b":
+                        i, v = map(int, line.split())
+                        check_index("b", i, m)
+                        b[i - 1] = v
+
+            except ValueError as e:
+                raise ValueError(
+                    f"File {self.filename}, line {lineno} (section {current_section!r}): {e}\n  {line!r}"
+                ) from e
+
+        return ProblemBQP(F, c, A, b, self.problem_name, optimize_input=self.optimize_input)
+
+
+class BQPFromJson(FromFile):
+    """
+    Reads and parses BQP JSON file.
+    """
+
+    def read(self) -> ProblemBQP:
+        """Read the bqp json file and return a ProblemBQP class instance that SolverBQP can read."""
+
+        with open(self.filename, "r") as file:
+            instance = json.load(file)
+
+        n = instance["number_of_variables"]
+        m = instance["number_of_constraints"]
+
+        def check_index(name: str, i: int, upper: int):
+            if not 0 <= i < upper:
+                raise IndexError(f"{name} index {i} out of range (must be 0..{upper - 1})")
+
+        F = np.zeros((n, n))
+        for i, j, v in instance["F"]:
+            check_index("F row", i, n)
+            check_index("F column", j, n)
+            F[i, j] = v
+            if i != j:
+                F[j, i] = v
+
+        A = np.zeros((m, n))
+        for i, j, v in instance["A"]:
+            check_index("A row", i, m)
+            check_index("A column", j, n)
+            A[i, j] = v
+
+        c = np.zeros(n)
+        for i, v in instance["c"]:
+            check_index("c", i, n)
+            c[i] = v
+
+        b = np.zeros(m)
+        for i, v in instance["b"]:
+            check_index("b", i, m)
+            b[i] = v
+
+        return ProblemBQP(F, c, A, b, self.problem_name, optimize_input=self.optimize_input)
+
+
+class BQPToJson(ToFile):
+    def __init__(self, solution: SolutionBQP) -> None:
+        self.solution: SolutionBQP = solution
+
+    def write(
+        self,
+        filename: str,
+        overwrite: bool = False,
+        with_metadata: bool = True,
+        with_maxcut_solution: bool = False,
+    ) -> None:
+        """Save the bqp solution as JSON file.
+
+        Args:
+            filename (str): Destination filename.
+            overwrite (bool): Replace an existing file when True; otherwise choose
+                an unused filename.
+            with_metadata (bool, optional): Add meta_data to output file. Defaults to True.
+        """
+
+        save_output = {
+            "bqp": self.solution.solution,
+        }
+        if with_maxcut_solution:
+            save_output["maxcut"] = self.solution.maxcut_solution
+        if with_metadata:
+            save_output["meta_data"] = self.solution.meta_data
+
+        with self.open_output(filename, overwrite) as f:
+            json.dump(save_output, f, default=convert_numpy_to_json_serializable)

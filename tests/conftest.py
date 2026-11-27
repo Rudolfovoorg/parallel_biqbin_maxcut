@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 
@@ -7,15 +9,15 @@ def pytest_addoption(parser):
         --instances inst1 inst2 inst3 ...
     """
     parser.addoption(
+        "--behavior-report",
+        default="artifacts/tests/behavior/output.txt",
+        help="Write expected-versus-actual solver behavior diagnostics to this file.",
+    )
+    parser.addoption(
         "--instances",
         nargs="+",
         default=[],
         help="List of problem instances",
-    )
-    parser.addoption(
-        "--without-sol-vector",
-        action="store_true",
-        help="Skip checking the solution vector for SA heurist, it is too random",
     )
 
 
@@ -27,9 +29,14 @@ def pytest_generate_tests(metafunc):
         instances = metafunc.config.getoption("--instances")
 
         if not instances:
-            pytest.fail(
-                "No instances provided! Use:\n"
-                "   pytest --instances inst1 inst2 inst3"
-            )
+            pytest.fail("No instances provided! Use:\n   pytest --instances inst1 inst2 inst3")
 
         metafunc.parametrize("problem_instance", instances)
+
+
+@pytest.fixture(scope="session")
+def behavior_report(request):
+    path = Path(request.config.getoption("--behavior-report"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("Solver behavior compared with expected output\n\n")
+    return path

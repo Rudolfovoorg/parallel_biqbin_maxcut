@@ -1,0 +1,222 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENBLAS_NUM_THREADS: "1"
+  GOTO_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  # ==========================================================
+  # Python linting and formatting
+  # ==========================================================
+  lint:
+    name: Ruff (lint and format)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: python -m pip install ruff==0.17.5
+
+      - name: Lint
+        run: make lint
+
+      - name: Check formatting
+        run: make format-check
+
+  # ==========================================================
+  # Documentation validation (no deployment)
+  # ==========================================================
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install documentation dependencies
+        run: python -m pip install -r requirements-docs.txt
+
+      - name: Build documentation
+        run: make docs
+
+  # ==========================================================
+  # Native builds, MPI tests and Python coverage
+  # ==========================================================
+  test:
+    name: Test (Python ${{ matrix.python }}, ${{ matrix.mpi }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Canonical environment: complete suite + coverage
+          - python: "3.12"
+            mpi: mpich
+            suite: coverage
+
+          # Python compatibility: focused unit tests
+          - python: "3.13"
+            mpi: mpich
+            suite: unit
+
+          # MPI compatibility: smoke and failure tests
+          - python: "3.12"
+            mpi: openmpi
+            suite: smoke
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare diagnostics
+        run: mkdir -p ci-artifacts
+
+      # ------------------------------------------------------
+      # Build
+      # ------------------------------------------------------
+      - name: Build CI image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker build --progress=plain \
+            --target ci \
+            --build-arg PYTHON_VERSION=${{ matrix.python }} \
+            --build-arg MPI_IMPL=${{ matrix.mpi }} \
+            -t biqbin-ci . \
+            2>&1 | tee ci-artifacts/build.log
+
+      # ------------------------------------------------------
+      # Test
+      # ------------------------------------------------------
+      - name: Validate runtime image
+        if: matrix.python == '3.12'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker build --progress=plain \
+            --target runtime \
+            --build-arg PYTHON_VERSION=${{ matrix.python }} \
+            --build-arg MPI_IMPL=${{ matrix.mpi }} \
+            -t biqbin-runtime . \
+            2>&1 | tee ci-artifacts/runtime-build.log
+
+          # Permit extra local slots, without enabling root execution.
+          docker run --rm --init \
+            -e OMPI_MCA_rmaps_base_oversubscribe=1 \
+            biqbin-runtime \
+            timeout --kill-after=5s 60s mpiexec -n 3 \
+            python -m tests.runtime_smoke \
+            2>&1 | tee ci-artifacts/runtime-smoke.log
+
+      - name: Run regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run --init \
+            --name biqbin-ci-tests \
+            -v "$PWD/ci-artifacts:/artifacts" \
+            -e PYTEST_ADDOPTS="--basetemp=/artifacts/pytest" \
+            -e TEST_SUITE="${{ matrix.suite }}" \
+            biqbin-ci bash -e -o pipefail -c '
+              echo "=== Environment ==="
+              python --version
+              mpicc -show
+              mpiexec --version
+              python -m pip freeze
+
+              echo "=== Tests ==="
+
+              case "$TEST_SUITE" in
+                coverage)
+                  make coverage
+                  ;;
+
+                unit)
+                  make test-unit
+                  ;;
+
+                smoke)
+                  make test-logging \
+                    test-maxcut \
+                    test-expected-failure
+                  ;;
+
+                *)
+                  echo "Unknown test suite: $TEST_SUITE" >&2
+                  exit 1
+                  ;;
+              esac
+            ' 2>&1 | tee ci-artifacts/tests.log
+
+      # ------------------------------------------------------
+      # Diagnostics (also on failure)
+      # ------------------------------------------------------
+      - name: Collect reports
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p ci-artifacts
+
+          if docker container inspect biqbin-ci-tests >/dev/null 2>&1; then
+            docker cp \
+              biqbin-ci-tests:/solver/artifacts/. \
+              ci-artifacts/ 2>/dev/null || true
+          fi
+
+      - name: Clean up
+        if: always()
+        shell: bash
+        run: |
+          docker rm -f biqbin-ci-tests || true
+
+          # Container-generated files may be owned by root.
+          sudo chmod -R a+rX ci-artifacts
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-${{ matrix.python }}-${{ matrix.mpi }}
+          path: ci-artifacts/
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true

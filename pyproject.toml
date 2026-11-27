@@ -1,0 +1,46 @@
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+cache-dir = "artifacts/cache/ruff"
+
+extend-exclude = [
+    "biqbin/external",
+    "build",
+    "htmlcov",
+    "site",
+]
+
+[tool.ruff.lint]
+select = [
+    "E4",  # Import-related errors
+    "E7",  # Statement errors
+    "E9",  # Runtime/syntax errors
+    "F",   # Pyflakes: unused imports, undefined names, etc.
+    "I",   # Import ordering
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.coverage.run]
+branch = true
+source = ["biqbin"]
+omit = [
+    "biqbin/external/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+precision = 1
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+cache_dir = "artifacts/cache/pytest"

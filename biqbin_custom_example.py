@@ -22,7 +22,7 @@ class CustomSolver(QUBOSolver):
     NOTE: Custom `sdp_bound` needs to set the SDP primal solution by calling `self.set_sdp_primal_solution`,
     passing in a PSD matrix of shape (P.n, P.n).
 
-    The example implementations return hardcoded values in place of an actual sdp or heuristic 
+    The example implementations return hardcoded values in place of an actual sdp or heuristic
     and are meant for demonstration purposes only.
     """
 
@@ -31,7 +31,7 @@ class CustomSolver(QUBOSolver):
 
         By overriding this method you can use a custom SDP routine only on the root node.
         NOTE: You need to set the SDP primal solution by calling `self.set_sdp_primal_solution`.
-        
+
         Args:
             node (BabNode): Current B&B node
             P0   (Problem): Original (full) problem
@@ -44,14 +44,14 @@ class CustomSolver(QUBOSolver):
         X = np.identity(P.n)
         # Set the primal solution inside native Biqbin
         self.set_sdp_primal_solution(X)
-        
-        sdp_value: float = 10000 # some computed SDP value
+
+        sdp_value: float = 10000  # some computed SDP value
         return sdp_value
 
     def initial_heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
         """Custom root node heuristic.
 
-        By overriding the heuristic method you can use a custom heuristic only on the root node. 
+        By overriding the heuristic method you can use a custom heuristic only on the root node.
 
         Returned solution binary vector needs to be of length L.shape[0] - 1
         """
@@ -79,7 +79,7 @@ class CustomSolver(QUBOSolver):
         return sdp_value
 
     def heuristic(self, L: np.ndarray, *args, **kwargs) -> npt.NDArray[np.int32]:
-        """Custom heuristic on non-root B&B nodes. 
+        """Custom heuristic on non-root B&B nodes.
 
         If ``initial_heuristic`` is not overwritten, this function will also be used on the root node.
         """
@@ -91,8 +91,8 @@ class CustomSolver(QUBOSolver):
 class CustomSDPSolver(QUBOSolver):
     """Example of a solver with only a custom SDP routine.
 
-    Biqbin requires an SDP primal solution PSD matrix to be set. 
-    The default ``sdp_routine`` does this internally, but should we use a custom sdp routine, 
+    Biqbin requires an SDP primal solution PSD matrix to be set.
+    The default ``sdp_routine`` does this internally, but should we use a custom sdp routine,
     we need to set it manually with ``self.set_sdp_primal_solution``.
 
     This class implements the simplest example, using the identity matrix as the SDP
@@ -111,5 +111,5 @@ class CustomSDPSolver(QUBOSolver):
         # Set the primal solution inside native Biqbin
         self.set_sdp_primal_solution(X)
 
-        sdp_value: float = 10000 # some computed SDP relaxation value
+        sdp_value: float = 10000  # some computed SDP relaxation value
         return sdp_value

@@ -13,12 +13,15 @@ Enter into the directory:
 ```bash
 cd parallel_biqbin_maxcut/
 ```
-Load modules required by Biqbin:
+Load site-provided MPI, OpenBLAS, and Python modules. Python must be 3.12 or
+newer to match the supported dependencies; ask your site for the available
+module name. The MPI and OpenBLAS names below are examples, not a CI-tested
+cluster configuration:
 
 ```bash
-module load OpenMPI/4.1.6-GCC-13.2.0
-module load OpenBLAS/0.3.24-GCC-13.2.0
-module load Python/3.11.5-GCCcore-13.2.0
+module load OpenMPI
+module load OpenBLAS
+module load Python
 ```
 
 Install the requirements:
@@ -41,9 +44,9 @@ Remember to load in the three modules on every new session:
 
 
 ```bash
-module load OpenMPI/4.1.6-GCC-13.2.0
-module load OpenBLAS/0.3.24-GCC-13.2.0
-module load Python/3.11.5-GCCcore-13.2.0
+module load OpenMPI
+module load OpenBLAS
+module load Python
 ```
 
 Create a bash script for your job called `run.sh`:
@@ -70,13 +73,14 @@ export OMP_NUM_THREADS=1
 srun python3 biqbin_qubo.py tests/qubos/40/kcluster40_025_10_1.json
 ```
 
-The above example runs the QUBO version of the solver on a test instance, for other examples please refer to the [readme file](README.md).
+The above example runs the QUBO version of the solver on a test instance, for other examples please refer to the
+[README](https://github.com/Rudolfovoorg/parallel_biqbin_maxcut/blob/main/README.md).
 
 For `#SBATCH` variables please refer to your [HPC documentation](https://en-vegadocs.vega.izum.si/first-job/).
 
 Submit the job:
 
-```bash 
+```bash
 sbatch run.sh
 ```
 

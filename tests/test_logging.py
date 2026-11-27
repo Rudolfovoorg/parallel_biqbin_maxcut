@@ -1,13 +1,13 @@
 import ctypes
 import importlib
 import io
+import logging
 import os
-from pathlib import Path
 import shutil
 import signal
-import logging
 import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -41,14 +41,21 @@ def restore_logger():
 
 
 def test_import_does_not_configure_root():
-    subprocess.run([sys.executable, "-c", """
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
 import logging
 root = logging.getLogger()
 before = (root.handlers[:], root.level)
 import biqbin
 assert (root.handlers, root.level) == before
 assert biqbin.logger is logging.getLogger('biqbin')
-"""], check=True)
+""",
+        ],
+        check=True,
+    )
 
 
 def test_reconfiguration_preserves_external_handlers(tmp_path, capsys):
@@ -72,7 +79,11 @@ def test_reconfiguration_preserves_external_handlers(tmp_path, capsys):
 
 def test_cli_verbosity_resets_and_filters(capsys):
     parser = ArgParserMaxCut()
-    for flags, expected in [(["-vv"], logging.DEBUG), (["-v"], logging.INFO), ([], logging.WARNING)]:
+    for flags, expected in [
+        (["-vv"], logging.DEBUG),
+        (["-v"], logging.INFO),
+        ([], logging.WARNING),
+    ]:
         parser.parse_args(["example.json", *flags])
         assert biqbin.logger.level == expected
     biqbin.logger.debug("hidden")
@@ -120,11 +131,14 @@ def test_heuristic_logging_does_not_run_extra_computation(monkeypatch, level):
     gw.assert_not_called()
 
 
-@pytest.mark.parametrize("flags, expected", [
-    ([], None),
-    (["--log-dir"], "example.logs"),
-    (["--log-dir", "custom/logs"], "custom/logs"),
-])
+@pytest.mark.parametrize(
+    "flags, expected",
+    [
+        ([], None),
+        (["--log-dir"], "example.logs"),
+        (["--log-dir", "custom/logs"], "custom/logs"),
+    ],
+)
 def test_cli_log_directory(flags, expected):
     args = ArgParserMaxCut().parse_args(["inputs/example.json", *flags])
     assert args.log_dir == expected
@@ -174,10 +188,13 @@ reduce_sum_mpi(1)
     env.setdefault("OMPI_ALLOW_RUN_AS_ROOT", "1")
     env.setdefault("OMPI_ALLOW_RUN_AS_ROOT_CONFIRM", "1")
     process = subprocess.Popen(
-        [mpiexec, "-n", "3", sys.executable, "-c", code,
-         str(directory), str(blocked), failure],
-        cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, start_new_session=True,
+        [mpiexec, "-n", "3", sys.executable, "-c", code, str(directory), str(blocked), failure],
+        cwd=root,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
     )
     try:
         stdout, stderr = process.communicate(timeout=20)
@@ -190,19 +207,34 @@ reduce_sum_mpi(1)
     )
 
 
-@pytest.mark.parametrize("value, valid", [
-    ("0", True), ("10", True), ("25", True),
-    ("debug", True), ("WaRnInG", True), ("FATAL", True),
-    ("00", False), ("010", False), ("08", False), ("0x10", False),
-    ("-1", False), ("1.5", False), ("unknown", False),
-])
+@pytest.mark.parametrize(
+    "value, valid",
+    [
+        ("0", True),
+        ("10", True),
+        ("25", True),
+        ("debug", True),
+        ("WaRnInG", True),
+        ("FATAL", True),
+        ("00", False),
+        ("010", False),
+        ("08", False),
+        ("0x10", False),
+        ("-1", False),
+        ("1.5", False),
+        ("unknown", False),
+    ],
+)
 def test_make_log_level_validation(value, valid):
     if shutil.which("make") is None:
         pytest.skip("make unavailable")
     root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         ["make", "-n", "-B", f"LOG_LEVEL={value}", "build/wrapper/bounding.o"],
-        cwd=root, text=True, capture_output=True, timeout=20,
+        cwd=root,
+        text=True,
+        capture_output=True,
+        timeout=20,
     )
     assert (result.returncode == 0) == valid, result.stdout + result.stderr
     if not valid:

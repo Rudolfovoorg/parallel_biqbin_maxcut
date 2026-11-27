@@ -41,6 +41,7 @@ The default root methods delegate to the regular methods:
 def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
     return self.sdp_bound(node, P0, P, *args, **kwargs)
 
+
 def initial_heuristic(self, L, *args, **kwargs):
     return self.heuristic(L, *args, **kwargs)
 ```
@@ -68,8 +69,7 @@ def sdp_bound(
     P: Problem,
     *args,
     **kwargs,
-) -> float:
-    ...
+) -> float: ...
 ```
 
 where:
@@ -91,8 +91,8 @@ class CustomSDPSolver(MaxCutSolver):
     def sdp_bound(self, node, P0, P, *args, **kwargs):
         bound, X = my_sdp_solver(P.L)
 
-        X = np.asarray(X, dtype=np.float64, order='C')
-        self.set_sdp_primal_solution(X) # set the SDP primal solution matrix with Biqbin
+        X = np.asarray(X, dtype=np.float64, order="C")
+        self.set_sdp_primal_solution(X)  # set the SDP primal solution matrix with Biqbin
 
         return float(bound)
 ```
@@ -121,7 +121,7 @@ The primal matrix is used for branching and is also required by the default Goem
 A safe conversion is:
 
 ```python
-X = np.asarray(X, dtype=np.float64, order='C')
+X = np.asarray(X, dtype=np.float64, order="C")
 self.set_sdp_primal_solution(X)
 ```
 
@@ -138,7 +138,7 @@ class RootSDPSolver(MaxCutSolver):
     def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
         bound, X = expensive_root_sdp(P.L)
 
-        X = np.asarray(X, dtype=np.float64, order='C')
+        X = np.asarray(X, dtype=np.float64, order="C")
         self.set_sdp_primal_solution(X)
 
         return float(bound)
@@ -154,16 +154,12 @@ You can also use two custom strategies:
 class TwoLevelSDPSolver(MaxCutSolver):
     def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
         bound, X = strong_root_sdp(P.L)
-        self.set_sdp_primal_solution(
-            np.asarray(X, dtype=np.float64, order='C')
-        )
+        self.set_sdp_primal_solution(np.asarray(X, dtype=np.float64, order="C"))
         return float(bound)
 
     def sdp_bound(self, node, P0, P, *args, **kwargs):
         bound, X = faster_node_sdp(P.L)
-        self.set_sdp_primal_solution(
-            np.asarray(X, dtype=np.float64, order='C')
-        )
+        self.set_sdp_primal_solution(np.asarray(X, dtype=np.float64, order="C"))
         return float(bound)
 ```
 
@@ -179,16 +175,15 @@ def heuristic(
     L: np.ndarray,
     *args,
     **kwargs,
-):
-    ...
+): ...
 ```
 
 The following objects are supplied through `kwargs`:
 
 ```python
-node = kwargs['node']
-P0 = kwargs['P0']
-P = kwargs['P']
+node = kwargs["node"]
+P0 = kwargs["P0"]
+P = kwargs["P"]
 ```
 
 The callback must return a one-dimensional binary vector containing one value for each free decision variable of the current subproblem. The wrapper currently validates the vector against shape:
@@ -262,16 +257,12 @@ All four callbacks can be overridden independently:
 class CustomSolver(MaxCutSolver):
     def initial_sdp_bound(self, node, P0, P, *args, **kwargs):
         bound, X = root_sdp(P.L)
-        self.set_sdp_primal_solution(
-            np.asarray(X, dtype=np.float64, order='C')
-        )
+        self.set_sdp_primal_solution(np.asarray(X, dtype=np.float64, order="C"))
         return float(bound)
 
     def sdp_bound(self, node, P0, P, *args, **kwargs):
         bound, X = node_sdp(P.L)
-        self.set_sdp_primal_solution(
-            np.asarray(X, dtype=np.float64, order='C')
-        )
+        self.set_sdp_primal_solution(np.asarray(X, dtype=np.float64, order="C"))
         return float(bound)
 
     def initial_heuristic(self, L, *args, **kwargs):
@@ -293,9 +284,7 @@ If the same implementation should be used on every node, only override the regul
 class CustomSolver(MaxCutSolver):
     def sdp_bound(self, node, P0, P, *args, **kwargs):
         bound, X = my_sdp(P.L)
-        self.set_sdp_primal_solution(
-            np.asarray(X, dtype=np.float64, order='C')
-        )
+        self.set_sdp_primal_solution(np.asarray(X, dtype=np.float64, order="C"))
         return float(bound)
 
     def heuristic(self, L, *args, **kwargs):
@@ -351,11 +340,11 @@ P.bundle
 The most commonly useful values are:
 
 ```python
-P0.L   # original objective matrix
-P0.n   # original problem size
+P0.L  # original objective matrix
+P0.n  # original problem size
 
-P.L    # current subproblem objective matrix
-P.n    # current subproblem size
+P.L  # current subproblem objective matrix
+P.n  # current subproblem size
 ```
 
 ---
@@ -373,9 +362,7 @@ class CustomQUBOSolver(QUBOSolver):
     def sdp_bound(self, node, P0, P, *args, **kwargs):
         # P.L is the transformed Max-Cut subproblem.
         bound, X = my_sdp(P.L)
-        self.set_sdp_primal_solution(
-            np.asarray(X, dtype=np.float64, order='C')
-        )
+        self.set_sdp_primal_solution(np.asarray(X, dtype=np.float64, order="C"))
         return float(bound)
 ```
 
@@ -392,7 +379,7 @@ Timing and return-value data can be collected for root callbacks:
 ```python
 solver = CustomSolver(
     problem=problem,
-    params='params',
+    params="params",
     collect_heuristic_root_data=True,
     collect_sdp_bound_root_data=True,
 )
@@ -402,16 +389,16 @@ Each collected callback entry contains:
 
 ```python
 {
-    'time': ...,
-    'value': ...,
+    "time": ...,
+    "value": ...,
 }
 ```
 
 The resulting metadata includes:
 
 ```python
-solution.meta_data['root_node']['heuristic_data']
-solution.meta_data['root_node']['sdp_bound_data']
+solution.meta_data["root_node"]["heuristic_data"]
+solution.meta_data["root_node"]["sdp_bound_data"]
 ```
 
 Heuristic root metadata also contains accumulated heuristic time and call count.
@@ -437,7 +424,13 @@ Validate external-library inputs before expensive work and avoid mutating native
 
 ---
 
-## Minimal complete example
+## Custom solver template
+
+This is a template, not a runnable example: replace `my_sdp_solver` and
+`my_heuristic` with your implementations following the contracts above.
+Override only the callbacks you need; omitted methods keep the built-in
+implementation. For a runnable example using the built-in solver, see the
+[QUBO API example](api/index.md#runnable-qubo-example).
 
 ```python
 import numpy as np
@@ -449,7 +442,7 @@ class MySolver(QUBOSolver):
     def sdp_bound(self, node, P0, P, *args, **kwargs):
         bound, X = my_sdp_solver(P.L)
 
-        X = np.asarray(X, dtype=np.float64, order='C')
+        X = np.asarray(X, dtype=np.float64, order="C")
         self.set_sdp_primal_solution(X)
 
         return float(bound)
@@ -459,16 +452,13 @@ class MySolver(QUBOSolver):
         return np.asarray(x, dtype=np.int32)
 
 
-init() # initialize MPI
+init()  # initialize MPI
 problem = ProblemQubo(
-    Q=np.array([[1, -2],[0, 4]]),
-    offset=0,
-    problem_name='example_problem',
-    is_minimization=True
+    Q=np.array([[1, -2], [0, 4]]), offset=0, problem_name="example_problem", is_minimization=True
 )
 solver = MySolver(
     problem=problem,
-    params='params',
+    params="params",
 )
 
 solution = solver.compute()

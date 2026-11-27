@@ -1,42 +1,42 @@
-from biqbin.logging import configure_rank_logging
-from biqbin import QUBOSolver, get_rank, QuboSolutionToJson, init
-from biqbin.argparsers import ArgParserQubo
-import numpy as np
 import json
 
-from biqbin.data_parsers import FromFile
+import numpy as np
+
+from biqbin import QuboSolutionToJson, QUBOSolver, get_rank, init
+from biqbin.argparsers import ArgParserQubo
+from biqbin.logging import configure_rank_logging
 
 """
     Default Qubo solver using Biqbin MaxCut wrapper
 """
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = ArgParserQubo()
     args = parser.parse_args()
 
-    init() # initialize MPI
+    init()  # initialize MPI
     configure_rank_logging(args.log_dir, get_rank())
     parser_class = args.format
-    file_reader = parser_class(
-        args.problem_instance, optimize_input=args.optimize)
+    file_reader = parser_class(args.problem_instance, optimize_input=args.optimize)
 
     # Read the file and get the problem
     problem = file_reader.read()
 
     if get_rank() == 0 and args.solution:
-        with open(args.solution, 'r') as f:
-            initial_estimate = np.array(json.load(f)['initial_estimate'])
+        with open(args.solution, "r") as f:
+            initial_estimate = np.array(json.load(f)["initial_estimate"])
     else:
         initial_estimate = None
 
     # Initialize QUBOSolver class which takes a path to parameters file and time limit
-    solver = QUBOSolver(problem=problem,
-                        params=args.params,
-                        time_limit=args.time,
-                        initial_estimate=initial_estimate,
-                        collect_heuristic_root_data=args.collect_root_data,
-                        collect_sdp_bound_root_data=args.collect_root_data
-                        )
+    solver = QUBOSolver(
+        problem=problem,
+        params=args.params,
+        time_limit=args.time,
+        initial_estimate=initial_estimate,
+        collect_heuristic_root_data=args.collect_root_data,
+        collect_sdp_bound_root_data=args.collect_root_data,
+    )
 
     # Run biqbin solver to solve the qubo, passing in the problem
     solution = solver.compute()
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     if get_rank() == 0:
         # Master rank prints the results
         if solution is None:
-            raise ValueError(f'Could not compute solution for {problem}')
+            raise ValueError(f"Could not compute solution for {problem}")
 
         solution.print_computed_solution(args.verbose)
         # Save output path
@@ -54,10 +54,8 @@ if __name__ == '__main__':
         if isinstance(args.output, str):
             output_path = args.output
         else:
-            output_path = args.problem_instance + '.output'
+            output_path = args.problem_instance + ".output"
 
-        file_writer.write(output_path,
-                          overwrite=args.overwrite,
-                          with_metadata=True,
-                          with_maxcut_solution=True
-                          )
+        file_writer.write(
+            output_path, overwrite=args.overwrite, with_metadata=True, with_maxcut_solution=True
+        )
